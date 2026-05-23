@@ -1,10 +1,29 @@
 [project]
 name = "vnccs-utils"
 description = "VNCCS - Collection of utility nodes. VNCCS Visual Camera Control for Qwen-Image-Edit-2511-Multiple-Angles LoRa. VNCCS QWEN Detailer - For spot corrections in images of any size. VNCCS Pose Studio - Combined mesh editor and multi-pose generator. "
-version = "0.4.18"
+version = "0.4.19"
 license = {file = "LICENSE"} 
 
-dependencies = ["opencv-python", "huggingface_hub", "aiohttp", "kornia", "requests", "torch", "numpy", "Pillow"]
+dependencies = [
+    "opencv-python",
+    "huggingface_hub",
+    "aiohttp",
+    "kornia",
+    "requests",
+    "torch",
+    "torchvision",
+    "numpy",
+    "Pillow",
+    "transformers",
+    "safetensors",
+    "pytorch-lightning",
+    "omegaconf",
+    "yacs",
+    "timm",
+    "einops",
+    "roma",
+    "braceexpand",
+]
 
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -32,4 +51,3 @@ NodeIds = [
     "VNCCS_ModelSelector",
     "VNCCS_PoseStudio"
 ]
-
