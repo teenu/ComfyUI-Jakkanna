@@ -1064,6 +1064,348 @@ const STYLES = `
     min-width: 40px;
 }
 
+/* === Pose Manager === */
+.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-left,
+.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-center,
+.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-right-sidebar {
+    display: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-tabs-shell {
+    display: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-main-moved-manager,
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-camera-dim-row {
+    display: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager .vnccs-ps-btn.primary::after,
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-btn.primary::after {
+    display: none;
+    animation: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail {
+    padding-top: 130px;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager,
+.vnccs-pose-studio:not(.vnccs-ps-mode-manager) .vnccs-ps-manager {
+    display: none;
+}
+
+.vnccs-ps-manager-detail-strip {
+    display: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip {
+    --pm-detail-card-w: 96px;
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 75;
+    height: 130px;
+    box-sizing: border-box;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid var(--ps-accent-border);
+    pointer-events: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 143, 163, 0.45) transparent;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip::-webkit-scrollbar {
+    height: 6px;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip::-webkit-scrollbar-thumb {
+    background: rgba(255, 143, 163, 0.45);
+    border-radius: 999px;
+}
+
+.vnccs-ps-detail-card {
+    width: var(--pm-detail-card-w);
+    height: 106px;
+    flex: 0 0 var(--pm-detail-card-w);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 143, 163, 0.24);
+    background: #101017;
+    color: var(--ps-text);
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.vnccs-ps-detail-card.active {
+    border-color: rgba(255, 143, 163, 0.85);
+    box-shadow: 0 0 0 1px rgba(255, 143, 163, 0.12);
+}
+
+.vnccs-ps-detail-card-preview {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #5b586b;
+    overflow: hidden;
+}
+
+.vnccs-ps-detail-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.vnccs-ps-detail-card-bottom {
+    height: 28px;
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 5px;
+    background: rgba(7, 7, 13, 0.98);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.vnccs-ps-detail-card-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.vnccs-ps-detail-card-delete {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: 5px;
+    font-size: 10px;
+}
+
+.vnccs-ps-manager {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #080810;
+    pointer-events: auto;
+}
+
+.vnccs-ps-manager-header {
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--ps-accent-border);
+    background: rgba(12, 11, 18, 0.96);
+}
+
+.vnccs-ps-manager-title {
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--ps-text);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.vnccs-ps-manager-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.vnccs-ps-manager-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+}
+
+.vnccs-ps-manager-sidebar {
+    width: 220px;
+    zoom: var(--vnccs-ps-ui-scale);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    overflow-y: auto;
+    border-right: 1px solid var(--ps-border);
+    background: rgba(6, 5, 12, 0.7);
+    pointer-events: auto;
+}
+
+.vnccs-ps-manager-sidebar::-webkit-scrollbar { width: 4px; }
+.vnccs-ps-manager-sidebar::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
+
+.vnccs-ps-manager-stage {
+    --pm-card-w: 260px;
+    --pm-card-h: 370px;
+    --pm-card-footer-h: 52px;
+    flex: 1;
+    min-height: 0;
+    padding: 14px 18px 18px;
+    overflow: hidden;
+}
+
+.vnccs-ps-manager-grid {
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(var(--pm-cols, 1), minmax(0, 1fr));
+    align-content: flex-start;
+    gap: 14px;
+}
+
+.vnccs-ps-pose-card {
+    width: 100%;
+    height: var(--pm-card-h);
+    min-width: 28px;
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 143, 163, 0.28);
+    background: #111119;
+    color: var(--ps-text);
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+    transition: border-color var(--ps-transition), transform var(--ps-transition), box-shadow var(--ps-transition);
+    box-sizing: border-box;
+}
+
+.vnccs-ps-pose-card:hover,
+.vnccs-ps-pose-card.active {
+    border-color: rgba(255, 143, 163, 0.72);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(255, 143, 163, 0.1);
+    transform: translateY(-1px);
+}
+
+.vnccs-ps-pose-preview {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #5b586b;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.vnccs-ps-pose-preview img {
+    width: calc(100% - 10px);
+    height: calc(100% - 10px);
+    object-fit: contain;
+    display: block;
+}
+
+.vnccs-ps-pose-preview-empty {
+    width: 38%;
+    aspect-ratio: 1 / 2.15;
+    border-radius: 999px 999px 12px 12px;
+    background: linear-gradient(180deg, rgba(238, 226, 214, 0.72), rgba(188, 176, 166, 0.72));
+    opacity: 0.8;
+    position: relative;
+}
+
+.vnccs-ps-pose-preview-empty::before {
+    content: '';
+    position: absolute;
+    width: 34%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    left: 33%;
+    top: -18%;
+    background: rgba(238, 226, 214, 0.84);
+}
+
+.vnccs-ps-pose-card-bottom {
+    flex-shrink: 0;
+    height: var(--pm-card-footer-h);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: clamp(2px, calc(var(--pm-card-w) * 0.035), 10px);
+    padding: 6px clamp(7px, calc(var(--pm-card-w) * 0.045), 14px);
+    box-sizing: border-box;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(7, 7, 13, 0.98);
+}
+
+.vnccs-ps-pose-card-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(7px, calc(var(--pm-card-w) * 0.075), 20px);
+    font-weight: 800;
+    min-width: 0;
+}
+
+.vnccs-ps-pose-card-delete {
+    min-width: clamp(14px, calc(var(--pm-card-w) * 0.24), 76px);
+    height: clamp(20px, calc(var(--pm-card-footer-h) - 12px), 48px);
+    padding: 0 clamp(2px, calc(var(--pm-card-w) * 0.04), 14px);
+    border-radius: clamp(4px, calc(var(--pm-card-w) * 0.03), 8px);
+    font-size: clamp(6px, calc(var(--pm-card-w) * 0.065), 18px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vnccs-ps-pose-card-delete {
+    min-width: clamp(14px, calc(var(--pm-card-w) * 0.16), 52px);
+    color: #ff6474;
+}
+
+.vnccs-ps-manager-empty {
+    margin: auto;
+    color: var(--ps-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.vnccs-ps-manager-back {
+    display: none;
+}
+
+.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-back {
+    display: flex;
+    width: 100%;
+    position: static !important;
+    transform: none;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    line-height: 1.25;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 8px 26px var(--ps-accent-glow);
+    pointer-events: auto;
+}
+
 .vnccs-ps-modal-title {
     background: rgba(0, 0, 0, 0.3);
     padding: 12px 16px;
@@ -2109,6 +2451,8 @@ class PoseStudioWidget {
         this.activeTab = 0;
         this.poseCaptures = []; // Cache for captured images
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
+        this.interfaceMode = "studio"; // studio | manager | managerDetail
+        this.pendingAgeCameraFit = false;
 
         // Slider values
         this.meshParams = {
@@ -2155,7 +2499,8 @@ class PoseStudioWidget {
             user_prompt: "",
             prompt_template: "Draw character from image2\n<lighting>\n<user_prompt>",
             skin_type: "naked", // naked | naked_marks | dummy_white
-            background_url: null
+            background_url: null,
+            interface_mode: "studio"
         };
 
         // Lighting settings (array of light configs)
@@ -2172,6 +2517,17 @@ class PoseStudioWidget {
         this.tabScrollRight = null;
         this._tabResizeObserver = null;
         this.canvasContainer = null;
+        this.managerPanel = null;
+        this.managerGrid = null;
+        this.managerStage = null;
+        this.managerBody = null;
+        this.managerSidebar = null;
+        this.managerControls = {};
+        this.managerGenderBtns = null;
+        this.managerGenderFields = {};
+        this.managerDetailStrip = null;
+        this.managerResizeObserver = null;
+        this.managerBackBtn = null;
         this._defaultHandPresets = HAND_PRESETS;
         this._handSliderValues = { spread: 0, grasp: 0, thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 };
         this._handSliderDefaults = { spread: 0, grasp: 0, thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 };
@@ -2207,7 +2563,9 @@ class PoseStudioWidget {
         this._createLeftPanel();
         this._createCenterPanel();
         this._createRightSidebar();
+        this._createPoseManager();
         this._setupFinalUI();
+        this.applyInterfaceMode();
     }
 
     _createLayout() {
@@ -2227,11 +2585,335 @@ class PoseStudioWidget {
         this.container.appendChild(this.rightSidebar);
     }
 
+    _createPoseManager() {
+        this.managerPanel = document.createElement("div");
+        this.managerPanel.className = "vnccs-ps-manager";
+
+        const header = document.createElement("div");
+        header.className = "vnccs-ps-manager-header";
+
+        const title = document.createElement("div");
+        title.className = "vnccs-ps-manager-title";
+        title.textContent = "VNCCS Pose Manager";
+
+        const actions = document.createElement("div");
+        actions.className = "vnccs-ps-manager-actions";
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "vnccs-ps-btn primary";
+        addBtn.type = "button";
+        addBtn.textContent = "Add Pose";
+        addBtn.addEventListener("click", () => {
+            this.addTab({ capturePreview: true });
+            this.setInterfaceMode("manager");
+        });
+
+        actions.appendChild(addBtn);
+        header.appendChild(title);
+        header.appendChild(actions);
+
+        this.managerBody = document.createElement("div");
+        this.managerBody.className = "vnccs-ps-manager-body";
+        this.managerSidebar = this._createPoseManagerSidebar();
+
+        this.managerStage = document.createElement("div");
+        this.managerStage.className = "vnccs-ps-manager-stage";
+        this.managerGrid = document.createElement("div");
+        this.managerGrid.className = "vnccs-ps-manager-grid";
+        this.managerStage.appendChild(this.managerGrid);
+        this.managerBody.appendChild(this.managerSidebar);
+        this.managerBody.appendChild(this.managerStage);
+
+        this.managerPanel.appendChild(header);
+        this.managerPanel.appendChild(this.managerBody);
+        this.container.appendChild(this.managerPanel);
+
+        if (typeof ResizeObserver !== "undefined") {
+            this.managerResizeObserver = new ResizeObserver(() => this.layoutPoseManager());
+            this.managerResizeObserver.observe(this.managerStage);
+        }
+        this.renderPoseManager();
+    }
+
+    _createPoseManagerSidebar() {
+        const sidebar = document.createElement("div");
+        sidebar.className = "vnccs-ps-manager-sidebar";
+
+        const meshSection = this.createSection("Mesh Parameters", true);
+
+        const genderField = document.createElement("div");
+        genderField.className = "vnccs-ps-field";
+        const genderLabel = document.createElement("div");
+        genderLabel.className = "vnccs-ps-label";
+        genderLabel.innerText = "Gender";
+        const genderToggle = document.createElement("div");
+        genderToggle.className = "vnccs-ps-toggle";
+
+        const btnMale = document.createElement("button");
+        btnMale.className = "vnccs-ps-toggle-btn male";
+        btnMale.type = "button";
+        btnMale.innerText = "Male";
+        const btnFemale = document.createElement("button");
+        btnFemale.className = "vnccs-ps-toggle-btn female";
+        btnFemale.type = "button";
+        btnFemale.innerText = "Female";
+        this.managerGenderBtns = { male: btnMale, female: btnFemale };
+
+        btnMale.addEventListener("click", () => this.setManagerGender(1.0));
+        btnFemale.addEventListener("click", () => this.setManagerGender(0.0));
+        genderToggle.appendChild(btnMale);
+        genderToggle.appendChild(btnFemale);
+        genderField.appendChild(genderLabel);
+        genderField.appendChild(genderToggle);
+        meshSection.content.appendChild(genderField);
+
+        [
+            { key: "age", label: "Age", min: 1, max: 90, step: 1 },
+            { key: "weight", label: "Weight", min: 0, max: 1, step: 0.01 },
+            { key: "muscle", label: "Muscle", min: 0, max: 1, step: 0.01 },
+            { key: "height", label: "Height", min: 0, max: 2, step: 0.01 }
+        ].forEach((def) => {
+            meshSection.content.appendChild(this.createManagerSlider(def, "mesh"));
+        });
+        sidebar.appendChild(meshSection.el);
+
+        const genderSection = this.createSection("Gender Settings", true);
+        [
+            { key: "breast_size", label: "Breast Size", min: 0, max: 2, step: 0.01, gender: "female" },
+            { key: "firmness", label: "Firmness", min: 0, max: 1, step: 0.01, gender: "female" },
+            { key: "penis_len", label: "Length", min: 0, max: 1, step: 0.01, gender: "male" },
+            { key: "penis_circ", label: "Girth", min: 0, max: 1, step: 0.01, gender: "male" },
+            { key: "penis_test", label: "Testicles", min: 0, max: 1, step: 0.01, gender: "male" }
+        ].forEach((def) => {
+            const field = this.createManagerSlider(def, "mesh");
+            this.managerGenderFields[def.key] = { field, gender: def.gender };
+            genderSection.content.appendChild(field);
+        });
+        sidebar.appendChild(genderSection.el);
+
+        const cameraSection = this.createSection("Camera", true);
+        const dimRow = document.createElement("div");
+        dimRow.className = "vnccs-ps-row";
+        dimRow.appendChild(this.createManagerInput({ key: "view_width", label: "Width", min: 64, max: 4096, step: 8 }));
+        dimRow.appendChild(this.createManagerInput({ key: "view_height", label: "Height", min: 64, max: 4096, step: 8 }));
+        cameraSection.content.appendChild(dimRow);
+        sidebar.appendChild(cameraSection.el);
+
+        this.refreshPoseManagerControls();
+        return sidebar;
+    }
+
+    createManagerSlider(def, group) {
+        const field = document.createElement("div");
+        field.className = "vnccs-ps-field";
+
+        const labelRow = document.createElement("div");
+        labelRow.className = "vnccs-ps-label-row";
+        labelRow.style.display = "flex";
+        labelRow.style.justifyContent = "space-between";
+        labelRow.style.alignItems = "center";
+
+        const label = document.createElement("span");
+        label.className = "vnccs-ps-label";
+        label.innerText = def.label;
+
+        const value = document.createElement("span");
+        value.className = "vnccs-ps-value";
+
+        const wrap = document.createElement("div");
+        wrap.className = "vnccs-ps-slider-wrap";
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "vnccs-ps-slider";
+        slider.min = def.min;
+        slider.max = def.max;
+        slider.step = def.step;
+
+        slider.addEventListener("input", () => {
+            const next = this.normalizeManagerNumber(slider.value, def);
+            slider.value = next;
+            this.applyManagerMeshValue(def.key, next);
+        });
+
+        labelRow.appendChild(label);
+        labelRow.appendChild(value);
+        wrap.appendChild(slider);
+        field.appendChild(labelRow);
+        field.appendChild(wrap);
+
+        this.managerControls[def.key] = { input: slider, value, group, def };
+        return field;
+    }
+
+    createManagerInput(def) {
+        const field = document.createElement("div");
+        field.className = "vnccs-ps-field";
+
+        const label = document.createElement("div");
+        label.className = "vnccs-ps-label";
+        label.innerText = def.label;
+
+        const input = document.createElement("input");
+        input.type = "number";
+        input.className = "vnccs-ps-input";
+        input.min = def.min;
+        input.max = def.max;
+        input.step = def.step;
+
+        input.addEventListener("change", () => {
+            const next = this.normalizeManagerNumber(input.value, def);
+            input.value = next;
+            this.applyManagerExportValue(def.key, next);
+        });
+
+        field.appendChild(label);
+        field.appendChild(input);
+        this.managerControls[def.key] = { input, group: "export", def };
+        return field;
+    }
+
+    normalizeManagerNumber(value, def) {
+        let next = Number(value);
+        if (!Number.isFinite(next)) {
+            const source = def.key in this.meshParams ? this.meshParams : this.exportParams;
+            next = Number(source[def.key] ?? def.min ?? 0);
+        }
+        next = Math.max(def.min, Math.min(def.max, next));
+        if (def.step >= 1) next = Math.round(next);
+        return next;
+    }
+
+    formatManagerValue(key, value) {
+        return key === "age" || key === "view_width" || key === "view_height"
+            ? String(Math.round(Number(value) || 0))
+            : Number(value || 0).toFixed(2);
+    }
+
+    applyManagerMeshValue(key, value) {
+        this.meshParams[key] = value;
+        const main = this.sliders?.[key];
+        if (main) {
+            main.slider.value = value;
+            main.label.innerText = this.formatManagerValue(key, value);
+        }
+        this.refreshPoseManagerControls();
+        this.onMeshParamsChanged(key);
+        this.syncToNode(false, { skipCapture: true });
+    }
+
+    applyExternalCharacterCreatorValues(values, { initial = false } = {}) {
+        if (!values) return false;
+        let changed = false;
+        const sourceKeys = [];
+
+        if (Number.isFinite(values.age)) {
+            const age = Math.max(1, Math.min(90, Math.round(values.age)));
+            if (this.meshParams.age !== age) {
+                this.meshParams.age = age;
+                sourceKeys.push("age");
+                changed = true;
+            }
+        }
+
+        if (Number.isFinite(values.gender)) {
+            const gender = Math.max(0, Math.min(1, values.gender));
+            if (this.meshParams.gender !== gender) {
+                this.meshParams.gender = gender;
+                sourceKeys.push("gender");
+                changed = true;
+            }
+        }
+
+        if (!changed) return false;
+
+        for (const key of sourceKeys) {
+            const main = this.sliders?.[key];
+            if (main) {
+                main.slider.value = this.meshParams[key];
+                main.label.innerText = this.formatManagerValue(key, this.meshParams[key]);
+            }
+        }
+
+        this.updateGenderUI();
+        this.updateGenderVisibility();
+        this.refreshPoseManagerControls();
+        if (initial) {
+            this._suppressNextAgeFitSync = true;
+        }
+        this.onMeshParamsChanged(sourceKeys.includes("age") ? "age" : sourceKeys[0]);
+        if (!initial) {
+            this.syncToNode(false, { skipCapture: this.interfaceMode === "manager" });
+        }
+        return true;
+    }
+
+    setManagerGender(value) {
+        this.meshParams.gender = value;
+        this.updateGenderUI();
+        this.updateGenderVisibility();
+        this.refreshPoseManagerControls();
+        this.onMeshParamsChanged("gender");
+        this.syncToNode(false, { skipCapture: true });
+    }
+
+    applyManagerExportValue(key, value) {
+        this.exportParams[key] = value;
+        const main = this.exportWidgets?.[key];
+        if (main) main.value = value;
+        const isDimension = key === "view_width" || key === "view_height";
+        if (isDimension) {
+            this._lastResizeW = 0;
+            this._lastResizeH = 0;
+            this.resize();
+            this.updateCaptureCameraPreview();
+            this.layoutPoseManager();
+        }
+        this.refreshPoseManagerControls();
+        if (isDimension) {
+            this.syncToNode(true);
+            return;
+        }
+        this.syncToNode(false, { skipCapture: true });
+    }
+
+    refreshPoseManagerControls() {
+        if (this.managerGenderBtns) {
+            const isFemale = this.meshParams.gender < 0.5;
+            this.managerGenderBtns.male.classList.toggle("active", !isFemale);
+            this.managerGenderBtns.female.classList.toggle("active", isFemale);
+        }
+
+        for (const [key, info] of Object.entries(this.managerControls || {})) {
+            const source = info.group === "export" ? this.exportParams : this.meshParams;
+            const value = source[key];
+            if (info.input && value !== undefined) info.input.value = value;
+            if (info.value) info.value.innerText = this.formatManagerValue(key, value);
+        }
+
+        const isFemale = this.meshParams.gender < 0.5;
+        for (const info of Object.values(this.managerGenderFields || {})) {
+            if (info.gender === "female") info.field.style.display = isFemale ? "" : "none";
+            else if (info.gender === "male") info.field.style.display = isFemale ? "none" : "";
+        }
+    }
+
     _createLeftPanel() {
         const leftPanel = this.leftPanel;
 
+        const managerBackWrap = document.createElement("div");
+        managerBackWrap.style.paddingBottom = "5px";
+        this.managerBackBtn = document.createElement("button");
+        this.managerBackBtn.className = "vnccs-ps-btn primary vnccs-ps-manager-back";
+        this.managerBackBtn.type = "button";
+        this.managerBackBtn.textContent = "Back to Pose Manager";
+        this.managerBackBtn.addEventListener("click", () => this.setInterfaceMode("manager"));
+        managerBackWrap.appendChild(this.managerBackBtn);
+        leftPanel.appendChild(managerBackWrap);
+
         // --- MESH PARAMS SECTION ---
         const meshSection = this.createSection("Mesh Parameters", true);
+        meshSection.el.classList.add("vnccs-ps-main-moved-manager");
 
         // Gender Toggle
         const genderField = document.createElement("div");
@@ -2259,14 +2941,14 @@ class PoseStudioWidget {
             this.meshParams.gender = 1.0;
             this.updateGenderUI();
             this.updateGenderVisibility();
-            this.onMeshParamsChanged();
+            this.onMeshParamsChanged("gender");
         });
 
         btnFemale.addEventListener("click", () => {
             this.meshParams.gender = 0.0;
             this.updateGenderUI();
             this.updateGenderVisibility();
-            this.onMeshParamsChanged();
+            this.onMeshParamsChanged("gender");
         });
 
         this.updateGenderUI();
@@ -2317,6 +2999,7 @@ class PoseStudioWidget {
 
         // --- GENDER SETTINGS SECTION ---
         const genderSection = this.createSection("Gender Settings", true);
+        genderSection.el.classList.add("vnccs-ps-main-moved-manager");
         this.genderFields = {};
 
         const femaleSliders = [
@@ -2420,7 +3103,7 @@ class PoseStudioWidget {
         // --- CAMERA SETTINGS SECTION ---
         const camSection = this.createSection("Camera", true);
         const dimRow = document.createElement("div");
-        dimRow.className = "vnccs-ps-row";
+        dimRow.className = "vnccs-ps-row vnccs-ps-camera-dim-row";
         dimRow.appendChild(this.createInputField("Width", "view_width", "number", 64, 4096, 8));
         dimRow.appendChild(this.createInputField("Height", "view_height", "number", 64, 4096, 8));
         camSection.content.appendChild(dimRow);
@@ -2532,6 +3215,10 @@ class PoseStudioWidget {
             this._tabResizeObserver.observe(this.tabsContainer);
         }
         this.updateTabs();
+
+        this.managerDetailStrip = document.createElement("div");
+        this.managerDetailStrip.className = "vnccs-ps-manager-detail-strip";
+        this.container.appendChild(this.managerDetailStrip);
 
         // Canvas Container
         this.canvasContainer = document.createElement("div");
@@ -2881,6 +3568,243 @@ class PoseStudioWidget {
         }
     }
 
+    setInterfaceMode(mode, { sync = true } = {}) {
+        const normalized = mode === "manager" || mode === "managerDetail" ? mode : "studio";
+        this.interfaceMode = normalized;
+        this.exportParams.interface_mode = normalized === "studio" ? "studio" : "manager";
+        this.applyInterfaceMode();
+        if (normalized === "manager") {
+            this.refreshPoseManagerControls();
+            this.renderPoseManager();
+            requestAnimationFrame(() => this.layoutPoseManager());
+        } else {
+            requestAnimationFrame(() => this.resize());
+        }
+        if (sync) this.syncToNode(false, { skipCapture: normalized === "manager" });
+    }
+
+    applyInterfaceMode() {
+        if (!this.container) return;
+        this.container.classList.toggle("vnccs-ps-mode-manager", this.interfaceMode === "manager");
+        this.container.classList.toggle("vnccs-ps-mode-manager-detail", this.interfaceMode === "managerDetail");
+        if (this.interfaceMode === "managerDetail") {
+            this.renderPoseManagerDetailStrip();
+        }
+        if (this.interfaceMode !== "manager") {
+            requestAnimationFrame(() => this.resize());
+        }
+    }
+
+    openPoseFromManager(index) {
+        if (index < 0 || index >= this.poses.length) return;
+        if (index !== this.activeTab) {
+            this.switchTab(index);
+        }
+        this.setInterfaceMode("managerDetail");
+    }
+
+    renderPoseManager() {
+        if (!this.managerGrid) return;
+        this.refreshPoseManagerControls();
+        this.ensurePosePrompts();
+        this.managerGrid.innerHTML = "";
+
+        if (!this.poses.length) {
+            const empty = document.createElement("div");
+            empty.className = "vnccs-ps-manager-empty";
+            empty.textContent = "No poses";
+            this.managerGrid.appendChild(empty);
+            return;
+        }
+
+        for (let i = 0; i < this.poses.length; i++) {
+            const card = document.createElement("div");
+            card.className = "vnccs-ps-pose-card" + (i === this.activeTab ? " active" : "");
+            card.tabIndex = 0;
+            card.role = "button";
+            card.title = `Open Pose ${i + 1}`;
+
+            const preview = document.createElement("div");
+            preview.className = "vnccs-ps-pose-preview";
+            const capture = this.poseCaptures?.[i];
+            if (capture) {
+                const img = document.createElement("img");
+                img.src = capture;
+                img.alt = `Pose ${i + 1}`;
+                preview.appendChild(img);
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.className = "vnccs-ps-pose-preview-empty";
+                preview.appendChild(placeholder);
+            }
+
+            const bottom = document.createElement("div");
+            bottom.className = "vnccs-ps-pose-card-bottom";
+
+            const name = document.createElement("div");
+            name.className = "vnccs-ps-pose-card-name";
+            name.textContent = `Pose ${i + 1}`;
+
+            const del = document.createElement("button");
+            del.className = "vnccs-ps-btn danger vnccs-ps-pose-card-delete";
+            del.type = "button";
+            del.textContent = "X";
+            del.title = `Delete Pose ${i + 1}`;
+            del.disabled = this.poses.length <= 1;
+            del.addEventListener("click", (event) => {
+                event.stopPropagation();
+                this.deleteTab(i);
+                this.setInterfaceMode("manager");
+            });
+
+            bottom.appendChild(name);
+            bottom.appendChild(del);
+            card.appendChild(preview);
+            card.appendChild(bottom);
+            card.addEventListener("click", () => this.openPoseFromManager(i));
+            card.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    this.openPoseFromManager(i);
+                }
+            });
+            this.managerGrid.appendChild(card);
+        }
+
+        this.layoutPoseManager();
+    }
+
+    layoutPoseManager() {
+        if (!this.managerStage || !this.managerGrid) return;
+        const count = Math.max(1, this.poses?.length || 1);
+        const stageStyle = getComputedStyle(this.managerStage);
+        const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
+        const padY = (parseFloat(stageStyle.paddingTop) || 0) + (parseFloat(stageStyle.paddingBottom) || 0);
+        const width = Math.max(1, this.managerStage.clientWidth - padX - 2);
+        const height = Math.max(1, this.managerStage.clientHeight - padY - 18);
+        const gap = 14;
+        const preferredRows = count <= 6 ? 1 : (count <= 12 ? 2 : Math.ceil(count / 6));
+        const minCardW = count <= 6 ? 130 : 80;
+        const minCardH = 130;
+        const previewAspect = Math.max(0.35, Math.min(4, (Number(this.exportParams.view_height) || 1024) / (Number(this.exportParams.view_width) || 1024)));
+        let best = null;
+
+        for (let rows = 1; rows <= count; rows++) {
+            const cols = Math.ceil(count / rows);
+            const cardW = (width - gap * (cols - 1)) / cols;
+            const rowH = (height - gap * (rows - 1)) / rows;
+            if (cardW <= 0) continue;
+            if (rowH <= 0) continue;
+
+            const footerH = Math.max(44, Math.min(60, cardW * 0.18));
+            const previewH = Math.max(40, Math.min(cardW * previewAspect, rowH - footerH));
+            const cardH = previewH + footerH;
+            if ((cardW < minCardW || cardH < minCardH) && count > 1) continue;
+
+            const emptySlots = rows * cols - count;
+            const rowPenalty = Math.abs(rows - preferredRows) * 100000;
+            const aspect = previewH / Math.max(1, cardW);
+            const aspectPenalty = Math.abs(aspect - Math.min(previewAspect, 1.8)) * 80;
+            const unusedRowH = Math.max(0, rowH - cardH);
+            const sizeScore = Math.min(cardW, previewH / Math.min(previewAspect, 1.8)) * 100;
+            const fillBonus = previewAspect > 1.6 ? -unusedRowH * 0.2 : -unusedRowH * 0.02;
+            const score = sizeScore - rowPenalty - emptySlots * 80 - aspectPenalty;
+
+            if (!best || score > best.score) {
+                best = { cols, rows, cardW, cardH, footerH, score: score + fillBonus };
+            }
+        }
+
+        if (!best) {
+            const rows = Math.min(count, Math.max(1, preferredRows));
+            const cols = Math.ceil(count / rows);
+            const cardW = Math.max(28, (width - gap * (cols - 1)) / cols);
+            const rowH = Math.max(40, (height - gap * (rows - 1)) / rows);
+            const footerH = Math.max(44, Math.min(60, cardW * 0.18));
+            const cardH = Math.max(40, Math.min(rowH, cardW * previewAspect + footerH));
+            best = { cols, rows, cardW, cardH, footerH, score: 0 };
+        }
+
+        const cardWidth = Math.max(28, Math.floor(best.cardW));
+        const cardHeight = Math.max(40, Math.floor(best.cardH));
+        const footerHeight = Math.max(44, Math.floor(best.footerH));
+        this.managerStage.style.setProperty("--pm-card-w", `${cardWidth}px`);
+        this.managerStage.style.setProperty("--pm-card-h", `${cardHeight}px`);
+        this.managerStage.style.setProperty("--pm-card-footer-h", `${footerHeight}px`);
+        this.managerGrid.style.setProperty("--pm-cols", String(best.cols));
+    }
+
+    renderPoseManagerDetailStrip() {
+        if (!this.managerDetailStrip) return;
+        if (this.interfaceMode !== "managerDetail") return;
+        this.ensurePosePrompts();
+        this.managerDetailStrip.innerHTML = "";
+
+        for (let i = 0; i < this.poses.length; i++) {
+            const card = document.createElement("div");
+            card.className = "vnccs-ps-detail-card" + (i === this.activeTab ? " active" : "");
+            card.tabIndex = 0;
+            card.role = "button";
+            card.title = `Open Pose ${i + 1}`;
+
+            const preview = document.createElement("div");
+            preview.className = "vnccs-ps-detail-card-preview";
+            const capture = this.poseCaptures?.[i];
+            if (capture) {
+                const img = document.createElement("img");
+                img.src = capture;
+                img.alt = `Pose ${i + 1}`;
+                preview.appendChild(img);
+            } else {
+                const placeholder = document.createElement("div");
+                placeholder.className = "vnccs-ps-pose-preview-empty";
+                preview.appendChild(placeholder);
+            }
+
+            const bottom = document.createElement("div");
+            bottom.className = "vnccs-ps-detail-card-bottom";
+
+            const name = document.createElement("div");
+            name.className = "vnccs-ps-detail-card-name";
+            name.textContent = `Pose ${i + 1}`;
+
+            const del = document.createElement("button");
+            del.className = "vnccs-ps-btn danger vnccs-ps-detail-card-delete";
+            del.type = "button";
+            del.textContent = "X";
+            del.title = `Delete Pose ${i + 1}`;
+            del.disabled = this.poses.length <= 1;
+            del.addEventListener("click", (event) => {
+                event.stopPropagation();
+                this.deleteTab(i);
+                this.setInterfaceMode("managerDetail");
+            });
+
+            const open = () => {
+                if (i !== this.activeTab) this.switchTab(i);
+                this.setInterfaceMode("managerDetail");
+            };
+
+            bottom.appendChild(name);
+            bottom.appendChild(del);
+            card.appendChild(preview);
+            card.appendChild(bottom);
+            card.addEventListener("click", open);
+            card.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    open();
+                }
+            });
+            this.managerDetailStrip.appendChild(card);
+        }
+
+        requestAnimationFrame(() => {
+            const active = this.managerDetailStrip?.querySelector(".vnccs-ps-detail-card.active");
+            active?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        });
+    }
+
     applyCameraToViewer(snap = true) {
         if (!this.viewer) return;
         const args = [
@@ -2981,6 +3905,59 @@ class PoseStudioWidget {
         this.applyCameraToViewer(false);
     }
 
+    applyAgeCameraFit() {
+        if (!this.viewer?.computeModelFitZoom) return false;
+        if (!this.viewer?.isInitialized?.()) return false;
+
+        const originalTab = this.activeTab;
+        let changed = false;
+
+        for (let i = 0; i < this.poses.length; i++) {
+            const pose = this.poses[i] || {};
+            const camera = pose.cameraParams || {};
+
+            this.viewer.setPose(pose, true);
+            const zoom = this.viewer.computeModelFitZoom(
+                this.exportParams.view_width || 1024,
+                this.exportParams.view_height || 1024,
+                camera.offset_x ?? this.exportParams.cam_offset_x ?? 0,
+                camera.offset_y ?? this.exportParams.cam_offset_y ?? 0,
+                camera.yaw_deg ?? this.exportParams.cam_yaw_deg ?? 0,
+                camera.pitch_deg ?? this.exportParams.cam_pitch_deg ?? 0,
+                0.08
+            );
+            if (!Number.isFinite(zoom)) continue;
+
+            this.poses[i] = {
+                ...pose,
+                cameraParams: {
+                    offset_x: camera.offset_x ?? this.exportParams.cam_offset_x ?? 0,
+                    offset_y: camera.offset_y ?? this.exportParams.cam_offset_y ?? 0,
+                    yaw_deg: camera.yaw_deg ?? this.exportParams.cam_yaw_deg ?? 0,
+                    pitch_deg: camera.pitch_deg ?? this.exportParams.cam_pitch_deg ?? 0,
+                    zoom: Math.max(0.1, Math.min(7.0, zoom))
+                }
+            };
+            changed = true;
+        }
+
+        this.activeTab = originalTab;
+        this.viewer.setPose(this.poses[this.activeTab] || {}, true);
+        const activeCamera = this.poses[this.activeTab]?.cameraParams;
+        if (activeCamera) {
+            this.exportParams.cam_zoom = activeCamera.zoom ?? this.exportParams.cam_zoom;
+            this.exportParams.cam_offset_x = activeCamera.offset_x ?? this.exportParams.cam_offset_x;
+            this.exportParams.cam_offset_y = activeCamera.offset_y ?? this.exportParams.cam_offset_y;
+            this.exportParams.cam_yaw_deg = activeCamera.yaw_deg ?? this.exportParams.cam_yaw_deg;
+            this.exportParams.cam_pitch_deg = activeCamera.pitch_deg ?? this.exportParams.cam_pitch_deg;
+        }
+        this.syncCameraWidgets();
+        this.refreshPoseManagerControls();
+        this.applyCameraToViewer(true);
+        this.updateRotationSliders();
+        return changed;
+    }
+
     createSliderField(label, key, min, max, step, defaultValue, target, isExport = false) {
         const field = document.createElement("div");
         field.className = "vnccs-ps-field";
@@ -3074,7 +4051,7 @@ class PoseStudioWidget {
                 } else {
                     // Directly update meshParams and trigger mesh rebuild
                     this.meshParams[key] = val;
-                    this.onMeshParamsChanged();
+                    this.onMeshParamsChanged(key);
                 }
             }
         });
@@ -4052,6 +5029,8 @@ class PoseStudioWidget {
             this.updateTabScrollButtons();
             this.scrollActiveTabIntoView();
         });
+        this.renderPoseManager();
+        this.renderPoseManagerDetailStrip();
     }
 
     updateTabScrollButtons() {
@@ -4144,7 +5123,7 @@ class PoseStudioWidget {
         this.syncToNode(false);
     }
 
-    addTab() {
+    addTab(options = {}) {
         // Save current & capture
         if (this.viewer && this.viewer.isInitialized()) {
             const savedPose = this.viewer.getPose();
@@ -4171,7 +5150,7 @@ class PoseStudioWidget {
         }
         this.updateCaptureCameraPreview();
 
-        this.syncToNode(false);
+        this.syncToNode(false, { skipCapture: options.capturePreview ? false : undefined });
     }
 
     deleteTab(targetIndex = -1) {
@@ -6028,6 +7007,55 @@ class PoseStudioWidget {
         const content = document.createElement('div');
         content.className = 'vnccs-ps-settings-content';
 
+        const interfaceHeader = document.createElement("div");
+        interfaceHeader.className = "vnccs-ps-settings-title";
+        interfaceHeader.style.padding = "4px 0 10px";
+        interfaceHeader.innerText = "Interface";
+        content.appendChild(interfaceHeader);
+
+        const interfaceRow = document.createElement("div");
+        interfaceRow.className = "vnccs-ps-field";
+        interfaceRow.style.marginBottom = "14px";
+
+        const interfaceToggle = document.createElement("div");
+        interfaceToggle.className = "vnccs-ps-toggle";
+        interfaceToggle.style.width = "100%";
+
+        const studioBtn = document.createElement("button");
+        studioBtn.className = "vnccs-ps-toggle-btn";
+        studioBtn.type = "button";
+        studioBtn.innerText = "PoseStudio";
+        studioBtn.style.flex = "1";
+
+        const managerBtn = document.createElement("button");
+        managerBtn.className = "vnccs-ps-toggle-btn";
+        managerBtn.type = "button";
+        managerBtn.innerText = "Pose Manager";
+        managerBtn.style.flex = "1";
+
+        const updateInterfaceUI = () => {
+            const isManager = this.exportParams.interface_mode === "manager" || this.interfaceMode !== "studio";
+            studioBtn.classList.toggle("active", !isManager);
+            managerBtn.classList.toggle("active", isManager);
+        };
+
+        studioBtn.onclick = () => {
+            this.setInterfaceMode("studio");
+            updateInterfaceUI();
+            panel.remove();
+        };
+        managerBtn.onclick = () => {
+            this.setInterfaceMode("manager");
+            updateInterfaceUI();
+            panel.remove();
+        };
+
+        updateInterfaceUI();
+        interfaceToggle.appendChild(studioBtn);
+        interfaceToggle.appendChild(managerBtn);
+        interfaceRow.appendChild(interfaceToggle);
+        content.appendChild(interfaceRow);
+
         const debugSection = this.createSection("Debug", false);
 
         // SAM Camera Override Toggle
@@ -6757,7 +7785,11 @@ class PoseStudioWidget {
         this.genderBtns.female.classList.toggle("active", isFemale);
     }
 
-    onMeshParamsChanged() {
+    onMeshParamsChanged(changedKey = null) {
+        if (changedKey === "age") {
+            this.pendingAgeCameraFit = true;
+        }
+
         // Update node widgets
         for (const [key, value] of Object.entries(this.meshParams)) {
             const widget = this.node.widgets?.find(w => w.name === key);
@@ -6774,15 +7806,31 @@ class PoseStudioWidget {
         this.pendingMeshUpdate = false;
 
         this.loadModel(false).finally(() => {
+            const hasPendingMeshUpdate = this.pendingMeshUpdate;
             this.isMeshUpdating = false;
-            if (this.pendingMeshUpdate) {
+            if (hasPendingMeshUpdate) {
                 this.onMeshParamsChanged();
+                return;
+            }
+            if (this.pendingAgeCameraFit) {
+                this.pendingAgeCameraFit = false;
+                const suppressAgeFitSync = this._suppressNextAgeFitSync === true;
+                this._suppressNextAgeFitSync = false;
+                if (this.applyAgeCameraFit()) {
+                    if (!suppressAgeFitSync) {
+                        this.syncToNode(this.interfaceMode !== "studio");
+                    }
+                }
             }
         });
     }
 
     resize() {
         this.updateMainUIScale();
+        if (this.interfaceMode === "manager") {
+            this.layoutPoseManager();
+            return;
+        }
         if (this.viewer && this.canvasContainer) {
             const rect = this.canvasContainer.getBoundingClientRect();
             const targetW = Math.round(rect.width);
@@ -7188,9 +8236,10 @@ class PoseStudioWidget {
         }
     }
 
-    syncToNode(fullCapture = false) {
+    syncToNode(fullCapture = false, options = {}) {
         if (this._isSyncing) return;
         this._isSyncing = true;
+        const skipCapture = options.skipCapture === true || (options.skipCapture !== false && this.interfaceMode === "manager" && !fullCapture);
 
         if (this.radarRedraw) this.radarRedraw();
 
@@ -7219,7 +8268,7 @@ class PoseStudioWidget {
         while (this.lightingPrompts.length > this.poses.length) this.lightingPrompts.pop();
 
         // Capture Image (CSR)
-        if (this.viewer && this.viewer.isInitialized()) {
+        if (!skipCapture && this.viewer && this.viewer.isInitialized()) {
             const w = this.exportParams.view_width || 1024;
             const h = this.exportParams.view_height || 1024;
             const bg = this.exportParams.bg_color || [40, 40, 40];
@@ -7406,6 +8455,8 @@ class PoseStudioWidget {
             }
         }
 
+        this.renderPoseManager();
+        this.renderPoseManagerDetailStrip();
         this._isSyncing = false;
     }
 
@@ -7545,6 +8596,8 @@ class PoseStudioWidget {
 
             this.updateTabs();
             this.syncPromptFieldToActiveTab();
+            this.refreshPoseManagerControls();
+            this.setInterfaceMode(this.exportParams.interface_mode === "manager" ? "manager" : "studio", { sync: false });
 
             // Auto-load model
             // Restore skin type on the viewer before loading model
@@ -7568,6 +8621,119 @@ app.registerExtension({
     name: "VNCCS.PoseStudio",
 
     setup() {
+        (() => {
+            if (window.__vnccsPoseStudioCharacterCreatorSync) {
+                return window.__vnccsPoseStudioCharacterCreatorSync;
+            }
+
+            const parseSource = (node) => {
+                if (!node || node.type !== "CharacterCreatorV2") return null;
+                const dataWidget = node.widgets?.find(w => w.name === "widget_data");
+                if (dataWidget?.value) {
+                    try {
+                        const parsed = JSON.parse(dataWidget.value);
+                        const info = parsed?.character_info || {};
+                        const age = Number(info.age);
+                        const sex = String(info.sex || "").toLowerCase();
+                        const gender = sex === "male" ? 1.0 : (sex === "female" ? 0.0 : NaN);
+                        return {
+                            age: Number.isFinite(age) ? age : NaN,
+                            gender,
+                            signature: `${Number.isFinite(age) ? Math.round(age) : "?"}|${Number.isFinite(gender) ? gender : "?"}`
+                        };
+                    } catch (_) {
+                        // Fall back to ordinary widgets below.
+                    }
+                }
+
+                const ageWidget = node.widgets?.find(w => w.name === "age");
+                const sexWidget = node.widgets?.find(w => w.name === "sex" || w.name === "gender");
+                const age = Number(ageWidget?.value);
+                const sex = String(sexWidget?.value || "").toLowerCase();
+                const gender = sex === "male" ? 1.0 : (sex === "female" ? 0.0 : NaN);
+                if (!Number.isFinite(age) && !Number.isFinite(gender)) return null;
+                return {
+                    age: Number.isFinite(age) ? age : NaN,
+                    gender,
+                    signature: `${Number.isFinite(age) ? Math.round(age) : "?"}|${Number.isFinite(gender) ? gender : "?"}`
+                };
+            };
+
+            const api = {
+                studios: new Set(),
+                sourceSignatures: new WeakMap(),
+                findSourceNode() {
+                    const nodes = app.graph?._nodes || [];
+                    return nodes.find(n => n?.type === "CharacterCreatorV2") || null;
+                },
+                applyToStudio(studio, values, options = {}) {
+                    if (!studio || !values) return;
+                    studio.applyExternalCharacterCreatorValues?.(values, options);
+                },
+                applySource(node, options = {}) {
+                    const values = parseSource(node);
+                    if (!values) return;
+                    if (!options.initial) {
+                        const previous = this.sourceSignatures.get(node);
+                        if (previous === values.signature) return;
+                    }
+                    this.sourceSignatures.set(node, values.signature);
+                    for (const studio of this.studios) {
+                        this.applyToStudio(studio, values, options);
+                    }
+                },
+                registerStudio(studio) {
+                    if (!studio) return;
+                    this.studios.add(studio);
+                    this.scan();
+                    const source = this.findSourceNode();
+                    if (source) this.applyToStudio(studio, parseSource(source), { initial: true });
+                },
+                unregisterStudio(studio) {
+                    this.studios.delete(studio);
+                },
+                hookNode(node) {
+                    if (!node || node.type !== "CharacterCreatorV2") return;
+                    const dataWidget = node.widgets?.find(w => w.name === "widget_data");
+                    if (dataWidget && !dataWidget._vnccsPoseStudioValueHooked) {
+                        let currentValue = dataWidget.value;
+                        Object.defineProperty(dataWidget, "value", {
+                            configurable: true,
+                            get() {
+                                return currentValue;
+                            },
+                            set: (value) => {
+                                currentValue = value;
+                                queueMicrotask(() => this.applySource(node));
+                            }
+                        });
+                        dataWidget._vnccsPoseStudioValueHooked = true;
+                    }
+
+                    for (const name of ["age", "sex", "gender"]) {
+                        const widget = node.widgets?.find(w => w.name === name);
+                        if (!widget || widget._vnccsPoseStudioCallbackHooked) continue;
+                        const original = widget.callback;
+                        widget.callback = (...args) => {
+                            const result = original?.apply(widget, args);
+                            queueMicrotask(() => this.applySource(node));
+                            return result;
+                        };
+                        widget._vnccsPoseStudioCallbackHooked = true;
+                    }
+
+                    this.applySource(node, { initial: true });
+                },
+                scan() {
+                    const nodes = app.graph?._nodes || [];
+                    for (const node of nodes) this.hookNode(node);
+                }
+            };
+
+            window.__vnccsPoseStudioCharacterCreatorSync = api;
+            return api;
+        })();
+
         const uploadPoseStudioSync = async (node, nodeId) => {
             const poseWidget = node.widgets.find(w => w.name === "pose_data");
             if (!poseWidget) return;
@@ -7719,6 +8885,7 @@ app.registerExtension({
             // Load model after initialization
             setTimeout(() => {
                 this.studioWidget.loadFromNode();
+                window.__vnccsPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
                 this.studioWidget.loadModel().then(() => {
                     if (this.studioWidget.viewer) {
                         this.studioWidget.updateCaptureCameraPreview();
@@ -7754,6 +8921,7 @@ app.registerExtension({
                 setTimeout(() => {
                     syncStudioDOMWidgetWidth(this);
                     this.studioWidget.loadFromNode();
+                    window.__vnccsPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
                     this.studioWidget.loadModel();
                     this.studioWidget.refreshLibrary(false); // Pre-load library meta only
                     this.studioWidget.autoRefreshEnabledPoseRepositories();
@@ -7772,11 +8940,16 @@ app.registerExtension({
 
         const onRemoved = nodeType.prototype.onRemoved;
         nodeType.prototype.onRemoved = function () {
+            window.__vnccsPoseStudioCharacterCreatorSync?.unregisterStudio(this.studioWidget);
             if (onRemoved) onRemoved.apply(this, arguments);
             if (this.studioWidget) {
                 if (this.studioWidget._containerResizeObserver) {
                     this.studioWidget._containerResizeObserver.disconnect();
                     this.studioWidget._containerResizeObserver = null;
+                }
+                if (this.studioWidget.managerResizeObserver) {
+                    this.studioWidget.managerResizeObserver.disconnect();
+                    this.studioWidget.managerResizeObserver = null;
                 }
                 if (this.studioWidget._resizeRaf) {
                     cancelAnimationFrame(this.studioWidget._resizeRaf);
@@ -7786,5 +8959,21 @@ app.registerExtension({
                 }
             }
         };
+    },
+
+    nodeCreated(node) {
+        window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node);
+        if (node?.type === "CharacterCreatorV2") {
+            setTimeout(() => window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node), 0);
+            setTimeout(() => window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node), 500);
+        }
+    },
+
+    loadedGraphNode(node) {
+        window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node);
+    },
+
+    loadedGraph() {
+        window.__vnccsPoseStudioCharacterCreatorSync?.scan();
     }
 });
