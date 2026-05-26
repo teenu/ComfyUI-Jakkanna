@@ -956,6 +956,7 @@ export class PoseViewerCore {
         this.headScale = 1.0;
         this.armScale = 1.0;
         this.handScale = 1.0;
+        this.footScale = 1.0;
         this.boneLengthParams = {
             upper_arm_l: 0.5,
             upper_arm_r: 0.5,
@@ -987,6 +988,7 @@ export class PoseViewerCore {
         this.cameraParams = null; // Store widget camera params explicitly
         this.isInteractionActive = null;
         this._hoveredHandSide = null;
+        this.useHandControlPopover = this.options.useHandControlPopover !== false;
     }
 
     _getHandSideFromBoneName(name) {
@@ -1006,6 +1008,7 @@ export class PoseViewerCore {
     _shouldMarkerBeVisible(marker) {
         const bone = this.boneList?.[marker?.userData?.boneIndex];
         if (!bone) return false;
+        if (!this.useHandControlPopover) return true;
         return !this._isFingerHandBoneName(bone.name);
     }
 
@@ -1014,12 +1017,14 @@ export class PoseViewerCore {
     }
 
     _resolveHandBone(bone) {
+        if (!this.useHandControlPopover) return bone;
         const side = this._getHandSideFromBoneName(bone?.name);
         if (!side) return bone;
         return this.bones?.[`hand_${side}`] || bone;
     }
 
     _isHandSurfaceActivation(side, point) {
+        if (!this.useHandControlPopover) return false;
         if (!side || !point || !this.THREE) return false;
 
         const wrist = this.bones?.[`hand_${side}`];
@@ -1056,6 +1061,7 @@ export class PoseViewerCore {
     }
 
     _updateHoveredHand(side) {
+        if (!this.useHandControlPopover) side = null;
         if (this._hoveredHandSide === side) return;
         this._hoveredHandSide = side;
 
@@ -1068,6 +1074,20 @@ export class PoseViewerCore {
         if (this.options.onHandHover) {
             this.options.onHandHover({ side });
         }
+    }
+
+    setUseHandControlPopover(enabled) {
+        this.useHandControlPopover = enabled !== false;
+        if (!this.useHandControlPopover) {
+            this._updateHoveredHand(null);
+        }
+        if (this.jointMarkers) {
+            this.jointMarkers.forEach(marker => {
+                marker.visible = this._mannequinVisible !== false && this._shouldMarkerBeVisible(marker);
+            });
+        }
+        this.updateMarkers();
+        this.requestRender();
     }
 
     dispatchPoseChange() {
@@ -2444,6 +2464,9 @@ export class PoseViewerCore {
         if (this.handScale !== 1.0) {
             this.updateHandScale(this.handScale);
         }
+        if (this.footScale !== 1.0) {
+            this.updateFootScale(this.footScale);
+        }
         this.applyBoneLengthScales();
 
         this._initIKHelpers();
@@ -2683,6 +2706,17 @@ export class PoseViewerCore {
         for (const bone of this.boneList) {
             const n = bone.name.toLowerCase();
             if (n === 'hand_l' || n === 'hand_r') {
+                bone.scale.set(scale, scale, scale);
+            }
+        }
+        this.requestRender();
+    }
+
+    updateFootScale(scale) {
+        this.footScale = scale;
+        for (const bone of this.boneList) {
+            const n = bone.name.toLowerCase();
+            if (n === 'foot_l' || n === 'foot_r') {
                 bone.scale.set(scale, scale, scale);
             }
         }
