@@ -18,7 +18,7 @@ const STYLES = `
 .vnccs-uc-stage-wrap { grid-column:2; grid-row:3; position:relative; min-width:0; min-height:0; overflow:hidden; border-radius:8px; }
 .vnccs-uc-stage { width:100%; height:100%; display:block; background:#07070c; cursor:crosshair; }
 .vnccs-uc-preview-stage { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; z-index:4; }
-.vnccs-uc-hud { position:absolute; left:10px; top:10px; display:flex; gap:6px; align-items:center; pointer-events:none; }
+.vnccs-uc-hud { position:absolute; left:10px; top:10px; zoom:var(--vnccs-uc-ui-scale); display:flex; gap:6px; align-items:center; pointer-events:none; }
 .vnccs-uc-chip { background:rgba(10,10,15,.72); border:1px solid var(--uc-border); border-radius:8px; padding:5px 8px; color:var(--uc-muted); }
 .vnccs-uc-generation-progress { grid-column:2; grid-row:2; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:7px 12px; background:rgba(10,10,15,.9); border-bottom:1px solid rgba(255,143,163,.24); box-sizing:border-box; pointer-events:none; min-width:0; visibility:hidden; opacity:0; transition:opacity .16s ease; }
 .vnccs-uc-generation-progress.visible { visibility:visible; opacity:1; }
@@ -67,8 +67,8 @@ const STYLES = `
 .vnccs-uc-layer-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vnccs-uc-layer-type { color:var(--uc-muted); font-size:10px; }
 .vnccs-uc-bottom { grid-column:2; grid-row:1; zoom:var(--vnccs-uc-ui-scale); display:flex; gap:8px; align-items:center; padding:8px; border-bottom:1px solid var(--uc-border); background:rgba(6,5,12,.75); box-sizing:border-box; min-width:0; }
-.vnccs-uc-tools { position:absolute; z-index:6; left:16px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; align-items:stretch; gap:9px; padding:12px; border:1px solid var(--uc-border); border-radius:18px; background:rgba(10,10,15,.84); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; }
-.vnccs-uc-tool-settings { position:absolute; z-index:6; left:16px; top:52px; display:none; flex-direction:column; gap:10px; width:248px; padding:14px; border:1px solid var(--uc-border); border-radius:14px; background:rgba(10,10,15,.86); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; }
+.vnccs-uc-tools { position:absolute; z-index:6; left:16px; top:50%; zoom:var(--vnccs-uc-ui-scale); transform:translateY(-50%); display:flex; flex-direction:column; align-items:stretch; gap:9px; padding:12px; border:1px solid var(--uc-border); border-radius:18px; background:rgba(10,10,15,.84); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; max-height:calc((100% - 16px) / var(--vnccs-uc-ui-scale)); overflow-y:auto; overflow-x:hidden; }
+.vnccs-uc-tool-settings { position:absolute; z-index:6; left:16px; top:52px; zoom:var(--vnccs-uc-ui-scale); display:none; flex-direction:column; gap:10px; width:248px; padding:14px; border:1px solid var(--uc-border); border-radius:14px; background:rgba(10,10,15,.86); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; }
 .vnccs-uc-tool-settings.visible { display:flex; }
 .vnccs-uc-tool-settings-title { color:var(--uc-accent); font-weight:800; font-size:14px; }
 .vnccs-uc-tool-setting { display:grid; grid-template-columns:72px minmax(0,1fr); align-items:center; gap:10px; color:var(--uc-muted); font-weight:700; }
@@ -107,7 +107,16 @@ const STYLES = `
 .vnccs-uc-icon.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
 .vnccs-uc-btn.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
 .vnccs-uc-tool.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
-.vnccs-uc-input, .vnccs-uc-select, .vnccs-uc-textarea { background:rgba(255,255,255,.045); border:1px solid var(--uc-border); color:var(--uc-text); border-radius:8px; height:28px; padding:0 8px; font:inherit; min-width:0; }
+.vnccs-uc-input, .vnccs-uc-select, .vnccs-uc-textarea { background:rgba(255,255,255,.045); border:1px solid var(--uc-border); color:var(--uc-text); border-radius:8px; height:28px; padding:0 8px; font:inherit; min-width:0; color-scheme:dark; }
+.vnccs-uc-select option { background:#171320; color:#e8e8f0; font-size:14px; line-height:1.35; }
+.vnccs-uc-select option:checked,
+.vnccs-uc-select option:hover { background:#3a2a3d; color:#ffdce5; }
+.vnccs-uc-select-menu { position:fixed; z-index:999999; max-height:min(70vh, 520px); overflow:auto; overscroll-behavior:contain; padding:6px; border:1px solid rgba(255,143,163,.34); border-radius:12px; background:#171320; color:#e8e8f0; box-shadow:0 16px 44px rgba(0,0,0,.58); box-sizing:border-box; pointer-events:auto; }
+.vnccs-uc-select-menu-option { min-height:32px; display:flex; align-items:center; gap:8px; padding:6px 10px; border:0; border-radius:8px; background:transparent; color:inherit; font:inherit; text-align:left; width:100%; cursor:pointer; box-sizing:border-box; }
+.vnccs-uc-select-menu-option:hover,
+.vnccs-uc-select-menu-option.active { background:rgba(255,143,163,.18); color:#ffdce5; }
+.vnccs-uc-select-menu-check { width:18px; flex:0 0 18px; color:#ff8fa3; font-weight:900; }
+.vnccs-uc-select-menu-label { flex:1 1 auto; min-width:0; overflow:visible; text-overflow:clip; white-space:nowrap; }
 .vnccs-uc-textarea { min-height:54px; height:54px; padding:7px 8px; resize:none; width:100%; box-sizing:border-box; overflow:hidden; line-height:1.28; }
 .vnccs-uc-field { display:flex; flex-direction:column; gap:4px; min-width:62px; color:var(--uc-muted); }
 .vnccs-uc-field.inline { flex-direction:row; align-items:center; }
@@ -169,7 +178,7 @@ const STYLES = `
 .vnccs-uc-file { display:none; }
 .vnccs-uc-row { display:flex; gap:6px; align-items:center; }
 .vnccs-uc-staging-popover {
-  position:absolute; display:none; gap:8px; align-items:center; justify-content:center; z-index:5;
+  position:absolute; zoom:var(--vnccs-uc-ui-scale); display:none; gap:8px; align-items:center; justify-content:center; z-index:5;
   padding:10px; background:rgba(10,10,15,.9); border:1px solid rgba(255,255,255,.16);
   border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto;
 }
@@ -200,6 +209,187 @@ if (!document.getElementById("vnccs-unicanvas-styles")) {
   document.head.appendChild(style);
 }
 
+function enableUniCanvasGraphNavigationForwarding(root) {
+  if (!root || root._vnccsUniCanvasGraphNavigationForwarding) return;
+  root._vnccsUniCanvasGraphNavigationForwarding = true;
+
+  const graphCanvas = () => app.canvasEl || app.canvas?.canvas || document.querySelector("canvas.litegraph");
+  let panning = false;
+
+  const markForwarded = (event) => {
+    Object.defineProperty(event, "_vnccsUniCanvasForwardedGraphInput", { value: true });
+    return event;
+  };
+
+  const cloneMouseEvent = (type, source, buttons = source.buttons) => markForwarded(new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    detail: source.detail,
+    screenX: source.screenX,
+    screenY: source.screenY,
+    clientX: source.clientX,
+    clientY: source.clientY,
+    ctrlKey: source.ctrlKey,
+    altKey: source.altKey,
+    shiftKey: source.shiftKey,
+    metaKey: source.metaKey,
+    button: source.button,
+    buttons,
+  }));
+
+  const clonePointerEvent = (type, source, buttons = source.buttons) => {
+    const EventCtor = window.PointerEvent || window.MouseEvent;
+    return markForwarded(new EventCtor(type, {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      detail: source.detail,
+      screenX: source.screenX,
+      screenY: source.screenY,
+      clientX: source.clientX,
+      clientY: source.clientY,
+      ctrlKey: source.ctrlKey,
+      altKey: source.altKey,
+      shiftKey: source.shiftKey,
+      metaKey: source.metaKey,
+      button: 1,
+      buttons,
+      pointerId: source.pointerId || 1,
+      pointerType: source.pointerType || "mouse",
+      isPrimary: source.isPrimary !== false,
+    }));
+  };
+
+  const cloneWheelEvent = (source) => markForwarded(new WheelEvent("wheel", {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    detail: source.detail,
+    screenX: source.screenX,
+    screenY: source.screenY,
+    clientX: source.clientX,
+    clientY: source.clientY,
+    ctrlKey: source.ctrlKey,
+    altKey: source.altKey,
+    shiftKey: source.shiftKey,
+    metaKey: source.metaKey,
+    deltaX: source.deltaX,
+    deltaY: source.deltaY,
+    deltaZ: source.deltaZ,
+    deltaMode: source.deltaMode,
+  }));
+
+  const forwardMouse = (type, event, buttons) => {
+    const canvasEl = graphCanvas();
+    if (!canvasEl) return false;
+    const pointerType = type === "mousedown" ? "pointerdown" : type === "mousemove" ? "pointermove" : "pointerup";
+    canvasEl.dispatchEvent(clonePointerEvent(pointerType, event, buttons));
+    canvasEl.dispatchEvent(cloneMouseEvent(type, event, buttons));
+    return true;
+  };
+
+  const forwardWheel = (event) => {
+    const canvasEl = graphCanvas();
+    if (!canvasEl) return false;
+    canvasEl.dispatchEvent(cloneWheelEvent(event));
+    return true;
+  };
+
+  const hasOwnWheelHandler = (target) => {
+    for (let el = target; el && el !== root; el = el.parentElement) {
+      if (typeof el.onwheel === "function") return true;
+    }
+    return false;
+  };
+
+  const hasScrollableAncestor = (target) => {
+    for (let el = target; el && el !== root; el = el.parentElement) {
+      if (!(el instanceof HTMLElement)) continue;
+      const style = getComputedStyle(el);
+      const scrollY = /(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const scrollX = /(auto|scroll|overlay)/.test(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      if (scrollY || scrollX) return true;
+    }
+    return false;
+  };
+
+  const hasInteractiveTarget = (target) => {
+    if (!(target instanceof Element)) return true;
+    return Boolean(target.closest([
+      "button",
+      "input",
+      "textarea",
+      "select",
+      "label",
+      "a",
+      "canvas",
+      "[contenteditable='true']",
+      "[role='button']",
+      ".vnccs-uc-tools",
+      ".vnccs-uc-tool-settings",
+      ".vnccs-uc-select-menu",
+      ".vnccs-uc-staging-popover",
+      ".vnccs-uc-modal-overlay",
+      ".vnccs-uc-layers",
+      ".vnccs-uc-layer",
+    ].join(",")));
+  };
+
+  const canForwardFrom = (target) => {
+    if (hasInteractiveTarget(target)) return false;
+    if (hasOwnWheelHandler(target)) return false;
+    if (hasScrollableAncestor(target)) return false;
+    return true;
+  };
+
+  const finishPan = (event) => {
+    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (!panning) return;
+    panning = false;
+    event.preventDefault();
+    event.stopPropagation();
+    forwardMouse("mouseup", event, 0);
+    window.removeEventListener("mousemove", movePan, true);
+    window.removeEventListener("mouseup", finishPan, true);
+  };
+
+  const movePan = (event) => {
+    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (!panning) return;
+    event.preventDefault();
+    event.stopPropagation();
+    forwardMouse("mousemove", event, event.buttons || 4);
+  };
+
+  root.addEventListener("mousedown", (event) => {
+    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (event.button !== 1) return;
+    if (!canForwardFrom(event.target)) return;
+    if (!forwardMouse("mousedown", event, 4)) return;
+    panning = true;
+    event.preventDefault();
+    event.stopPropagation();
+    window.addEventListener("mousemove", movePan, true);
+    window.addEventListener("mouseup", finishPan, true);
+  }, true);
+
+  root.addEventListener("auxclick", (event) => {
+    if (event.button !== 1) return;
+    if (!canForwardFrom(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+
+  root.addEventListener("wheel", (event) => {
+    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (!canForwardFrom(event.target)) return;
+    if (!forwardWheel(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true, passive: false });
+}
+
 const uid = () => `uc_${Math.random().toString(36).slice(2, 10)}`;
 const MASK_OVERLAY_COLOR = "rgba(255, 143, 163, 0.48)";
 const STAGE_MIN_SCALE = 0.1;
@@ -215,6 +405,8 @@ const MOVE_SNAP_GRID_SIZE = 64;
 const RENDER_LOD_MIN_CANVAS_SIDE = 1024;
 const RENDER_LOD_LEVELS = [0.5, 0.25, 0.125, 0.0625];
 const RENDER_LOD_OVERSAMPLE = 2.25;
+const UNICANVAS_LAYOUT_BASE_WIDTH = 320 / 0.2035;
+const UNICANVAS_LAYOUT_BASE_HEIGHT = 34 / 0.0311;
 const NUMERIC_SETTINGS = new Set(["inference_scale", "seed", "steps", "cfg", "denoise", "anima_lllite_strength", "fun_controlnet_strength"]);
 const UNICANVAS_MODEL_MODULES = {
   sdxl: {
@@ -269,7 +461,7 @@ const UNICANVAS_MODEL_MODULES = {
       model_loader: "diffusion_model",
       diffusion_model_name: "flux-2-klein-9b-fp8.safetensors",
       clip_name: "qwen_3_8b_fp8mixed.safetensors",
-      vae_name: "full_encoder_small_decoder.safetensors",
+      vae_name: "flux2-vae.safetensors",
       clip_type: "flux2",
       sampler_name: "euler",
       scheduler: "simple",
@@ -378,6 +570,17 @@ const UNICANVAS_MODEL_ALIASES = Object.fromEntries(
 const UNICANVAS_LOADER_ALIASES = Object.fromEntries(
   Object.values(UNICANVAS_MODEL_LOADERS).flatMap((loader) => [[loader.key, loader.key], ...(loader.aliases || []).map((alias) => [alias, loader.key])])
 );
+
+function uniCanvasModelDetectMatches(name, pattern) {
+  const source = String(name || "").toLowerCase();
+  const token = String(pattern || "").toLowerCase();
+  if (!source || !token) return false;
+  if (/^[a-z0-9]+$/.test(token)) {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[\\s_./\\\\-])${escaped}($|[\\s_./\\\\-])`, "i").test(source);
+  }
+  return source.includes(token);
+}
 
 function getUniCanvasModelModule(mode) {
   const key = UNICANVAS_MODEL_ALIASES[String(mode || "sdxl").toLowerCase()] || "sdxl";
@@ -502,6 +705,9 @@ class UniCanvasWidget {
     this.renderQueued = false;
     this.settingsSyncTimer = null;
     this.fullSyncTimer = null;
+    this.layoutLogTimer = null;
+    this.customSelectMenu = null;
+    this.customSelectSource = null;
     this.thumbnailRenderQueue = [];
     this.thumbnailRenderQueued = false;
     this.lodRenderQueue = [];
@@ -763,7 +969,7 @@ class UniCanvasWidget {
     this.settingsBar.className = "vnccs-uc-settings";
     this.undoBtn = this._button(UI_ICONS.undo, "vnccs-uc-icon", () => this.undo(), "Undo");
     this.redoBtn = this._button(UI_ICONS.redo, "vnccs-uc-icon", () => this.redo(), "Redo");
-    this.fitBtn = this._button("Fit", "vnccs-uc-btn", () => this.centerBbox(), "Fit");
+    this.fitBtn = this._button("Fit", "vnccs-uc-btn", () => this.fitView(), "Fit");
     this.snapBtn = this._button(UI_ICONS.snap, "vnccs-uc-icon", () => this.toggleSnapToGrid(), "Snap to grid");
     const settingsSpacer = document.createElement("div");
     settingsSpacer.className = "vnccs-uc-settings-spacer";
@@ -1200,6 +1406,7 @@ class UniCanvasWidget {
   }
 
   _attachEvents() {
+    enableUniCanvasGraphNavigationForwarding(this.container);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
     this.resizeObserver.observe(this.stageWrap);
@@ -1232,6 +1439,24 @@ class UniCanvasWidget {
         if (NUMERIC_SETTINGS.has(input.dataset.setting)) this.normalizeNumericInputValue(input);
       });
     }, 0));
+    this.container.addEventListener("pointerdown", (e) => {
+      const select = e.target?.closest?.("select.vnccs-uc-select");
+      if (!(select instanceof HTMLSelectElement) || select.disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.openCustomSelect(select);
+    }, true);
+    window.addEventListener("pointerdown", (e) => {
+      if (!this.customSelectMenu) return;
+      if (this.customSelectMenu.contains(e.target) || e.target === this.customSelectSource) return;
+      this.closeCustomSelect();
+    }, true);
+    window.addEventListener("keydown", (e) => {
+      if (!this.customSelectMenu || e.key !== "Escape") return;
+      e.preventDefault();
+      this.closeCustomSelect();
+    }, true);
+    window.addEventListener("resize", () => this.closeCustomSelect(), { passive: true });
     this.container.addEventListener("click", (e) => {
       const btn = e.target?.closest?.("[data-action], [data-model-selection-mode], [data-preset-picker-toggle], [data-preset-id], [data-preset-download], [data-turbo-download], [data-turbo-toggle]");
       if (!(btn instanceof HTMLElement)) return;
@@ -1871,11 +2096,12 @@ class UniCanvasWidget {
     return { module, loader };
   }
 
-  applyInferenceModuleDefaults(mode) {
+  applyInferenceModuleDefaults(mode, options = {}) {
     const module = getUniCanvasModelModule(mode);
+    const preserveModelSelection = Boolean(options.preserveModelSelection);
     const preserved = {};
     for (const key of MODEL_SELECTION_SETTINGS) {
-      if (!Object.prototype.hasOwnProperty.call(module.defaults, key) || module.defaults[key] === "") {
+      if (preserveModelSelection || !Object.prototype.hasOwnProperty.call(module.defaults, key) || module.defaults[key] === "") {
         preserved[key] = this.settings[key];
       }
     }
@@ -1922,8 +2148,8 @@ class UniCanvasWidget {
     const name = String(this.getSelectedModelNameForLoader() || "").toLowerCase();
     if (!name) return;
     for (const module of Object.values(UNICANVAS_MODEL_MODULES)) {
-      if ((module.detect || []).some((pattern) => name.includes(pattern))) {
-        this.applyInferenceModuleDefaults(module.key);
+      if ((module.detect || []).some((pattern) => uniCanvasModelDetectMatches(name, pattern))) {
+        this.applyInferenceModuleDefaults(module.key, { preserveModelSelection: true });
         return;
       }
     }
@@ -2008,6 +2234,147 @@ class UniCanvasWidget {
       this.fitInitialView();
     }
     this.render();
+    this.scheduleUILayoutLog("resize");
+  }
+
+  scheduleUILayoutLog(reason = "layout") {
+    clearTimeout(this.layoutLogTimer);
+    this.layoutLogTimer = setTimeout(() => {
+      this.layoutLogTimer = null;
+      this.logUILayout(reason);
+    }, 120);
+  }
+
+  logUILayout(reason = "layout") {
+    if (!this.container || !this.stageWrap) return;
+    const containerRect = this.container.getBoundingClientRect();
+    const stageRect = this.stageWrap.getBoundingClientRect();
+    const nodeWidth = Number(this.node?.size?.[0]) || 0;
+    const nodeHeight = Number(this.node?.size?.[1]) || 0;
+    const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
+    const pct = (value, base) => base ? round((value / base) * 100) : 0;
+    const localRect = (el, parentRect = containerRect) => {
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return {
+        x: round(rect.left - parentRect.left),
+        y: round(rect.top - parentRect.top),
+        width: round(rect.width),
+        height: round(rect.height),
+        right: round(rect.right - parentRect.left),
+        bottom: round(rect.bottom - parentRect.top),
+        widthPctOfContainer: pct(rect.width, containerRect.width),
+        heightPctOfContainer: pct(rect.height, containerRect.height),
+        widthPctOfStage: pct(rect.width, stageRect.width),
+        heightPctOfStage: pct(rect.height, stageRect.height),
+      };
+    };
+    const toolButtons = Array.from(this.tools?.querySelectorAll(".vnccs-uc-tool") || []);
+    const payload = {
+      reason,
+      nodeSize: { width: round(nodeWidth), height: round(nodeHeight) },
+      containerClient: { width: this.container.clientWidth, height: this.container.clientHeight },
+      containerRect: {
+        x: round(containerRect.left),
+        y: round(containerRect.top),
+        width: round(containerRect.width),
+        height: round(containerRect.height),
+      },
+      graphScaleFromNodeToScreen: {
+        x: nodeWidth ? round(containerRect.width / nodeWidth) : 0,
+        y: nodeHeight ? round(containerRect.height / nodeHeight) : 0,
+      },
+      cssUiScale: this.container.style.getPropertyValue("--vnccs-uc-ui-scale") || "unset",
+      parts: {
+        left: localRect(this.left),
+        stage: localRect(this.stageWrap),
+        right: localRect(this.side),
+        topBar: localRect(this.bottom),
+        toolbarInContainer: localRect(this.tools),
+        toolbarInStage: localRect(this.tools, stageRect),
+        firstTool: localRect(toolButtons[0], stageRect),
+        lastTool: localRect(toolButtons[toolButtons.length - 1], stageRect),
+      },
+      counts: {
+        toolButtons: toolButtons.length,
+      },
+    };
+    console.groupCollapsed("VNCCS UniCanvas layout");
+    console.log(payload);
+    console.table(payload.parts);
+    console.groupEnd();
+  }
+
+  openCustomSelect(select) {
+    if (this.customSelectMenu && this.customSelectSource === select) {
+      this.closeCustomSelect();
+      return;
+    }
+    this.closeCustomSelect();
+    const options = Array.from(select.options || []);
+    if (!options.length) return;
+    const rect = select.getBoundingClientRect();
+    const selectFontSize = Number.parseFloat(getComputedStyle(select).fontSize) || 14;
+    const menu = document.createElement("div");
+    menu.className = "vnccs-uc-select-menu";
+    const viewportGap = 8;
+    const longestOptionChars = options.reduce((max, option) => Math.max(max, (option.textContent || option.value || "").length), 0);
+    const desiredWidth = Math.max(rect.width, Math.min(520, 64 + longestOptionChars * Math.max(7, selectFontSize * 0.62)));
+    const menuWidth = Math.min(desiredWidth, window.innerWidth - viewportGap * 2);
+    const menuLeft = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - viewportGap - menuWidth);
+    menu.style.left = `${Math.round(menuLeft)}px`;
+    menu.style.top = `${Math.round(rect.bottom + 4)}px`;
+    menu.style.width = `${Math.round(menuWidth)}px`;
+    menu.style.fontSize = `${Math.round(selectFontSize * 100) / 100}px`;
+    const availableBelow = window.innerHeight - rect.bottom - viewportGap;
+    const availableAbove = rect.top - viewportGap;
+    const maxHeight = Math.max(140, Math.min(520, Math.max(availableBelow, availableAbove)));
+    menu.style.maxHeight = `${Math.round(maxHeight)}px`;
+    if (availableBelow < 180 && availableAbove > availableBelow) {
+      menu.style.top = "";
+      menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 4)}px`;
+    }
+    for (const option of options) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "vnccs-uc-select-menu-option";
+      if (option.value === select.value) row.classList.add("active");
+      row.dataset.value = option.value;
+      row.innerHTML = `<span class="vnccs-uc-select-menu-check">${option.value === select.value ? "✓" : ""}</span><span class="vnccs-uc-select-menu-label"></span>`;
+      row.querySelector(".vnccs-uc-select-menu-label").textContent = option.textContent || option.value;
+      row.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      row.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.chooseCustomSelectValue(select, option.value);
+      });
+      menu.appendChild(row);
+    }
+    menu.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    document.body.appendChild(menu);
+    this.customSelectMenu = menu;
+    this.customSelectSource = select;
+    const active = menu.querySelector(".vnccs-uc-select-menu-option.active");
+    if (active) active.scrollIntoView({ block: "nearest" });
+  }
+
+  chooseCustomSelectValue(select, value) {
+    if (!(select instanceof HTMLSelectElement)) return;
+    if (select.value !== value) {
+      select.value = value;
+      select.dispatchEvent(new Event("input", { bubbles: true }));
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    this.closeCustomSelect();
+  }
+
+  closeCustomSelect() {
+    if (this.customSelectMenu) this.customSelectMenu.remove();
+    this.customSelectMenu = null;
+    this.customSelectSource = null;
   }
 
   requestRender() {
@@ -2113,15 +2480,18 @@ class UniCanvasWidget {
   }
 
   fitInitialView() {
+    const size = this.getStageViewportSize();
+    if (!size.width || !size.height) return false;
     this.centerBbox(true);
     this.didInitialCenter = true;
+    return true;
   }
 
   updateMainUIScale() {
     if (!this.container) return;
     const width = this.container.clientWidth || this.node?.size?.[0] || 1040;
     const height = this.container.clientHeight || this.node?.size?.[1] || 720;
-    const scale = Math.max(0.78, Math.min(1.45, Math.min(width / 1040, height / 720)));
+    const scale = Math.max(0.35, Math.min(2.5, Math.min(width / UNICANVAS_LAYOUT_BASE_WIDTH, height / UNICANVAS_LAYOUT_BASE_HEIGHT)));
     const next = scale.toFixed(3);
     if (this.container.style.getPropertyValue("--vnccs-uc-ui-scale") !== next) {
       this.container.style.setProperty("--vnccs-uc-ui-scale", next);
@@ -4955,18 +5325,31 @@ class UniCanvasWidget {
   centerBbox(allowZoomOut = false) {
     const size = this.getStageViewportSize();
     if (!size.width || !size.height) return;
+    let safeLeft = STAGE_FIT_PADDING_PX;
+    const safeRight = STAGE_FIT_PADDING_PX;
+    const safeTop = STAGE_FIT_PADDING_PX;
+    const safeBottom = STAGE_FIT_PADDING_PX;
+    const stageRect = this.stageWrap?.getBoundingClientRect?.();
+    const toolsRect = this.tools?.getBoundingClientRect?.();
+    if (stageRect?.width && toolsRect?.width) {
+      const stageScaleX = size.width / stageRect.width;
+      const toolsRight = (toolsRect.right - stageRect.left) * stageScaleX;
+      safeLeft = Math.max(safeLeft, toolsRight + STAGE_FIT_PADDING_PX);
+    }
+    const safeWidth = Math.max(1, size.width - safeLeft - safeRight);
+    const safeHeight = Math.max(1, size.height - safeTop - safeBottom);
     if (allowZoomOut) {
       const fitScale = Math.min(
-        (size.width - STAGE_FIT_PADDING_PX * 2) / this.bbox.width,
-        (size.height - STAGE_FIT_PADDING_PX * 2) / this.bbox.height,
+        safeWidth / this.bbox.width,
+        safeHeight / this.bbox.height,
         1
       );
       this.view.scale = this.constrainStageScale(fitScale);
       this.intendedScale = this.view.scale;
       this.activeSnapPoint = null;
     }
-    this.view.x = size.width / 2 - (this.bbox.x + this.bbox.width / 2) * this.view.scale;
-    this.view.y = size.height / 2 - (this.bbox.y + this.bbox.height / 2) * this.view.scale;
+    this.view.x = safeLeft + safeWidth / 2 - (this.bbox.x + this.bbox.width / 2) * this.view.scale;
+    this.view.y = safeTop + safeHeight / 2 - (this.bbox.y + this.bbox.height / 2) * this.view.scale;
   }
 
   makeExportCanvas(type, inferenceSize = this.getInferenceSize(), options = {}) {
@@ -6184,7 +6567,7 @@ app.registerExtension({
     const onCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       onCreated?.apply(this, arguments);
-      this.setSize([1280, 720]);
+      this.setSize([1280, 1280]);
       this.uniCanvasWidget = new UniCanvasWidget(this);
       const domWidget = this.addDOMWidget("unicanvas_ui", "ui", this.uniCanvasWidget.container, {
         serialize: false,
@@ -6200,7 +6583,11 @@ app.registerExtension({
         stateWidget.computeSize = () => [0, -4];
         if (stateWidget.element) stateWidget.element.style.display = "none";
       }
-      setTimeout(() => this.uniCanvasWidget?.resize(), 50);
+      setTimeout(() => {
+        this.uniCanvasWidget?.resize();
+        this.uniCanvasWidget?.fitInitialView();
+        this.uniCanvasWidget?.render();
+      }, 50);
     };
 
     nodeType.prototype.onResize = function () {
