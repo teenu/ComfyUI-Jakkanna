@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import gc
 import io
 import json
 import inspect
@@ -366,13 +367,17 @@ class UniCanvasModelModule:
     def create_empty_latent(self, width: int, height: int, _gen_settings: dict[str, Any], draw_id: str = "unknown") -> dict[str, Any]:
         import nodes
 
-        encoded = nodes.EmptyLatentImage().generate(width, height, 1)[0]
+        batch_size = max(1, int((_gen_settings or {}).get("batch_size", 1) or 1))
+        encoded = nodes.EmptyLatentImage().generate(width, height, batch_size)[0]
         _uc_log(draw_id, "created empty SD latent", _latent_debug(encoded))
         return encoded
 
     def decode_samples(self, vae: Any, samples: Any, _gen_settings: dict[str, Any]):
         latent_samples = _unwrap_latent_samples(samples)
-        return vae.decode_tiled(latent_samples, tile_x=512, tile_y=512)
+        tile_size = 256 if str((_gen_settings or {}).get("generation_mode") or "").lower() in {"z_image", "z-image", "zimage", "z_image_turbo"} else 512
+        overlap = min(64, max(32, tile_size // 4))
+        _uc_log(str((_gen_settings or {}).get("_draw_id") or "unknown"), "VAE tiled decode", {"tile_size": tile_size, "overlap": overlap})
+        return vae.decode_tiled(latent_samples, tile_x=tile_size, tile_y=tile_size, overlap=overlap)
 
     def prepare_reference_conditioning(
         self,
@@ -463,8 +468,9 @@ class AnimaUniCanvasModule(UniCanvasModelModule):
     def create_empty_latent(self, width: int, height: int, _gen_settings: dict[str, Any], draw_id: str = "unknown") -> dict[str, Any]:
         import comfy.model_management
 
+        batch_size = max(1, int((_gen_settings or {}).get("batch_size", 1) or 1))
         latent = torch.zeros(
-            [1, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
+            [batch_size, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
             device=comfy.model_management.intermediate_device(),
             dtype=comfy.model_management.intermediate_dtype(),
         )
@@ -594,12 +600,13 @@ class FluxKleinUniCanvasModule(UniCanvasModelModule):
         return super().encode_prompt(clip, text, _gen_settings)
 
     def create_empty_latent(self, width: int, height: int, _gen_settings: dict[str, Any], draw_id: str = "unknown") -> dict[str, Any]:
+        batch_size = max(1, int((_gen_settings or {}).get("batch_size", 1) or 1))
         encoded = _call_node_method(
             ["EmptyFlux2LatentImage"],
             ["generate"],
             width=width,
             height=height,
-            batch_size=1,
+            batch_size=batch_size,
         )
         if isinstance(encoded, tuple) and encoded:
             _uc_log(draw_id, "created empty Flux2 latent", _latent_debug(encoded[0]))
@@ -610,7 +617,7 @@ class FluxKleinUniCanvasModule(UniCanvasModelModule):
         import comfy.model_management
 
         latent = torch.zeros(
-            [1, 128, max(1, int(height) // 16), max(1, int(width) // 16)],
+            [batch_size, 128, max(1, int(height) // 16), max(1, int(width) // 16)],
             device=comfy.model_management.intermediate_device(),
         )
         encoded = {"samples": latent}
@@ -794,8 +801,9 @@ class QwenImageEditUniCanvasModule(UniCanvasModelModule):
     def create_empty_latent(self, width: int, height: int, _gen_settings: dict[str, Any], draw_id: str = "unknown") -> dict[str, Any]:
         import comfy.model_management
 
+        batch_size = max(1, int((_gen_settings or {}).get("batch_size", 1) or 1))
         latent = torch.zeros(
-            [1, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
+            [batch_size, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
             device=comfy.model_management.intermediate_device(),
             dtype=comfy.model_management.intermediate_dtype(),
         )
@@ -985,7 +993,7 @@ class QwenImageEditUniCanvasModule(UniCanvasModelModule):
 @dataclass(frozen=True)
 class ZImageUniCanvasModule(UniCanvasModelModule):
     def clone_assets(self, model: Any, clip: Any) -> tuple[Any, Any]:
-        return model, clip
+        return _clone_model_clip(model, clip)
 
     def uses_edit_masked_latents(self, mode: str) -> bool:
         return mode == "outpaint"
@@ -1072,12 +1080,13 @@ class ZImageUniCanvasModule(UniCanvasModelModule):
         return positive, negative
 
     def create_empty_latent(self, width: int, height: int, _gen_settings: dict[str, Any], draw_id: str = "unknown") -> dict[str, Any]:
+        batch_size = max(1, int((_gen_settings or {}).get("batch_size", 1) or 1))
         encoded = _call_node_method(
             ["EmptySD3LatentImage"],
             ["generate"],
             width=width,
             height=height,
-            batch_size=1,
+            batch_size=batch_size,
         )
         if isinstance(encoded, tuple) and encoded:
             _uc_log(draw_id, "created empty Z-image/SD3 latent", _latent_debug(encoded[0]))
@@ -1088,7 +1097,7 @@ class ZImageUniCanvasModule(UniCanvasModelModule):
         import comfy.model_management
 
         latent = torch.zeros(
-            [1, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
+            [batch_size, 16, max(1, int(height) // 8), max(1, int(width) // 8)],
             device=comfy.model_management.intermediate_device(),
             dtype=comfy.model_management.intermediate_dtype(),
         )
@@ -1169,7 +1178,7 @@ class ZImageUniCanvasModule(UniCanvasModelModule):
             return model
 
         patch_name = _ensure_z_image_fun_controlnet_model(patch_name, draw_id)
-        model_patch = _load_model_patch_cached(patch_name)
+        model_patch = _load_model_patch(patch_name)
         patched = _call_node_method(
             ["ZImageFunControlnet"],
             ["diffsynth_controlnet"],
@@ -1180,6 +1189,7 @@ class ZImageUniCanvasModule(UniCanvasModelModule):
             inpaint_image=inpaint_image,
             mask=mask,
         )
+        model_patch = None
         if patched is None:
             raise RuntimeError("ZImageFunControlnet returned no patched model")
         _uc_log(
@@ -1845,6 +1855,75 @@ def _image_tensor_to_pil(images: torch.Tensor) -> Image.Image:
     return Image.fromarray(image)
 
 
+def _image_tensor_to_pil_list(images: torch.Tensor) -> list[Image.Image]:
+    if torch.is_tensor(images) and images.ndim == 4:
+        return [_image_tensor_to_pil(images[index]) for index in range(int(images.shape[0]))]
+    return [_image_tensor_to_pil(images)]
+
+
+def _repeat_latent_batch(latent: Any, batch_size: int, draw_id: str = "unknown") -> Any:
+    batch_size = max(1, int(batch_size))
+    if batch_size <= 1 or not isinstance(latent, dict):
+        return latent
+    samples = latent.get("samples")
+    if not torch.is_tensor(samples) or samples.ndim < 1:
+        return latent
+    current = int(samples.shape[0])
+    if current == batch_size:
+        return latent
+    if current != 1:
+        _uc_log(draw_id, "latent batch resize skipped", {"current": current, "requested": batch_size})
+        return latent
+    repeated = dict(latent)
+    repeated["samples"] = samples.repeat((batch_size, *([1] * (samples.ndim - 1))))
+    noise_mask = repeated.get("noise_mask")
+    if torch.is_tensor(noise_mask) and noise_mask.ndim >= 1 and int(noise_mask.shape[0]) == 1:
+        repeated["noise_mask"] = noise_mask.repeat((batch_size, *([1] * (noise_mask.ndim - 1))))
+    _uc_log(draw_id, "latent batch prepared", {"batch_size": batch_size, "latent": _latent_debug(repeated)})
+    return repeated
+
+
+_CONDITIONING_BATCH_METADATA_KEYS = {
+    "concat_latent_image",
+    "concat_mask",
+    "reference_latents",
+}
+
+
+def _repeat_conditioning_batch_value(value: Any, batch_size: int) -> Any:
+    if torch.is_tensor(value) and value.ndim >= 1 and int(value.shape[0]) == 1:
+        return value.repeat((batch_size, *([1] * (value.ndim - 1))))
+    if isinstance(value, list):
+        return [_repeat_conditioning_batch_value(item, batch_size) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_repeat_conditioning_batch_value(item, batch_size) for item in value)
+    return value
+
+
+def _repeat_conditioning_batch(conditioning: Any, batch_size: int, draw_id: str = "unknown", label: str = "conditioning") -> Any:
+    batch_size = max(1, int(batch_size))
+    if batch_size <= 1 or not isinstance(conditioning, list):
+        return conditioning
+    changed = False
+    repeated = []
+    for item in conditioning:
+        if not (isinstance(item, (list, tuple)) and len(item) > 1 and isinstance(item[1], dict)):
+            repeated.append(item)
+            continue
+        metadata = dict(item[1])
+        for key in _CONDITIONING_BATCH_METADATA_KEYS:
+            if key in metadata:
+                metadata[key] = _repeat_conditioning_batch_value(metadata[key], batch_size)
+                changed = True
+        if isinstance(item, tuple):
+            repeated.append((item[0], metadata, *item[2:]))
+        else:
+            repeated.append([item[0], metadata, *item[2:]])
+    if changed:
+        _uc_log(draw_id, "conditioning batch metadata prepared", {"label": label, "batch_size": batch_size})
+    return repeated
+
+
 def _combine_mask_with_source_alpha(mask_image: Image.Image, source_rgba: Image.Image) -> Image.Image:
     mask = np.asarray(_pil_to_mask_image(mask_image), dtype=np.uint8)
     alpha = np.asarray(source_rgba.convert("RGBA").getchannel("A"), dtype=np.uint8)
@@ -2400,13 +2479,9 @@ def _apply_lora_cached(model: Any, clip: Any, lora_name: str, strength: float, c
     return comfy.sd.load_lora_for_models(model, clip, lora, strength, strength if clip_strength is None else clip_strength)
 
 
-def _load_model_patch_cached(patch_name: str):
+def _load_model_patch(patch_name: str):
     if not patch_name:
         raise ValueError("Model patch name is required")
-    with _MODEL_CACHE_LOCK:
-        cached = _MODEL_PATCH_CACHE.get(patch_name)
-    if cached is not None:
-        return cached
     loaded = _call_node_method(
         ["ModelPatchLoader"],
         ["load_model_patch"],
@@ -2414,9 +2489,20 @@ def _load_model_patch_cached(patch_name: str):
     )
     if loaded is None:
         raise ValueError(f"Model patch not found or failed to load: {patch_name}")
+    return loaded
+
+
+def _load_model_patch_cached(patch_name: str):
+    if not patch_name:
+        raise ValueError("Model patch name is required")
+    with _MODEL_CACHE_LOCK:
+        cached = _MODEL_PATCH_CACHE.get(patch_name)
+    if cached is not None:
+        return cached.clone() if hasattr(cached, "clone") else cached
+    loaded = _load_model_patch(patch_name)
     with _MODEL_CACHE_LOCK:
         _MODEL_PATCH_CACHE[patch_name] = loaded
-    return loaded
+    return loaded.clone() if hasattr(loaded, "clone") else loaded
 
 
 def _ensure_z_image_fun_controlnet_model(patch_name: str, draw_id: str = "unknown") -> str:
@@ -2709,20 +2795,21 @@ def _prepare_masked_generation_latent(
             "Qwen Image Edit masked latent uses prepared reference latent",
             {"reason": "Qwen Image Edit 2511 edits from reference_latents instead of SDXL inpaint conditioning"},
         )
-        return positive, negative, {"samples": torch.zeros([1, 16, max(1, image_tensor.shape[1] // 8), max(1, image_tensor.shape[2] // 8)], dtype=image_tensor.dtype)}
+        batch_size = max(1, int((gen_settings or {}).get("batch_size", 1) or 1))
+        return positive, negative, {
+            "samples": torch.zeros(
+                [batch_size, 16, max(1, image_tensor.shape[1] // 8), max(1, image_tensor.shape[2] // 8)],
+                dtype=image_tensor.dtype,
+            )
+        }
 
     if model_module.key == "z_image" and bool((gen_settings or {}).get("fun_controlnet_inpaint", True)):
-        latent = model_module.create_empty_latent(
-            int(image_tensor.shape[2]),
-            int(image_tensor.shape[1]),
-            gen_settings or {},
-            draw_id=draw_id,
-        )
+        latent = _encode_source_latent(vae, image_tensor, mask, grow_mask_by, draw_id=draw_id)
         _uc_log(
             draw_id,
-            "Z-image Fun ControlNet empty latent returned",
+            "Z-image Fun ControlNet source latent returned",
             {
-                "reason": "Fun ControlNet workflow uses EmptySD3LatentImage; structure comes through model patch inputs",
+                "reason": "Fun ControlNet workflow uses VAE-encoded current source latent instead of an empty latent",
                 "latent": _latent_debug(latent),
             },
         )
@@ -2985,6 +3072,97 @@ def _unwrap_latent_samples(value: Any):
 def _decode_generation_samples(vae: Any, samples: Any, gen_settings: dict[str, Any]):
     module = _get_unicanvas_model_module(str(gen_settings.get("generation_mode", "illustrious")).lower())
     return module.decode_samples(vae, samples, gen_settings)
+
+
+def _preload_vae_for_direct_decode(vae: Any, gen_settings: dict[str, Any], draw_id: str = "unknown") -> None:
+    generation_mode = str((gen_settings or {}).get("generation_mode") or "").lower()
+    draw_mode = str((gen_settings or {}).get("draw_mode") or "").lower()
+    if generation_mode not in {"z_image", "z-image", "zimage", "z_image_turbo"} or draw_mode not in {"inpaint", "outpaint"}:
+        return
+
+    patcher = getattr(vae, "patcher", None)
+    if patcher is None:
+        _uc_log(draw_id, "VAE preload skipped", {"reason": "VAE has no patcher"})
+        return
+
+    try:
+        import comfy.model_management as model_management
+
+        load_models_gpu = getattr(model_management, "load_models_gpu", None)
+        if not callable(load_models_gpu):
+            _uc_log(draw_id, "VAE preload skipped", {"reason": "model_management.load_models_gpu is unavailable"})
+            return
+
+        kwargs = {}
+        with contextlib.suppress(Exception):
+            sig = inspect.signature(load_models_gpu)
+            if "memory_required" in sig.parameters:
+                kwargs["memory_required"] = 0
+        load_models_gpu([patcher], **kwargs)
+        _uc_log(draw_id, "VAE preloaded before Z-image sampling", {"kwargs": kwargs})
+    except Exception as exc:
+        _uc_log(draw_id, "VAE preload failed", {"error": str(exc)})
+
+
+def _unload_vae_after_direct_decode(vae: Any, gen_settings: dict[str, Any], draw_id: str = "unknown") -> None:
+    generation_mode = str((gen_settings or {}).get("generation_mode") or "").lower()
+    draw_mode = str((gen_settings or {}).get("draw_mode") or "").lower()
+    if generation_mode not in {"z_image", "z-image", "zimage", "z_image_turbo"} or draw_mode not in {"inpaint", "outpaint"}:
+        return
+
+    patcher = getattr(vae, "patcher", None)
+    if patcher is None:
+        return
+
+    try:
+        import comfy.model_management as model_management
+
+        loaded_models = getattr(model_management, "current_loaded_models", None)
+        if not isinstance(loaded_models, list):
+            _uc_log(draw_id, "VAE post-decode unload skipped", {"reason": "current_loaded_models is unavailable"})
+            return
+
+        unloaded = 0
+        for index in range(len(loaded_models) - 1, -1, -1):
+            loaded_model = loaded_models[index]
+            if getattr(loaded_model, "model", None) is not patcher:
+                continue
+            try:
+                loaded_model.model_unload(1e30)
+            finally:
+                loaded_models.pop(index)
+            unloaded += 1
+
+        gc.collect()
+        with contextlib.suppress(Exception):
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        _uc_log(draw_id, "VAE unloaded after direct decode", {"unloaded": unloaded})
+    except Exception as exc:
+        _uc_log(draw_id, "VAE post-decode unload failed", {"error": str(exc)})
+
+
+def _release_generation_sampling_refs(gen_settings: dict[str, Any], draw_id: str = "unknown") -> None:
+    released_keys = []
+    for key in (
+        "_z_image_fun_controlnet_image",
+        "_z_image_fun_controlnet_mask",
+        "_z_image_fun_controlnet_vae",
+        "_anima_lllite_image",
+        "_anima_lllite_mask",
+        "_qwen_edit_reference_image",
+        "_qwen_edit_mask",
+        "_qwen_edit_latent",
+    ):
+        if key in gen_settings:
+            gen_settings.pop(key, None)
+            released_keys.append(key)
+    gc.collect()
+    with contextlib.suppress(Exception):
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    if released_keys:
+        _uc_log(draw_id, "released sampling-only references before VAE decode", {"keys": released_keys})
 
 
 def _save_temp_image(image: Image.Image, prefix: str = "VNCCS_UniCanvas") -> dict[str, str]:
@@ -3317,6 +3495,8 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
     settings = _normalize_gen_settings(payload.get("settings") or {})
     settings["draw_mode"] = mode
     seed = int(settings.get("seed", 0))
+    batch_size = max(1, min(99, int(settings.get("batch_size", 1) or 1)))
+    settings["batch_size"] = batch_size
     steps = int(settings.get("steps", 24))
     cfg = float(settings.get("cfg", 7.0))
     denoise = float(settings.get("denoise", 0.65 if mode == "img2img" else 1.0))
@@ -3355,6 +3535,7 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
             "mode_settings_keys": sorted(str(key) for key in settings.get("mode_settings", {}).keys()) if isinstance(settings.get("mode_settings"), dict) else None,
             "turbo_enabled": settings.get("turbo_enabled"),
             "seed": seed,
+            "batch_size": batch_size,
             "steps": steps,
             "cfg": cfg,
             "denoise": denoise,
@@ -3398,6 +3579,7 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
             model, clip, vae = _load_generation_assets(settings)
             model, clip = model_module.clone_assets(model, clip)
             settings["_draw_id"] = draw_id
+            _preload_vae_for_direct_decode(vae, settings, draw_id)
             if model_module.key == "qwen_image_edit":
                 settings["_qwen_edit_clip"] = clip
                 settings["_qwen_edit_vae"] = vae
@@ -3565,6 +3747,11 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
             )
         else:
             latent = _encode_source_latent(vae, image_tensor, None, grow_mask_by, draw_id=draw_id)
+        latent = _repeat_latent_batch(latent, batch_size, draw_id)
+        if model_module.key == "qwen_image_edit":
+            settings["_qwen_edit_latent"] = latent
+        positive = _repeat_conditioning_batch(positive, batch_size, draw_id, "positive")
+        negative = _repeat_conditioning_batch(negative, batch_size, draw_id, "negative")
         latent = _sample_generation_latent(
             model=model,
             positive=positive,
@@ -3581,42 +3768,68 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
             width=width,
             height=height,
         )
+        model = None
+        clip = None
+        positive = None
+        negative = None
+        image_tensor = None
+        reference_image_tensor = None
+        mask = None
+        _release_generation_sampling_refs(settings, draw_id)
         _set_draw_progress(draw_id, "decoding", 0.88, steps, steps, "Decoding")
         decoded = _decode_generation_samples(vae, latent, settings)
         _uc_log(draw_id, "decoded image tensor", _tensor_debug(decoded))
-        result_image = _image_tensor_to_pil(decoded)
+        result_images = _image_tensor_to_pil_list(decoded)
+        _unload_vae_after_direct_decode(vae, settings, draw_id)
 
     output_size = (output_width, output_height)
     if mode in {"inpaint", "outpaint"} and mask_image is not None:
-        if result_image.size != output_size:
-            _uc_log(draw_id, "masked result resized to output size", {"from": result_image.size, "to": output_size})
-            result_image = result_image.resize(output_size, Image.Resampling.LANCZOS)
+        resized_images = []
+        for result_image in result_images:
+            if result_image.size != output_size:
+                _uc_log(draw_id, "masked result resized to output size", {"from": result_image.size, "to": output_size})
+                result_image = result_image.resize(output_size, Image.Resampling.LANCZOS)
+            resized_images.append(result_image)
+        result_images = resized_images
         _uc_log(
             draw_id,
             "masked-region output",
             {
                 "note": "Returning raw generated pixels plus paste mask; frontend stores only masked regions as the layer.",
-                "result_size": result_image.size,
+                "result_count": len(result_images),
+                "result_size": result_images[0].size if result_images else output_size,
                 "paste_mask_size": paste_mask_image.size if paste_mask_image is not None else mask_image.size,
             },
         )
-    elif result_image.size != output_size:
-        _uc_log(draw_id, "result resized to output size", {"from": result_image.size, "to": (output_width, output_height)})
-        result_image = result_image.resize(output_size, Image.Resampling.LANCZOS)
+    else:
+        resized_images = []
+        for result_image in result_images:
+            if result_image.size != output_size:
+                _uc_log(draw_id, "result resized to output size", {"from": result_image.size, "to": (output_width, output_height)})
+                result_image = result_image.resize(output_size, Image.Resampling.LANCZOS)
+            resized_images.append(result_image)
+        result_images = resized_images
 
     _set_draw_progress(draw_id, "saving", 0.96, steps, steps, "Saving result")
-    saved = _save_temp_image(result_image)
+    saved_images = [
+        _save_temp_image(result_image, f"VNCCS_UniCanvas_{draw_id}_{index + 1:02d}")
+        for index, result_image in enumerate(result_images)
+    ]
+    if not saved_images:
+        raise RuntimeError("Generation returned no decoded images")
+    saved = saved_images[0] if saved_images else None
     saved_mask = None
     if mode in {"inpaint", "outpaint"} and paste_mask_image is not None:
         mask_to_save = paste_mask_image
         if mask_to_save.size != output_size:
             mask_to_save = mask_to_save.resize(output_size, Image.Resampling.BILINEAR)
         saved_mask = _save_temp_image(mask_to_save, f"VNCCS_UniCanvas_{draw_id}_result_mask")
-    _uc_log(draw_id, "result saved", {"image": saved, "mask": saved_mask, "size": result_image.size})
+    _uc_log(draw_id, "result saved", {"image": saved, "images": saved_images, "mask": saved_mask, "count": len(saved_images), "size": output_size})
     _set_draw_progress(draw_id, "complete", 1.0, steps, steps, "Complete")
     return {
         "status": "ok",
         "image": saved,
+        "images": saved_images,
         "mask": saved_mask,
         "width": output_width,
         "height": output_height,
