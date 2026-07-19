@@ -9511,7 +9511,7 @@ app.registerExtension({
     },
 
     async beforeRegisterNodeDef(nodeType, nodeData, _app) {
-        if (nodeData.name !== "VNCCS_PoseStudio") return;
+        if (nodeData.name !== "VNCCS_PoseStudio" && nodeData.name !== "VNCCS_PoseStudioOpenPose") return;
 
         const setPoseImageInputDisabled = (node, disabled) => {
             if (!node) return;

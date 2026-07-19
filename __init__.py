@@ -2,6 +2,7 @@ from .nodes.vnccs_nodes import VNCCS_PositionControl, VNCCS_VisualPositionContro
 from .nodes.vnccs_qwen_detailer import VNCCS_QWEN_Detailer, VNCCS_BBox_Extractor
 from .nodes.vnccs_model_manager import VNCCS_ModelManager, VNCCS_ModelSelector
 from .nodes.pose_studio import VNCCS_PoseStudio
+from .nodes.vnccs_openpose_export import VNCCS_PoseStudioOpenPose
 from .nodes.unicanvas import VNCCS_UniCanvas, register_unicanvas_routes
 
 NODE_CLASS_MAPPINGS = {
@@ -12,6 +13,7 @@ NODE_CLASS_MAPPINGS = {
     "VNCCS_ModelManager": VNCCS_ModelManager,
     "VNCCS_ModelSelector": VNCCS_ModelSelector,
     "VNCCS_PoseStudio": VNCCS_PoseStudio,
+    "VNCCS_PoseStudioOpenPose": VNCCS_PoseStudioOpenPose,
     "VNCCS_UniCanvas": VNCCS_UniCanvas,
 }
 
@@ -23,6 +25,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VNCCS_ModelManager": "VNCCS Model Manager",
     "VNCCS_ModelSelector": "VNCCS Model Selector",
     "VNCCS_PoseStudio": "VNCCS Pose Studio",
+    "VNCCS_PoseStudioOpenPose": "VNCCS Pose Studio + OpenPose",
     "VNCCS_UniCanvas": "VNCCS UniCanvas",
 }
 
