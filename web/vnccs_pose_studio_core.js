@@ -3752,6 +3752,101 @@ export class PoseViewerCore {
         return Math.max(0.1, Math.min(7.0, Math.min(target / boundsW, target / boundsH)));
     }
 
+    exportOpenPoseKeypoints(width, height) {
+        if (!this.THREE || !this.captureCamera || !this.skinnedMesh || !this.bones) return null;
+
+        this.skinnedMesh.updateMatrixWorld(true);
+        if (this.skeleton) this.skeleton.update();
+        this.captureCamera.updateMatrixWorld(true);
+        this.captureCamera.updateProjectionMatrix();
+
+        const missing = [0, 0, 0];
+        const project = (point) => {
+            if (!point) return missing.slice();
+            const projected = point.clone().project(this.captureCamera);
+            if (![projected.x, projected.y, projected.z].every(Number.isFinite)) return missing.slice();
+            return [
+                (projected.x + 1) * Number(width) * 0.5,
+                (1 - projected.y) * Number(height) * 0.5,
+                projected.z >= -1 && projected.z <= 1 ? 1 : 0,
+            ];
+        };
+        const boneHead = (name) => {
+            const bone = this.bones[name];
+            if (!bone) return null;
+            return bone.getWorldPosition(new this.THREE.Vector3());
+        };
+        const boneTail = (name) => {
+            const bone = this.bones[name];
+            const head = bone?.userData?.headPos;
+            const tail = bone?.userData?.tailPos;
+            if (!bone || !Array.isArray(head) || !Array.isArray(tail)) return boneHead(name);
+            return new this.THREE.Vector3(
+                tail[0] - head[0],
+                tail[1] - head[1],
+                tail[2] - head[2],
+            ).applyMatrix4(bone.matrixWorld);
+        };
+        const midpoint = (first, second) => {
+            if (!first) return second;
+            if (!second) return first;
+            return first.clone().add(second).multiplyScalar(0.5);
+        };
+        const flatten = (points) => points.flatMap(point => point);
+        const headCenter = midpoint(boneHead("head"), boneTail("head"));
+
+        const body = [
+            project(headCenter),
+            project(boneHead("neck_01")),
+            project(boneHead("upperarm_r")),
+            project(boneHead("lowerarm_r")),
+            project(boneHead("hand_r")),
+            project(boneHead("upperarm_l")),
+            project(boneHead("lowerarm_l")),
+            project(boneHead("hand_l")),
+            project(boneHead("thigh_r")),
+            project(boneHead("calf_r")),
+            project(boneHead("foot_r")),
+            project(boneHead("thigh_l")),
+            project(boneHead("calf_l")),
+            project(boneHead("foot_l")),
+            missing.slice(),
+            missing.slice(),
+            missing.slice(),
+            missing.slice(),
+        ];
+        const feet = [
+            project(boneTail("ball_l")),
+            project(boneHead("ball_l")),
+            project(boneHead("foot_l")),
+            project(boneTail("ball_r")),
+            project(boneHead("ball_r")),
+            project(boneHead("foot_r")),
+        ];
+        const hand = (side) => {
+            const points = [project(boneHead(`hand_${side}`))];
+            for (const finger of ["thumb", "index", "middle", "ring", "pinky"]) {
+                for (const segment of ["01", "02", "03"]) {
+                    points.push(project(boneHead(`${finger}_${segment}_${side}`)));
+                }
+                points.push(project(boneTail(`${finger}_03_${side}`)));
+            }
+            return points;
+        };
+
+        return {
+            canvas_width: Number(width),
+            canvas_height: Number(height),
+            people: [{
+                pose_keypoints_2d: flatten(body),
+                foot_keypoints_2d: flatten(feet),
+                face_keypoints_2d: flatten(Array.from({ length: 70 }, () => missing.slice())),
+                hand_right_keypoints_2d: flatten(hand("r")),
+                hand_left_keypoints_2d: flatten(hand("l")),
+            }],
+        };
+    }
+
     computeSAM3DFrameCameraParams(data, width = 1024, height = 1024, meshData = null, forceFallback = false) {
         if (!this.THREE || !this.skinnedMesh || !this.captureCamera) return null;
 
@@ -4092,6 +4187,7 @@ export class PoseViewerCore {
 
         // Ensure camera is setup
         this.updateCaptureCamera(width, height, zoom, offsetX, offsetY, yawDeg, pitchDeg);
+        this.lastOpenPoseKeypoints = this.exportOpenPoseKeypoints(width, height);
 
         // Hide UI elements
         const markersVisible = this.jointMarkers[0]?.visible ?? true;

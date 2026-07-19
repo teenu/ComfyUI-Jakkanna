@@ -1,3 +1,4 @@
+import copy
 import json
 import math
 import os
@@ -257,4 +258,58 @@ class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
             if synced:
                 effective_pose_data = json.dumps(synced)
         images, prompts = super().generate(effective_pose_data, pose_image, unique_id)
-        return images, prompts, pose_data_to_openpose(effective_pose_data)
+        effective_data = json.loads(effective_pose_data) if effective_pose_data else {}
+        keypoints = effective_data.get("openpose_keypoints")
+        if not isinstance(keypoints, list) or not keypoints:
+            keypoints = pose_data_to_openpose(effective_pose_data)
+        return images, prompts, keypoints
+
+
+class VNCCSReplaceOpenPoseHands:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "base_keypoints": ("POSE_KEYPOINT",),
+                "vnccs_keypoints": ("POSE_KEYPOINT",),
+            },
+        }
+
+    RETURN_TYPES = ("POSE_KEYPOINT",)
+    RETURN_NAMES = ("keypoints",)
+    FUNCTION = "replace_hands"
+    CATEGORY = "VNCCS/Pose"
+
+    def replace_hands(self, base_keypoints, vnccs_keypoints):
+        merged = copy.deepcopy(base_keypoints)
+        if not isinstance(merged, list) or not isinstance(vnccs_keypoints, list):
+            return (merged,)
+
+        for index, frame in enumerate(merged):
+            if index >= len(vnccs_keypoints):
+                break
+            base_people = frame.get("people") if isinstance(frame, dict) else None
+            direct_frame = vnccs_keypoints[index]
+            direct_people = direct_frame.get("people") if isinstance(direct_frame, dict) else None
+            if not base_people or not direct_people:
+                continue
+
+            base_person = base_people[0]
+            direct_person = direct_people[0]
+            for field in ("hand_right_keypoints_2d", "hand_left_keypoints_2d"):
+                hand = direct_person.get(field)
+                if isinstance(hand, list) and len(hand) == 63:
+                    base_person[field] = copy.deepcopy(hand)
+
+            body = base_person.get("pose_keypoints_2d")
+            direct_body = direct_person.get("pose_keypoints_2d")
+            if (
+                isinstance(body, list)
+                and len(body) >= 24
+                and isinstance(direct_body, list)
+                and len(direct_body) >= 24
+            ):
+                body[12:15] = direct_body[12:15]
+                body[21:24] = direct_body[21:24]
+
+        return (merged,)

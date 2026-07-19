@@ -2690,6 +2690,7 @@ class PoseStudioWidget {
         this.posePrompts = [""]; // User prompt per pose tab
         this.activeTab = 0;
         this.poseCaptures = []; // Cache for captured images
+        this.poseOpenPoseKeypoints = [];
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
         this.interfaceMode = "studio"; // studio | manager | managerDetail
         this.pendingAgeCameraFit = false;
@@ -4025,11 +4026,13 @@ class PoseStudioWidget {
 
     setPoseCapture(index, capture) {
         if (!this.poseCaptures) this.poseCaptures = [];
+        if (!this.poseOpenPoseKeypoints) this.poseOpenPoseKeypoints = [];
         const previousCapture = this.poseCaptures[index];
         if (previousCapture && previousCapture !== capture) {
             this.forgetPoseManagerImageMetrics(previousCapture);
         }
         this.poseCaptures[index] = capture;
+        this.poseOpenPoseKeypoints[index] = this.viewer?.lastOpenPoseKeypoints || null;
     }
 
     layoutPoseManager() {
@@ -8951,6 +8954,10 @@ class PoseStudioWidget {
         while (this.poseCaptures.length < this.poses.length) this.poseCaptures.push(null);
         while (this.poseCaptures.length > this.poses.length) this.poseCaptures.pop();
 
+        if (!this.poseOpenPoseKeypoints) this.poseOpenPoseKeypoints = [];
+        while (this.poseOpenPoseKeypoints.length < this.poses.length) this.poseOpenPoseKeypoints.push(null);
+        while (this.poseOpenPoseKeypoints.length > this.poses.length) this.poseOpenPoseKeypoints.pop();
+
         while (this.lightingPrompts.length < this.poses.length) this.lightingPrompts.push("");
         while (this.lightingPrompts.length > this.poses.length) this.lightingPrompts.pop();
 
@@ -9433,6 +9440,7 @@ app.registerExtension({
                 ...widgetData,
                 node_id: nodeId,
                 captured_images: node.studioWidget.poseCaptures || [],
+                openpose_keypoints: node.studioWidget.poseOpenPoseKeypoints || [],
                 lighting_prompts: node.studioWidget.lightingPrompts || []
             };
 
