@@ -1,15 +1,23 @@
-# Version 0.6.1
-## Project Positioning and License Documentation
+# Version 1.0.0
+## Jakkanna Independent Release
+
+Jakkanna `1.0.0` establishes an independent product, Registry identity, and
+version line for the correctness work first published under the temporary
+`vnccs-utils-maintained` name. Existing `VNCCS_*` node identifiers and
+`/vnccs/` routes remain unchanged for workflow compatibility.
 
 ### Documentation
 
-*   Defined the primary audience for the maintained fork and clarified when a dedicated OpenPose editor may be a smaller alternative.
-*   Separated financial support for maintained-fork work from support for the original VNCCS project.
+*   Adopted the Jakkanna product, repository, Registry, node display, and menu-category identity.
+*   Documented independent governance, upstream provenance, and the legacy compatibility boundary.
+*   Defined the primary audience and clarified when a dedicated OpenPose editor may be a smaller alternative.
+*   Separated financial support for Jakkanna from support for the original VNCCS project.
 *   Added a package-level third-party license inventory and the complete AGPLv3 text referenced by the bundled MakeHuman license notice.
 *   Marked the MakeHuman-derived skeleton implementation with its source, license, and modification notice.
 
-This patch changes project documentation and license completeness only. Runtime
-node behavior is unchanged from `0.6.0`.
+This release changes product identity, documentation, and license completeness.
+Pose Studio execution behavior is unchanged from the `0.6.0` correctness
+baseline.
 
 # Version 0.6.0
 ## Maintained Fork Correctness Baseline

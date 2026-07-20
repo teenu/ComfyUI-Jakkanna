@@ -1,4 +1,4 @@
-"""VNCCS QWEN Detailer node
+"""Jakkanna QWEN Detailer node
 
 This node detects objects in an image using a bbox detector, then enhances each detected region
 using QWEN image generation with the cropped region as reference.
@@ -408,7 +408,7 @@ def _tensor_paste(image1, image2, crop_region, feather=0, mask=None, seam_fix=Fa
             image1[0] = torch.from_numpy(blended.astype(np.float32) / 255.0).to(image1.device)
             return image1
         except Exception as e:
-            print(f"[VNCCS] Seam Fix (Poisson Blending) failed, falling back to standard paste: {e}")
+            print(f"[Jakkanna] Seam Fix (Poisson Blending) failed, falling back to standard paste: {e}")
 
     if final_mask is not None:
         # Expand mask to match image channels
@@ -490,7 +490,7 @@ class VNCCS_QWEN_Detailer:
     RETURN_NAMES = ("image",)
     FUNCTION = "detail"
 
-    CATEGORY = "VNCCS/detailing"
+    CATEGORY = "Jakkanna/detailing"
 
     def detail(self, image, bbox_detector, model, clip, vae, prompt,
                 threshold=0.5, dilation=10, drop_size=10,
@@ -512,18 +512,18 @@ class VNCCS_QWEN_Detailer:
         # Auto-fix legacy or invalid values (Backend Compatibility)
         valid_methods = ["disabled", "kornia_reinhard"]
         if color_match_method not in valid_methods:
-             print(f"[VNCCS] Auto-fixing deprecated color match method '{color_match_method}' to 'kornia_reinhard'")
+             print(f"[Jakkanna] Auto-fixing deprecated color match method '{color_match_method}' to 'kornia_reinhard'")
              color_match_method = "kornia_reinhard"
         
         # NOTE: Multithreading param removed as Kornia is GPU/Tensor based and doesn't benefit from Python threading here
         # color_match_multithread = True 
 
         if len(image) > 1:
-            raise Exception('[VNCCS] ERROR: VNCCS_QWEN_Detailer does not allow image batches.')
+            raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow image batches.')
 
         if controlnet_image is not None:
             if len(controlnet_image) > 1:
-                raise Exception('[VNCCS] ERROR: VNCCS_QWEN_Detailer does not allow controlnet image batches.')
+                raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow controlnet image batches.')
 
             # Auto-resize controlnet_image to match main image dimensions if needed
             if controlnet_image.shape[1:3] != image.shape[1:3]:  # Check height and width
@@ -538,7 +538,7 @@ class VNCCS_QWEN_Detailer:
         
         if image2 is not None:
             if len(image2) > 1:
-                raise Exception('[VNCCS] ERROR: VNCCS_QWEN_Detailer does not allow reference image (image2) batches.')
+                raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow reference image (image2) batches.')
 
         # Detect segments using bbox detector
         try:
@@ -559,7 +559,7 @@ class VNCCS_QWEN_Detailer:
                 segs_result = core.segs_bitwise_and_mask(segs_result, segm_mask)
                 
         except Exception as e:
-            raise Exception(f'[VNCCS] ERROR: Failed to detect/refine segments: {str(e)}')
+            raise Exception(f'[Jakkanna] ERROR: Failed to detect/refine segments: {str(e)}')
         
         # Handle different return formats from bbox detectors
         if isinstance(segs_result, tuple) and len(segs_result) == 2:
@@ -571,10 +571,10 @@ class VNCCS_QWEN_Detailer:
 
         # Validate segs format
         if not isinstance(segs, tuple) or len(segs) != 2:
-            raise Exception(f'[VNCCS] ERROR: Invalid segs format from bbox_detector. Expected tuple of length 2, got: {type(segs)}')
+            raise Exception(f'[Jakkanna] ERROR: Invalid segs format from bbox_detector. Expected tuple of length 2, got: {type(segs)}')
         
         if not isinstance(segs[1], (list, tuple)):
-            raise Exception(f'[VNCCS] ERROR: Invalid segments list. Expected list or tuple, got: {type(segs[1])}')
+            raise Exception(f'[Jakkanna] ERROR: Invalid segments list. Expected list or tuple, got: {type(segs[1])}')
 
         # Apply dilation to crop_region manually to control cropped image size
         image_height, image_width = segs[0]
@@ -782,7 +782,7 @@ class VNCCS_QWEN_Detailer:
              import kornia
              from kornia.color import rgb_to_lab, lab_to_rgb
         except ImportError:
-             print("[VNCCS] Warning: Kornia not found. Skipping color match. Install with 'pip install kornia'")
+             print("[Jakkanna] Warning: Kornia not found. Skipping color match. Install with 'pip install kornia'")
              return image_target
         
         # Ensure proper dimensions [B, H, W, C]
@@ -821,7 +821,7 @@ class VNCCS_QWEN_Detailer:
                 from kornia.enhance import histogram_matching
                 res = histogram_matching(target, ref)
             except ImportError:
-                print("[VNCCS] Warning: 'histogram_matching' not found in kornia. Please upgrade kornia to >=0.6.2 (pip install kornia --upgrade). Skipping.")
+                print("[Jakkanna] Warning: 'histogram_matching' not found in kornia. Please upgrade kornia to >=0.6.2 (pip install kornia --upgrade). Skipping.")
                 res = target
 
         # Apply strength mixing
@@ -932,13 +932,13 @@ class VNCCS_BBox_Extractor:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("images",)
     FUNCTION = "extract"
-    CATEGORY = "VNCCS/detailing"
+    CATEGORY = "Jakkanna/detailing"
 
     def extract(self, image, bbox_detector, threshold=0.5, dilation=300, drop_size=10):
         """Extract regions detected by BBox detector"""
         
         if len(image) > 1:
-            raise Exception('[VNCCS] ERROR: VNCCS_BBox_Extractor does not allow image batches.')
+            raise Exception('[Jakkanna] ERROR: VNCCS_BBox_Extractor does not allow image batches.')
 
         # Fixed crop_factor for bbox detection
         crop_factor = 1.0
@@ -946,7 +946,7 @@ class VNCCS_BBox_Extractor:
         try:
             segs_result = bbox_detector.detect(image, threshold, dilation, crop_factor, drop_size)
         except Exception as e:
-            raise Exception(f'[VNCCS] ERROR: Failed to detect segments with bbox_detector: {str(e)}')
+            raise Exception(f'[Jakkanna] ERROR: Failed to detect segments with bbox_detector: {str(e)}')
         
         # Handle different return formats from bbox detectors
         if isinstance(segs_result, tuple) and len(segs_result) == 2:
@@ -956,10 +956,10 @@ class VNCCS_BBox_Extractor:
 
         # Validate segs format
         if not isinstance(segs, tuple) or len(segs) != 2:
-            raise Exception(f'[VNCCS] ERROR: Invalid segs format from bbox_detector. Expected tuple of length 2, got: {type(segs)}')
+            raise Exception(f'[Jakkanna] ERROR: Invalid segs format from bbox_detector. Expected tuple of length 2, got: {type(segs)}')
         
         if not isinstance(segs[1], (list, tuple)):
-            raise Exception(f'[VNCCS] ERROR: Invalid segments list. Expected list or tuple, got: {type(segs[1])}')
+            raise Exception(f'[Jakkanna] ERROR: Invalid segments list. Expected list or tuple, got: {type(segs[1])}')
 
         # Apply dilation to crop_region manually
         image_height, image_width = segs[0]
@@ -1039,6 +1039,6 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VNCCS_QWEN_Detailer": "VNCCS QWEN Detailer",
-    "VNCCS_BBox_Extractor": "VNCCS BBox Extractor",
+    "VNCCS_QWEN_Detailer": "Jakkanna QWEN Detailer",
+    "VNCCS_BBox_Extractor": "Jakkanna BBox Extractor",
 }

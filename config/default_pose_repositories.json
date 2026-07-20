@@ -3,8 +3,8 @@
   "repositories": [
     {
       "repo_id": "MIUProject/VNCCS_PoseLibrary_Main",
-      "title": "VNCCS Pose Library Main",
-      "description": "Default curated VNCCS Pose Studio pose library.",
+      "title": "Jakkanna Pose Library Main",
+      "description": "Default curated pose library for Jakkanna Pose Studio.",
       "manifest_path": "pose_library.json",
       "enabled": true
     }

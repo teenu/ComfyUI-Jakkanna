@@ -1,5 +1,5 @@
 /**
- * VNCCS UniCanvas - in-node infinite canvas for SDXL img2img/inpaint.
+ * Jakkanna Canvas - in-node infinite canvas for SDXL img2img/inpaint.
  */
 
 import { app } from "../../scripts/app.js";
@@ -2328,7 +2328,7 @@ class UniCanvasWidget {
         toolButtons: toolButtons.length,
       },
     };
-    console.groupCollapsed("VNCCS UniCanvas layout");
+    console.groupCollapsed("Jakkanna Canvas layout");
     console.log(payload);
     console.table(payload.parts);
     console.groupEnd();
@@ -4084,7 +4084,7 @@ class UniCanvasWidget {
         nextCanvases.push({ layer, canvas: next });
       }
     } catch (err) {
-      console.warn("[VNCCS UniCanvas] Browser refused canvas backing expansion", { width: newW, height: newH, err });
+      console.warn("[Jakkanna UniCanvas] Browser refused canvas backing expansion", { width: newW, height: newH, err });
       this.setStatus(`Browser refused canvas expansion (${newW}×${newH})`, true);
       return false;
     }
@@ -5738,7 +5738,7 @@ class UniCanvasWidget {
       maskInBbox: maskStats,
       exportedMask: this.getCanvasAlphaStats(maskCanvas),
     };
-    console.debug("[VNCCS UniCanvas] GENERATE request", debug);
+    console.debug("[Jakkanna UniCanvas] GENERATE request", debug);
     const batchSize = Math.max(1, Math.min(99, Math.round(Number(this.settings.batch_size) || 1)));
     this.settings.batch_size = batchSize;
     this.setStatus(`Generating ${mode} ${inferenceSize.width}×${inferenceSize.height}${batchSize > 1 ? ` ×${batchSize}` : ""}...`);
@@ -5764,7 +5764,7 @@ class UniCanvasWidget {
         }),
       });
       const data = await res.json();
-      console.debug("[VNCCS UniCanvas] GENERATE response", { debugId, data });
+      console.debug("[Jakkanna UniCanvas] GENERATE response", { debugId, data });
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       const resultImages = Array.isArray(data.images) && data.images.length ? data.images : [data.image].filter(Boolean);
       if (!resultImages.length) throw new Error("Generation returned no images");
@@ -5883,7 +5883,7 @@ class UniCanvasWidget {
       this.agPsd = await import("./vendor/ag-psd.bundle.mjs");
       return this.agPsd;
     } catch (localErr) {
-      console.warn("[VNCCS UniCanvas] local ag-psd load failed, trying CDN", localErr);
+      console.warn("[Jakkanna UniCanvas] local ag-psd load failed, trying CDN", localErr);
     }
     try {
       this.agPsd = await import("https://esm.sh/ag-psd@28.2.2?bundle");
@@ -6232,7 +6232,7 @@ class UniCanvasWidget {
         this.localStateBackupDisabled = true;
         if (!this.localStateBackupWarned) {
           this.localStateBackupWarned = true;
-          console.info("[VNCCS UniCanvas] Local backup skipped: state is too large for browser localStorage; server cache remains active.");
+          console.info("[Jakkanna UniCanvas] Local backup skipped: state is too large for browser localStorage; server cache remains active.");
         }
         return;
       }
@@ -6241,7 +6241,7 @@ class UniCanvasWidget {
       this.localStateBackupDisabled = true;
       if (!this.localStateBackupWarned) {
         this.localStateBackupWarned = true;
-        console.info("[VNCCS UniCanvas] Local backup disabled: browser localStorage quota is not enough; server cache remains active.");
+        console.info("[Jakkanna UniCanvas] Local backup disabled: browser localStorage quota is not enough; server cache remains active.");
       }
     }
   }
@@ -6258,7 +6258,7 @@ class UniCanvasWidget {
       }
       return null;
     } catch (err) {
-      console.warn("[VNCCS UniCanvas] Local state backup restore failed", err);
+      console.warn("[Jakkanna UniCanvas] Local state backup restore failed", err);
       return null;
     }
   }
@@ -6308,7 +6308,7 @@ class UniCanvasWidget {
       }
     } catch (err) {
       this.lastUploadedStateJSON = "";
-      console.warn("[VNCCS UniCanvas] State cache upload failed", err);
+      console.warn("[Jakkanna UniCanvas] State cache upload failed", err);
       this.setStatus(`State cache failed: ${err.message || err}`, true);
     }
   }
@@ -6394,7 +6394,7 @@ class UniCanvasWidget {
           }
         } catch (err) {
           cacheRestoreFailed = true;
-          console.warn("[VNCCS UniCanvas] State cache restore failed", err);
+          console.warn("[Jakkanna UniCanvas] State cache restore failed", err);
           this.setStatus("State cache missing; trying local backup", true);
         }
       }
@@ -6415,7 +6415,7 @@ class UniCanvasWidget {
       }
       await this.applySerializedState(state);
     } catch (err) {
-      console.warn("[VNCCS UniCanvas] Failed to restore state", err);
+      console.warn("[Jakkanna UniCanvas] Failed to restore state", err);
     }
   }
 
@@ -6481,7 +6481,7 @@ class UniCanvasWidget {
       this.updateSnapButton();
       this.renderLayerList();
     } catch (err) {
-      console.warn("[VNCCS UniCanvas] Failed to restore state", err);
+      console.warn("[Jakkanna UniCanvas] Failed to restore state", err);
     }
   }
 

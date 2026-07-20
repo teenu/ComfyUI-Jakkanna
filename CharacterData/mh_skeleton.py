@@ -3,7 +3,7 @@
 # Copyright (C) 2001-2020 MakeHuman Team (www.makehumancommunity.org)
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Modified by VNCCS contributors. Material changes include standalone data
+# Modified by VNCCS and Jakkanna contributors. Material changes include standalone data
 # loading, bone-weight retargeting, and skin-weight canonicalization.
 # Latest material changes: 2026-07-20.
 

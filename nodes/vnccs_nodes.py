@@ -16,7 +16,7 @@ class VNCCS_PositionControl:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("prompt",)
-    CATEGORY = "VNCCS"
+    CATEGORY = "Jakkanna"
     FUNCTION = "generate_prompt"
     
     def generate_prompt(self, azimuth, elevation, distance, include_trigger):
@@ -80,7 +80,7 @@ class VNCCS_VisualPositionControl(VNCCS_PositionControl):
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("prompt",)
-    CATEGORY = "VNCCS"
+    CATEGORY = "Jakkanna"
     FUNCTION = "generate_prompt_from_json"
 
     def generate_prompt_from_json(self, camera_data):

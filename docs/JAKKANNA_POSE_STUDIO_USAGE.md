@@ -1,6 +1,6 @@
-# VNCCS Pose Studio Usage Guide
+# Jakkanna Pose Studio Usage Guide
 
-`VNCCS Pose Studio` is an interactive 3D posing, body-shaping, camera, lighting,
+`Jakkanna Pose Studio` is an interactive 3D posing, body-shaping, camera, lighting,
 render, and pose-library node for ComfyUI.
 
 It is designed for workflows that need consistent character pose control images,
@@ -11,7 +11,7 @@ lighting prompts, camera framing, and reusable pose presets.
 Display name:
 
 ```text
-VNCCS Pose Studio
+Jakkanna Pose Studio
 ```
 
 Internal name:
@@ -23,7 +23,7 @@ VNCCS_PoseStudio
 Category:
 
 ```text
-VNCCS/pose
+Jakkanna/pose
 ```
 
 Inputs:
@@ -31,7 +31,7 @@ Inputs:
 | Input | Type | Visible | Notes |
 | --- | --- | --- | --- |
 | `pose_data` | `STRING` | hidden | Main JSON state written by the custom Pose Studio UI. |
-| `pose_image` | `IMAGE` | optional | Studio mode only. Runs SAM 3D Body image-to-pose import and applies the result to the frontend pose. Disabled in VNCCS Pose Manager mode. |
+| `pose_image` | `IMAGE` | optional | Studio mode only. Runs SAM 3D Body image-to-pose import and applies the result to the frontend pose. Disabled in Jakkanna Pose Manager mode. |
 | `unique_id` | ComfyUI hidden | hidden | Used for backend/frontend synchronization. |
 
 Outputs:
@@ -62,7 +62,7 @@ The mode is stored in `pose_data.export.interface_mode`.
 
 ## Quick Start
 
-1. Add `VNCCS Pose Studio`.
+1. Add `Jakkanna Pose Studio`.
 2. Open the node large enough to see the embedded UI.
 3. Pose the mannequin in the center viewport.
 4. Set output dimensions in the export/camera controls.
@@ -291,7 +291,7 @@ Workflow:
 Notes:
 
 - `pose_image` is meant for Studio mode.
-- It is disabled in VNCCS Pose Manager mode.
+- It is disabled in Jakkanna Pose Manager mode.
 - If a saved manager workflow still sends `pose_image`, backend ignores it when `interface_mode` is `manager`.
 - SAM 3D Body can take time on CPU. CUDA is preferred for SAM3D. BiRefNet masking can use XPU when `torch.xpu.is_available()`.
 
@@ -332,7 +332,7 @@ Standalone SAM 3D Body classes present in the vendored package:
 | SAM 3D Body: Render Human From Pose and Body Preset JSON | `SAM3DBodyRenderFromPoseAndBodyPresetJson` | Render a human image from pose JSON and body preset JSON. |
 
 In this repository version, the top-level ComfyUI registration exports the
-VNCCS nodes listed in `MODEL_MANAGER_GUIDE.md`. The vendored SAM3D classes are
+Jakkanna nodes listed in `MODEL_MANAGER_GUIDE.md`. The vendored SAM3D classes are
 kept as the backend bridge and may be registered by dedicated SAM3D entrypoints
 in environments that load them directly.
 
@@ -443,7 +443,7 @@ need manual cleanup. Recommended workflow:
 
 ### Single Pose Control Image
 
-1. Add `VNCCS Pose Studio`.
+1. Add `Jakkanna Pose Studio`.
 2. Pose the body in Studio mode.
 3. Set output mode to LIST.
 4. Keep one pose tab.
@@ -521,7 +521,7 @@ Pose Library repository sync limits:
 
 ### `pose_image` is missing
 
-- This is expected in VNCCS Pose Manager and Manager Detail modes.
+- This is expected in Jakkanna Pose Manager and Manager Detail modes.
 - Switch back to Studio mode to restore the `pose_image` input.
 
 ### `pose_image` is connected but ignored
@@ -561,5 +561,5 @@ Pose Library repository sync limits:
 
 ## Related Docs
 
-- `MODEL_MANAGER_GUIDE.md` - full registered VNCCS node reference.
+- `MODEL_MANAGER_GUIDE.md` - full registered Jakkanna node reference.
 - `MODEL_SELECTOR_USAGE.md` - focused guide for model manifests, downloads, and selector output paths.

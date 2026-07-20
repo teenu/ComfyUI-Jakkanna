@@ -1,4 +1,4 @@
-"""VNCCS Pose Studio - Combined mesh editor and multi-pose generator.
+"""Jakkanna Pose Studio - combined mesh editor and multi-pose generator.
 
 Combines Character Studio mesh sliders with dynamic pose tabs.
 Each pose stores bone rotations and global model rotation.
@@ -265,7 +265,7 @@ def _ensure_data_loaded():
         if not os.path.exists(mh_path):
             raise Exception(f"MakeHuman data not found at: {mh_path}")
 
-        print(f"[VNCCS Pose Studio] Loading MakeHuman data from {mh_path}...")
+        print(f"[Jakkanna Pose Studio] Loading MakeHuman data from {mh_path}...")
 
         # 1. Load Base Mesh
         base_obj_paths = [
@@ -283,7 +283,7 @@ def _ensure_data_loaded():
         parser = TargetParser(mh_path)
         targets = parser.scan_targets()
 
-        print(f"[VNCCS Pose Studio] Loaded {len(targets)} targets.")
+        print(f"[Jakkanna Pose Studio] Loaded {len(targets)} targets.")
 
         # 3. Load Skeleton (Preference: game_engine > default)
         skeleton = None
@@ -292,11 +292,11 @@ def _ensure_data_loaded():
             skel_path = os.path.join(mh_path, "makehuman", "data", "rigs", "default.mhskel")
 
         if os.path.exists(skel_path):
-            print(f"[VNCCS Pose Studio] Loading skeleton from {skel_path}...")
+            print(f"[Jakkanna Pose Studio] Loading skeleton from {skel_path}...")
             skeleton = Skeleton()
             skeleton.fromFile(skel_path, base_mesh)
         else:
-            print(f"[VNCCS Pose Studio] Warning: Default skeleton not found at {skel_path}")
+            print(f"[Jakkanna Pose Studio] Warning: Default skeleton not found at {skel_path}")
 
         POSE_STUDIO_CACHE.update({
             "base_mesh": base_mesh,
@@ -315,7 +315,7 @@ class VNCCS_PoseStudio:
     RETURN_NAMES = ("images", "lighting_prompt")
     OUTPUT_IS_LIST = (True, True)
     FUNCTION = "generate"
-    CATEGORY = "VNCCS/pose"
+    CATEGORY = "Jakkanna/pose"
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -413,7 +413,7 @@ class VNCCS_PoseStudio:
             })
             synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
             if synced:
-                print("[VNCCS Pose Studio] Applied pose_image SAM pose through frontend sync.")
+                print("[Jakkanna Pose Studio] Applied pose_image SAM pose through frontend sync.")
                 return synced
             raise RuntimeError(
                 "pose_image was analyzed, but the Pose Studio frontend did not return synchronized captures"
@@ -448,7 +448,7 @@ class VNCCS_PoseStudio:
                 PromptServer.instance.send_sync("vnccs_req_pose_sync", {"node_id": unique_id})
                 synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
             except Exception as exc:
-                print(f"[VNCCS Pose Studio] Frontend sync failed: {exc}")
+                print(f"[Jakkanna Pose Studio] Frontend sync failed: {exc}")
             if synced is not None:
                 _validate_pose_data(synced)
                 data = synced
@@ -463,9 +463,9 @@ class VNCCS_PoseStudio:
                     if cached:
                         data["captured_images"] = cached.get("captured_images", [])
                         data["lighting_prompts"] = cached.get("lighting_prompts", [])
-                        print(f"[VNCCS Pose Studio] Loaded {len(data['captured_images'])} captures from LRU cache (id={capture_id})")
+                        print(f"[Jakkanna Pose Studio] Loaded {len(data['captured_images'])} captures from LRU cache (id={capture_id})")
                 except (ImportError, AttributeError) as exc:
-                    print(f"[VNCCS Pose Studio] Capture cache unavailable: {exc}")
+                    print(f"[Jakkanna Pose Studio] Capture cache unavailable: {exc}")
 
         _validate_pose_data(data)
         if not _captures_complete(data):
@@ -544,5 +544,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VNCCS_PoseStudio": "VNCCS Pose Studio"
+    "VNCCS_PoseStudio": "Jakkanna Pose Studio"
 }

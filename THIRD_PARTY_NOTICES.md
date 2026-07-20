@@ -1,9 +1,9 @@
 # Third-Party Notices
 
 This repository contains components under multiple licenses. The root
-[`LICENSE`](LICENSE) applies to the original VNCCS code and MIT-licensed fork
-contributions where no component-specific notice states otherwise. It does
-not replace the licenses of bundled or derived third-party components.
+[`LICENSE`](LICENSE) applies to the original VNCCS code and MIT-licensed
+Jakkanna contributions where no component-specific notice states otherwise.
+It does not replace the licenses of bundled or derived third-party components.
 The repository as distributed is therefore not MIT-only.
 
 ## MakeHuman
