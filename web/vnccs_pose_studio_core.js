@@ -3794,9 +3794,10 @@ export class PoseViewerCore {
         };
         const flatten = (points) => points.flatMap(point => point);
         const headCenter = midpoint(boneHead("head"), boneTail("head"));
+        const face = this._getCurrentMHFaceLandmarkPoints();
 
         const body = [
-            project(headCenter),
+            project(face?.nose || headCenter),
             project(boneHead("neck_01")),
             project(boneHead("upperarm_r")),
             project(boneHead("lowerarm_r")),
@@ -3810,8 +3811,8 @@ export class PoseViewerCore {
             project(boneHead("thigh_l")),
             project(boneHead("calf_l")),
             project(boneHead("foot_l")),
-            missing.slice(),
-            missing.slice(),
+            project(face?.right),
+            project(face?.left),
             missing.slice(),
             missing.slice(),
         ];

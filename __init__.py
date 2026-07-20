@@ -44,10 +44,12 @@ import numpy as np
 import struct
 import asyncio
 import tempfile
+import threading
 
 _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_-]+")
-_CAPTURE_CACHE_MAX_IMAGES = 256
+_CAPTURE_CACHE_MAX_IMAGES = 128
 _CAPTURE_CACHE_MAX_TOTAL_CHARS = 64 * 1024 * 1024
+_CAPTURE_CACHE_MAX_PROMPT_CHARS = 4096
 _UNICANVAS_STATE_CACHE_MAX = 10
 _UNICANVAS_STATE_CACHE_MAX_TOTAL_CHARS = 96 * 1024 * 1024
 _UNICANVAS_STATE_CACHE_DIR = os.path.join(tempfile.gettempdir(), "vnccs_unicanvas_state_cache")
@@ -205,8 +207,13 @@ def _vnccs_safe_id(value, fallback="item"):
     return cleaned[:128] or fallback
 
 def _vnccs_validate_capture_payload(data):
+    if not isinstance(data, dict):
+        raise ValueError("capture payload must be an object")
     captured_images = data.get("captured_images", [])
     lighting_prompts = data.get("lighting_prompts", [])
+    capture_version = data.get("capture_version", 0)
+    if isinstance(capture_version, bool) or not isinstance(capture_version, int) or capture_version < 0:
+        raise ValueError("capture_version must be a non-negative integer")
     if not isinstance(captured_images, list):
         raise ValueError("captured_images must be a list")
     if len(captured_images) > _CAPTURE_CACHE_MAX_IMAGES:
@@ -221,9 +228,16 @@ def _vnccs_validate_capture_payload(data):
         if total_chars > _CAPTURE_CACHE_MAX_TOTAL_CHARS:
             raise ValueError("captured_images payload is too large")
     if not isinstance(lighting_prompts, list):
-        lighting_prompts = []
-    lighting_prompts = [str(prompt)[:4096] for prompt in lighting_prompts[:_CAPTURE_CACHE_MAX_IMAGES]]
-    return captured_images, lighting_prompts
+        raise ValueError("lighting_prompts must be a list")
+    if len(lighting_prompts) > _CAPTURE_CACHE_MAX_IMAGES:
+        raise ValueError(f"lighting_prompts limit is {_CAPTURE_CACHE_MAX_IMAGES}")
+    if any(not isinstance(prompt, str) for prompt in lighting_prompts):
+        raise ValueError("lighting_prompts entries must be strings")
+    if any(len(prompt) > _CAPTURE_CACHE_MAX_PROMPT_CHARS for prompt in lighting_prompts):
+        raise ValueError(
+            f"lighting_prompts entries must not exceed {_CAPTURE_CACHE_MAX_PROMPT_CHARS} characters"
+        )
+    return captured_images, lighting_prompts, capture_version
 
 def _vnccs_validate_unicanvas_state_payload(data):
     state = data.get("state")
@@ -652,6 +666,18 @@ _vnccs_register_pose_library()
 # === Pose Studio Capture Cache ===
 VNCCS_CAPTURE_CACHE = {}
 _CAPTURE_CACHE_MAX = 10
+_CAPTURE_CACHE_LOCK = threading.Lock()
+
+def _vnccs_get_capture_cache(capture_id, min_version=0):
+    capture_id = _vnccs_safe_id(capture_id, "capture")
+    with _CAPTURE_CACHE_LOCK:
+        entry = VNCCS_CAPTURE_CACHE.pop(capture_id, None)
+        if entry is None:
+            return None
+        VNCCS_CAPTURE_CACHE[capture_id] = entry
+        if entry.get("capture_version", 0) < min_version:
+            return None
+        return entry
 
 def _vnccs_register_capture_cache():
     try:
@@ -666,33 +692,48 @@ def _vnccs_register_capture_cache():
             if not _vnccs_content_length_ok(request, _CAPTURE_CACHE_MAX_TOTAL_CHARS + 1024 * 1024):
                 return web.json_response({"error": "captured_images payload is too large"}, status=413)
             data = await request.json()
+            if not isinstance(data, dict):
+                return web.json_response({"error": "capture payload must be an object"}, status=400)
             capture_id = data.get("capture_id")
             if not capture_id:
                 return web.json_response({"error": "missing capture_id"}, status=400)
             capture_id = _vnccs_safe_id(capture_id, "capture")
             try:
-                captured_images, lighting_prompts = _vnccs_validate_capture_payload(data)
+                captured_images, lighting_prompts, capture_version = _vnccs_validate_capture_payload(data)
             except ValueError as exc:
                 return web.json_response({"error": str(exc)}, status=413)
 
-            VNCCS_CAPTURE_CACHE[capture_id] = {
-                "captured_images": captured_images,
-                "lighting_prompts": lighting_prompts,
-            }
+            with _CAPTURE_CACHE_LOCK:
+                existing = VNCCS_CAPTURE_CACHE.get(capture_id)
+                if existing and existing.get("capture_version", 0) > capture_version:
+                    return web.json_response({
+                        "status": "stale",
+                        "capture_id": capture_id,
+                        "capture_version": capture_version,
+                    })
+                VNCCS_CAPTURE_CACHE.pop(capture_id, None)
+                VNCCS_CAPTURE_CACHE[capture_id] = {
+                    "captured_images": captured_images,
+                    "lighting_prompts": lighting_prompts,
+                    "capture_version": capture_version,
+                }
 
-            # LRU eviction: keep only last _CAPTURE_CACHE_MAX entries
-            while len(VNCCS_CAPTURE_CACHE) > _CAPTURE_CACHE_MAX:
-                oldest = next(iter(VNCCS_CAPTURE_CACHE))
-                del VNCCS_CAPTURE_CACHE[oldest]
+                while len(VNCCS_CAPTURE_CACHE) > _CAPTURE_CACHE_MAX:
+                    oldest = next(iter(VNCCS_CAPTURE_CACHE))
+                    del VNCCS_CAPTURE_CACHE[oldest]
 
-            return web.json_response({"status": "ok", "capture_id": capture_id})
+            return web.json_response({
+                "status": "ok",
+                "capture_id": capture_id,
+                "capture_version": capture_version,
+            })
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/pose_captures/{capture_id}")
     async def vnccs_pose_captures_get(request):
         capture_id = _vnccs_safe_id(request.match_info["capture_id"], "capture")
-        entry = VNCCS_CAPTURE_CACHE.get(capture_id)
+        entry = _vnccs_get_capture_cache(capture_id)
         if not entry:
             return web.json_response({"error": "not found"}, status=404)
         return web.json_response(entry)

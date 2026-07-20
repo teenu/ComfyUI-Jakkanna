@@ -12,7 +12,10 @@ import { importMixamoFBXAsPoses } from "./vnccs_mixamo_import.js";
 import { detectAndParseJSON, extractKeypointsFromImage, convertOpenPoseToPose, roundTripTest } from "./vnccs_openpose_import.js";
 
 const VNCCS_POSE_MORPH_WORKER_URL = new URL("./vnccs_pose_morph_worker.js", import.meta.url);
-const VNCCS_POSE_MAX_COUNT = 256;
+const VNCCS_POSE_MAX_COUNT = 128;
+const VNCCS_LIGHT_MAX_COUNT = 32;
+const VNCCS_LIGHTING_PROMPT_MAX_LENGTH = 4096;
+const VNCCS_CAPTURE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024;
 let VNCCS_SHARED_MORPH_WORKER = null;
 let VNCCS_SHARED_MORPH_WORKER_FAILED = false;
 let VNCCS_SHARED_MORPH_WORKER_WARMED = false;
@@ -2704,6 +2707,7 @@ class PoseStudioWidget {
         this.activeTab = 0;
         this.poseCaptures = []; // Cache for captured images
         this.poseOpenPoseKeypoints = [];
+        this._captureVersion = 0;
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
         this.interfaceMode = "studio"; // studio | manager | managerDetail
         this.pendingAgeCameraFit = false;
@@ -3692,6 +3696,7 @@ class PoseStudioWidget {
         const promptArea = document.createElement("textarea");
         promptArea.className = "vnccs-ps-textarea";
         promptArea.placeholder = "Describe your scene/character details...";
+        promptArea.maxLength = VNCCS_LIGHTING_PROMPT_MAX_LENGTH;
         promptArea.value = this.getPosePrompt(this.activeTab);
 
         const autoExpand = () => {
@@ -6429,6 +6434,9 @@ class PoseStudioWidget {
                     // Import Set
                     const newPoses = data.poses || (Array.isArray(data) ? data : null);
                     if (newPoses && Array.isArray(newPoses)) {
+                        if (!newPoses.length) {
+                            throw new Error("Pose set must contain at least one pose.");
+                        }
                         if (newPoses.length > VNCCS_POSE_MAX_COUNT) {
                             throw new Error(`Pose set contains more than ${VNCCS_POSE_MAX_COUNT} poses.`);
                         }
@@ -6657,51 +6665,6 @@ class PoseStudioWidget {
             if (this.libraryGrid) {
                 this.libraryGrid.innerHTML = '<div class="vnccs-ps-library-empty">Failed to load library.</div>';
             }
-        }
-    }
-
-    async autoRefreshEnabledPoseRepositories() {
-        if (this._autoRepoRefreshStarted) return;
-        this._autoRepoRefreshStarted = true;
-        try {
-            const res = await fetch('/vnccs/pose_library/repositories/auto_refresh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason: 'pose_studio_initial_load', force: true }),
-            });
-            const data = await res.json().catch(() => ({}));
-            const taskId = data.task_id;
-            if (!taskId || (!data.started && !data.running)) return;
-
-            const startedAt = Date.now();
-            const poll = async () => {
-                try {
-                    const statusRes = await fetch(`/vnccs/pose_library/repositories/progress/${encodeURIComponent(taskId)}`);
-                    if (!statusRes.ok) return false;
-                    const status = await statusRes.json();
-                    if (status.status === 'success') {
-                        await this.refreshLibrary(true);
-                        if (this.librarySettingsMode) await this.refreshPoseRepositories();
-                        return true;
-                    }
-                    if (status.status === 'error') {
-                        console.warn("[VNCCS PoseStudio] Background pose repository refresh failed:", status.message);
-                        return true;
-                    }
-                    return false;
-                } catch (err) {
-                    console.warn("[VNCCS PoseStudio] Background pose repository refresh poll failed:", err);
-                    return true;
-                }
-            };
-
-            const timer = setInterval(async () => {
-                if (Date.now() - startedAt > 10 * 60 * 1000 || await poll()) {
-                    clearInterval(timer);
-                }
-            }, 2500);
-        } catch (err) {
-            console.warn("[VNCCS PoseStudio] Failed to start background pose repository refresh:", err);
         }
     }
 
@@ -7975,6 +7938,7 @@ class PoseStudioWidget {
             area.style.fontSize = "12px";
             area.style.resize = "vertical";
             area.style.fontFamily = "monospace";
+            area.maxLength = VNCCS_LIGHTING_PROMPT_MAX_LENGTH;
             area.value = this.exportParams[key] || "";
 
             area.onchange = () => {
@@ -7999,9 +7963,9 @@ class PoseStudioWidget {
             <div style="font-size: 11px; color: var(--ps-text); margin-bottom: 20px; line-height: 1.6; font-weight: bold; padding: 0 10px;">
                 If you find my project useful, please consider supporting it! I work on it completely on my own, and your support will allow me to continue maintaining it and adding even more cool features!
             </div>
-            <a href="https://www.buymeacoffee.com/MIUProject" target="_blank" style="display: inline-block; transition: transform 0.2s;" 
-               onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);" >
+            <a href="https://www.buymeacoffee.com/MIUProject" target="_blank" rel="noopener noreferrer"
+               style="display:inline-block;padding:12px 20px;border-radius:10px;background:#ffdd00;color:#111;font-weight:700;text-decoration:none;">
+                Support MIUProject
             </a>
         `;
         content.appendChild(donationSection);
@@ -8449,12 +8413,18 @@ class PoseStudioWidget {
         const addBtn = document.createElement('button');
         addBtn.className = 'vnccs-ps-btn-add-large';
         addBtn.innerHTML = '+ Add Light Source';
-        addBtn.disabled = isOverridden;
-        if (isOverridden) {
+        const lightLimitReached = this.lightParams.length >= VNCCS_LIGHT_MAX_COUNT;
+        addBtn.disabled = isOverridden || lightLimitReached;
+        if (addBtn.disabled) {
             addBtn.style.opacity = "0.5";
             addBtn.style.cursor = "not-allowed";
         }
+        if (lightLimitReached) addBtn.title = `Pose Studio supports at most ${VNCCS_LIGHT_MAX_COUNT} lights.`;
         addBtn.onclick = () => {
+            if (this.lightParams.length >= VNCCS_LIGHT_MAX_COUNT) {
+                this.showMessage(`Pose Studio supports at most ${VNCCS_LIGHT_MAX_COUNT} lights.`, true);
+                return;
+            }
             this.lightParams.push({
                 type: 'directional',
                 color: '#ffffff',
@@ -8953,9 +8923,22 @@ class PoseStudioWidget {
     }
 
     syncToNode(fullCapture = false, options = {}) {
-        if (this._isSyncing) return;
+        if (this._isSyncing) return false;
         this._isSyncing = true;
         const skipCapture = options.skipCapture === true || (options.skipCapture !== false && this.interfaceMode === "manager" && !fullCapture);
+        const captureWidth = Number(this.exportParams.view_width) || 1024;
+        const captureHeight = Number(this.exportParams.view_height) || 1024;
+        if (
+            !skipCapture
+            && captureWidth * captureHeight * this.poses.length > VNCCS_CAPTURE_MAX_TOTAL_PIXELS
+        ) {
+            this.showMessage(
+                `The current pose count and capture resolution exceed the ${VNCCS_CAPTURE_MAX_TOTAL_PIXELS.toLocaleString()} pixel capture budget. Reduce the pose count or resolution.`,
+                true
+            );
+            this._isSyncing = false;
+            return false;
+        }
 
         if (this.radarRedraw) this.radarRedraw();
 
@@ -9129,6 +9112,18 @@ class PoseStudioWidget {
         // Update hidden pose_data widget
         // Exclude background_url and captured_images from widget to avoid inflating workflow size.
         // Captures are uploaded to server-side LRU cache; only the capture_id is stored in widget.
+        const oversizedPrompt = this.lightingPrompts.findIndex(
+            prompt => typeof prompt === "string" && prompt.length > VNCCS_LIGHTING_PROMPT_MAX_LENGTH
+        );
+        if (oversizedPrompt >= 0) {
+            this.showMessage(
+                `Lighting prompt ${oversizedPrompt + 1} exceeds ${VNCCS_LIGHTING_PROMPT_MAX_LENGTH} characters. Shorten the pose prompt or prompt template.`,
+                true
+            );
+            this._isSyncing = false;
+            return false;
+        }
+
         const exportToSave = { ...this.exportParams };
         delete exportToSave.background_url;
 
@@ -9137,6 +9132,8 @@ class PoseStudioWidget {
         // They are kept in this.poseCaptures (JS memory) and also uploaded to server-side LRU cache.
         // Only capture_id is stored in the widget so Python can fallback to the cache if needed.
         const captureId = `vnccs_capture_${this.node.id}`;
+        const hasCaptures = this.poseCaptures && this.poseCaptures.some(capture => capture);
+        if (hasCaptures) this._captureVersion += 1;
 
         const data = {
             mesh: this.meshParams,
@@ -9145,17 +9142,19 @@ class PoseStudioWidget {
             lights: this.lightParams,
             activeTab: this.activeTab,
             capture_id: captureId,
+            capture_version: this._captureVersion,
             lighting_prompts: this.lightingPrompts,
             background_url: this.exportParams.background_url || null
         };
 
         // Upload captures to server cache without blocking routine editor updates.
-        if (this.poseCaptures && this.poseCaptures.some(c => c)) {
+        if (hasCaptures) {
             fetch('/vnccs/pose_captures_upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     capture_id: captureId,
+                    capture_version: this._captureVersion,
                     captured_images: this.poseCaptures,
                     lighting_prompts: this.lightingPrompts || []
                 })
@@ -9183,6 +9182,7 @@ class PoseStudioWidget {
         this.renderPoseManager();
         this.renderPoseManagerDetailStrip();
         this._isSyncing = false;
+        return true;
     }
 
     loadFromNode() {
@@ -9195,6 +9195,10 @@ class PoseStudioWidget {
 
         try {
             const data = JSON.parse(widget.value);
+            const captureVersion = Number(data.capture_version);
+            if (Number.isSafeInteger(captureVersion) && captureVersion >= 0) {
+                this._captureVersion = Math.max(this._captureVersion, captureVersion);
+            }
 
             if (data.mesh) {
                 this.meshParams = { ...this.meshParams, ...data.mesh };
@@ -9293,11 +9297,16 @@ class PoseStudioWidget {
             if (this.updateOverrideBtn) this.updateOverrideBtn();
 
             if (data.poses && Array.isArray(data.poses)) {
-                if (data.poses.length > VNCCS_POSE_MAX_COUNT) {
+                if (!data.poses.length) {
+                    this.showMessage("Workflow contained no poses; a default pose was restored.", true);
+                    this.poses = [{}];
+                } else if (data.poses.length > VNCCS_POSE_MAX_COUNT) {
                     console.error(`[VNCCS PoseStudio] Workflow contains ${data.poses.length} poses; the limit is ${VNCCS_POSE_MAX_COUNT}.`);
                     this.showMessage(`Workflow has too many poses; only the first ${VNCCS_POSE_MAX_COUNT} were loaded.`, true);
+                    this.poses = data.poses.slice(0, VNCCS_POSE_MAX_COUNT);
+                } else {
+                    this.poses = data.poses;
                 }
-                this.poses = data.poses.slice(0, VNCCS_POSE_MAX_COUNT);
                 this.posePrompts = []; // rebuild from pose.prompt on next ensurePosePrompts() call
             }
 
@@ -9313,7 +9322,10 @@ class PoseStudioWidget {
             }
 
             if (data.lights && Array.isArray(data.lights)) {
-                this.lightParams = data.lights;
+                if (data.lights.length > VNCCS_LIGHT_MAX_COUNT) {
+                    this.showMessage(`Workflow has too many lights; only the first ${VNCCS_LIGHT_MAX_COUNT} were loaded.`, true);
+                }
+                this.lightParams = data.lights.slice(0, VNCCS_LIGHT_MAX_COUNT);
                 this.refreshLightUI();
                 if (this.viewer) {
                     this.viewer.updateLights(this.lightParams);
@@ -9321,7 +9333,7 @@ class PoseStudioWidget {
             }
 
             if (typeof data.activeTab === 'number') {
-                this.activeTab = Math.min(data.activeTab, this.poses.length - 1);
+                this.activeTab = Math.max(0, Math.min(data.activeTab, this.poses.length - 1));
             }
 
             // captured_images are no longer persisted in widget (stored in server-side LRU cache).
@@ -9501,7 +9513,7 @@ app.registerExtension({
                     if (node.studioWidget.viewer) {
                         node.studioWidget.viewer.updateLights(node.studioWidget.lightParams);
                     }
-                    node.studioWidget.syncToNode(true);
+                    if (!node.studioWidget.syncToNode(true)) return;
 
                     // Build payload from widget metadata + in-memory captures
                     // (captured_images are no longer stored in the widget to keep workflow size small)
@@ -9547,7 +9559,7 @@ app.registerExtension({
 
                 widget.poses[widget.activeTab] = widget.viewer.getPose();
                 widget.updateTabs();
-                widget.syncToNode(true);
+                if (!widget.syncToNode(true)) return;
                 await uploadPoseStudioSync(node, nodeId);
             } catch (e) {
                 console.error("[VNCCS] SAM3D pose_image apply error:", e);
@@ -9621,7 +9633,6 @@ app.registerExtension({
             setTimeout(() => {
                 if (this.studioWidget) {
                     this.studioWidget.refreshLibrary(false);
-                    this.studioWidget.autoRefreshEnabledPoseRepositories();
                 }
             }, 1000);
 
@@ -9682,7 +9693,6 @@ app.registerExtension({
                     window.__vnccsPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
                     this.studioWidget.loadModel();
                     this.studioWidget.refreshLibrary(false); // Pre-load library meta only
-                    this.studioWidget.autoRefreshEnabledPoseRepositories();
                     this.onResize(this.size); // Force correct aspect ratio on config
                 }, 500);
             }

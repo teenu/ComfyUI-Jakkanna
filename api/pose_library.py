@@ -22,17 +22,11 @@ RESERVED_LIBRARY_JSON = {"repositories.user.json", "pose_library.json"}
 SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_-]+")
 MAX_PREVIEW_BYTES = 16 * 1024 * 1024
 MAX_SYNC_CAPTURE_CHARS = 64 * 1024 * 1024
-MAX_SYNC_CAPTURE_IMAGES = 256
+MAX_SYNC_CAPTURE_IMAGES = 128
+MAX_SYNC_PROMPT_CHARS = 4096
 MAX_POSE_REPOSITORY_FILE_BYTES = 32 * 1024 * 1024
 MAX_POSE_REPOSITORY_SYNC_BYTES = 256 * 1024 * 1024
 _REPOSITORY_PROGRESS = {}
-_BACKGROUND_REFRESH_STATE = {
-    "running": False,
-    "task_id": "",
-    "last_started": 0,
-    "last_finished": 0,
-}
-_BACKGROUND_REFRESH_LOCK = threading.Lock()
 
 def repository_progress_start(task_id, message="Starting repository operation..."):
     if not task_id:
@@ -1114,74 +1108,6 @@ def persist_refreshed_repositories(refreshed):
             by_id[repo["repo_id"]].update(repo)
     save_user_repositories(list(by_id.values()))
 
-def run_background_enabled_repository_refresh(task_id):
-    try:
-        repos = [repo for repo in load_pose_repositories() if repo.get("enabled", True)]
-        if not repos:
-            repository_progress_finish(task_id, "No enabled pose repositories to refresh.")
-            return
-        refreshed = []
-        for index, repo in enumerate(repos):
-            repository_progress_update(
-                task_id,
-                status="running",
-                message=f"Refreshing {repo['repo_id']} ({index + 1}/{len(repos)})...",
-                progress=(index / max(len(repos), 1)) * 100,
-            )
-            refreshed.append(refresh_pose_repository(repo, task_id=task_id))
-        persist_refreshed_repositories(refreshed)
-        repository_progress_finish(task_id, "Enabled pose repositories are up to date.")
-    except Exception as exc:
-        repository_progress_fail(task_id, exc)
-    finally:
-        with _BACKGROUND_REFRESH_LOCK:
-            _BACKGROUND_REFRESH_STATE["running"] = False
-            _BACKGROUND_REFRESH_STATE["last_finished"] = time.time()
-
-async def auto_refresh_enabled_pose_repositories(request):
-    now = time.time()
-    try:
-        if not expected_content_length(request, 1024 * 1024):
-            return web.json_response({"error": "Request body is too large"}, status=413)
-        data = await request.json()
-    except Exception:
-        data = {}
-    force = bool(data.get("force"))
-    with _BACKGROUND_REFRESH_LOCK:
-        if _BACKGROUND_REFRESH_STATE["running"]:
-            return web.json_response({
-                "success": True,
-                "started": False,
-                "running": True,
-                "task_id": _BACKGROUND_REFRESH_STATE["task_id"],
-            })
-        if not force and now - float(_BACKGROUND_REFRESH_STATE.get("last_started") or 0) < 300:
-            return web.json_response({
-                "success": True,
-                "started": False,
-                "running": False,
-                "task_id": _BACKGROUND_REFRESH_STATE["task_id"],
-            })
-        task_id = f"repo-auto-{uuid.uuid4()}"
-        _BACKGROUND_REFRESH_STATE.update({
-            "running": True,
-            "task_id": task_id,
-            "last_started": now,
-        })
-    repository_progress_start(task_id, "Refreshing enabled pose repositories in background...")
-    thread = threading.Thread(
-        target=run_background_enabled_repository_refresh,
-        args=(task_id,),
-        daemon=True,
-    )
-    thread.start()
-    return web.json_response({
-        "success": True,
-        "started": True,
-        "running": True,
-        "task_id": task_id,
-    })
-
 async def refresh_pose_repositories(request):
     try:
         if not expected_content_length(request, 1024 * 1024):
@@ -1659,9 +1585,17 @@ async def upload_pose_sync(request):
         if not expected_content_length(request, MAX_SYNC_CAPTURE_CHARS):
             return web.json_response({"error": "capture payload is too large"}, status=413)
         data = await request.json()
+        if not isinstance(data, dict):
+            return web.json_response({"error": "capture payload must be an object"}, status=400)
         node_id = sanitize_node_id(data.get("node_id"))
         if not node_id:
-             return web.json_response({"error": "No node_id"}, status=400)
+            return web.json_response({"error": "No node_id"}, status=400)
+        capture_version = data.get("capture_version", 0)
+        if isinstance(capture_version, bool) or not isinstance(capture_version, int) or capture_version < 0:
+            return web.json_response(
+                {"error": "capture_version must be a non-negative integer"},
+                status=400,
+            )
         captured_images = data.get("captured_images", [])
         if not isinstance(captured_images, list):
             return web.json_response({"error": "captured_images must be a list"}, status=400)
@@ -1675,9 +1609,27 @@ async def upload_pose_sync(request):
                 {"error": "captured_images entries must be strings or null"},
                 status=400,
             )
+        lighting_prompts = data.get("lighting_prompts", [])
+        if not isinstance(lighting_prompts, list):
+            return web.json_response({"error": "lighting_prompts must be a list"}, status=400)
+        if len(lighting_prompts) > MAX_SYNC_CAPTURE_IMAGES:
+            return web.json_response(
+                {"error": f"lighting_prompts limit is {MAX_SYNC_CAPTURE_IMAGES}"},
+                status=413,
+            )
+        if any(not isinstance(prompt, str) for prompt in lighting_prompts):
+            return web.json_response(
+                {"error": "lighting_prompts entries must be strings"},
+                status=400,
+            )
+        if any(len(prompt) > MAX_SYNC_PROMPT_CHARS for prompt in lighting_prompts):
+            return web.json_response(
+                {"error": f"lighting_prompts entries must not exceed {MAX_SYNC_PROMPT_CHARS} characters"},
+                status=413,
+            )
         if len(json.dumps(data, separators=(",", ":"))) > MAX_SYNC_CAPTURE_CHARS:
             return web.json_response({"error": "capture payload is too large"}, status=413)
-             
+
         import folder_paths
         temp_dir = folder_paths.get_temp_directory()
         # Note: we use 'debug' in the filename for backwards compatibility with the backend check
@@ -1707,7 +1659,6 @@ def register_routes(app):
     app.router.add_post("/vnccs/pose_library/repositories/toggle", toggle_pose_repository)
     app.router.add_delete("/vnccs/pose_library/repositories/delete/{repo_id:.+}", delete_pose_repository)
     app.router.add_post("/vnccs/pose_library/repositories/refresh", refresh_pose_repositories)
-    app.router.add_post("/vnccs/pose_library/repositories/auto_refresh", auto_refresh_enabled_pose_repositories)
     app.router.add_post("/vnccs/pose_library/repositories/local/publish", publish_local_pose_repository)
     app.router.add_post("/vnccs/pose_sync/upload_capture", upload_pose_sync)
     app.router.add_post("/vnccs/debug/upload_capture", upload_pose_sync)  # Aliased for backward compatibility

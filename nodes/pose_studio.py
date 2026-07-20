@@ -25,7 +25,7 @@ from ..CharacterData.obj_loader import load_obj
 from ..CharacterData.mh_skeleton import Skeleton
 
 _CACHE_LOCK = threading.Lock()
-_CAPTURED_IMAGE_MAX_COUNT = 256
+_CAPTURED_IMAGE_MAX_COUNT = 128
 _CAPTURED_IMAGE_MAX_TOTAL_CHARS = 64 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_PIXELS = 4096 * 4096
@@ -86,8 +86,8 @@ def _validate_pose_data(data):
         if name in export:
             _finite_number(export[name], f"export.{name}")
     for name in ("view_width", "view_height", "view_size"):
-        if name in export and not 1 <= export[name] <= 4096:
-            raise ValueError(f"export.{name} must be between 1 and 4096")
+        if name in export and (export[name] != int(export[name]) or not 1 <= export[name] <= 4096):
+            raise ValueError(f"export.{name} must be an integer between 1 and 4096")
     if "grid_columns" in export:
         if export["grid_columns"] != int(export["grid_columns"]) or not 1 <= export["grid_columns"] <= _CAPTURED_IMAGE_MAX_COUNT:
             raise ValueError(f"export.grid_columns must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
@@ -180,6 +180,11 @@ def _validate_pose_data(data):
     capture_id = data.get("capture_id")
     if capture_id is not None and (not isinstance(capture_id, str) or len(capture_id) > 256):
         raise ValueError("capture_id must be a string of at most 256 characters")
+
+    capture_version = data.get("capture_version")
+    if capture_version is not None:
+        if isinstance(capture_version, bool) or not isinstance(capture_version, int) or capture_version < 0:
+            raise ValueError("capture_version must be a non-negative integer")
 
     active_tab = data.get("activeTab")
     if active_tab is not None:
@@ -381,9 +386,8 @@ class VNCCS_PoseStudio:
         return None
 
     def _apply_pose_image_via_frontend(self, pose_image, unique_id):
-        if pose_image is None or not unique_id:
-            return None
-
+        if not unique_id:
+            raise RuntimeError("pose_image requires an active Pose Studio frontend node")
         try:
             from server import PromptServer
             import time
@@ -396,11 +400,10 @@ class VNCCS_PoseStudio:
                 pose_json = process_image_to_pose_json(pose_image[:1])
             try:
                 pose_payload = json.loads(pose_json)
-            except Exception:
-                pose_payload = None
-            if not pose_payload:
-                print("[VNCCS Pose Studio] pose_image SAM import returned empty pose data.")
-                return None
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise RuntimeError("pose_image SAM import returned invalid pose data") from exc
+            if not isinstance(pose_payload, dict) or not pose_payload:
+                raise RuntimeError("pose_image SAM import returned empty pose data")
 
             self._discard_frontend_sync(unique_id)
             start_time = time.time()
@@ -412,36 +415,29 @@ class VNCCS_PoseStudio:
             if synced:
                 print("[VNCCS Pose Studio] Applied pose_image SAM pose through frontend sync.")
                 return synced
-            print("[VNCCS Pose Studio] pose_image was analyzed, but frontend sync timed out. Using existing pose_data.")
-        except Exception as e:
-            print(f"[VNCCS Pose Studio] pose_image SAM import failed: {e}")
-        return None
-    
-    def generate(
-        self,
-        pose_data: str = "{}",
-        pose_image=None,
-        unique_id: str = None
-    ):
-        """Generate rendered mesh images for all poses."""
+            raise RuntimeError(
+                "pose_image was analyzed, but the Pose Studio frontend did not return synchronized captures"
+            )
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            raise RuntimeError(f"pose_image SAM import failed: {exc}") from exc
 
+    def _resolve_execution_data(self, pose_data, pose_image, unique_id):
         try:
             data = json.loads(pose_data) if pose_data else {}
         except (json.JSONDecodeError, TypeError) as exc:
             raise ValueError("pose_data must contain valid JSON") from exc
         _validate_pose_data(data)
 
-        pose_image_synced = False
-        if data.get("export", {}).get("interface_mode") == "manager":
-            pose_image = None
         if pose_image is not None:
-            synced = self._apply_pose_image_via_frontend(pose_image, unique_id)
-            if isinstance(synced, dict):
-                _validate_pose_data(synced)
-                data = synced
-                pose_image_synced = True
-
-        if unique_id and not pose_image_synced and not _captures_complete(data):
+            if data.get("export", {}).get("interface_mode") == "manager":
+                raise RuntimeError("pose_image is unavailable in Pose Studio manager mode")
+            data = self._apply_pose_image_via_frontend(pose_image, unique_id)
+            if not isinstance(data, dict):
+                raise RuntimeError("pose_image did not return synchronized Pose Studio data")
+            _validate_pose_data(data)
+        elif unique_id and not _captures_complete(data):
             synced = None
             try:
                 from server import PromptServer
@@ -461,9 +457,9 @@ class VNCCS_PoseStudio:
             capture_id = data.get("capture_id")
             if capture_id:
                 try:
-                    from .. import VNCCS_CAPTURE_CACHE
+                    from .. import _vnccs_get_capture_cache
 
-                    cached = VNCCS_CAPTURE_CACHE.get(capture_id)
+                    cached = _vnccs_get_capture_cache(capture_id, data.get("capture_version", 0))
                     if cached:
                         data["captured_images"] = cached.get("captured_images", [])
                         data["lighting_prompts"] = cached.get("lighting_prompts", [])
@@ -483,20 +479,21 @@ class VNCCS_PoseStudio:
                 f"Pose Studio received {captured_count} of {len(poses)} required frontend captures. "
                 "Open the node, wait for the 3D viewer to load, and run the workflow again."
             )
+        return data
 
+    def _generate_from_execution_data(self, data):
         export = data.get("export", {})
         output_mode = export.get("output_mode", "LIST")
         grid_columns = int(export.get("grid_columns", 2))
         bg_color = export.get("bg_color", [40, 40, 40])
         captured_images = data.get("captured_images", [])
         prompts = data.get("lighting_prompts", [])
+        pose_count = len(data.get("poses", [{}]))
         lighting_prompts = [
             prompts[index] if index < len(prompts) else ""
-            for index in range(len(data.get("poses", [{}])))
+            for index in range(pose_count)
         ]
-        rendered_images = _decode_captured_images(
-            captured_images[:len(data.get("poses", [{}]))]
-        )
+        rendered_images = _decode_captured_images(captured_images[:pose_count])
         tensors = [
             torch.from_numpy(np.asarray(image, dtype=np.float32) / 255.0)
             for image in rendered_images
@@ -509,6 +506,16 @@ class VNCCS_PoseStudio:
         grid = torch.from_numpy(np.asarray(grid_img, dtype=np.float32) / 255.0).unsqueeze(0)
         return ([grid], [lighting_prompts[0] if lighting_prompts else ""])
     
+    def generate(
+        self,
+        pose_data: str = "{}",
+        pose_image=None,
+        unique_id: str = None
+    ):
+        """Generate rendered mesh images for all poses."""
+        data = self._resolve_execution_data(pose_data, pose_image, unique_id)
+        return self._generate_from_execution_data(data)
+
     def _make_grid(self, images, columns, bg_color=(40, 40, 40)):
         """Combine images into a grid."""
         if not images:
@@ -519,6 +526,8 @@ class VNCCS_PoseStudio:
         rows = (n + cols - 1) // cols
         
         w, h = images[0].size
+        if any(image.size != (w, h) for image in images[1:]):
+            raise ValueError("GRID mode requires captured images with identical dimensions")
         grid = Image.new('RGB', (w * cols, h * rows), bg_color)
         
         for i, img in enumerate(images):

@@ -608,18 +608,14 @@ function buildSampleTimes(duration, fps, maxFrames) {
     const safeDuration = Math.max(0, Number(duration) || 0);
     if (safeDuration <= 0) return [0];
 
-    const requestedStep = 1 / Math.max(1, fps || 12);
-    const cappedStep = safeDuration / Math.max(1, maxFrames || 48);
-    const step = Math.max(requestedStep, cappedStep);
-
-    const times = [];
-    for (let t = 0; t < safeDuration && times.length < maxFrames; t += step) {
-        times.push(t);
-    }
-    if (!times.length || Math.abs(times[times.length - 1] - safeDuration) > 1e-5) {
-        times.push(safeDuration);
-    }
-    return times;
+    const safeFps = Math.max(1, Number(fps) || 12);
+    const frameLimit = Math.max(1, Math.floor(Number(maxFrames) || 48));
+    const frameCount = Math.min(frameLimit, Math.ceil(safeDuration * safeFps) + 1);
+    if (frameCount === 1) return [0];
+    return Array.from(
+        { length: frameCount },
+        (_, index) => index === frameCount - 1 ? safeDuration : safeDuration * index / (frameCount - 1)
+    );
 }
 
 export async function importMixamoFBXAsPoses(file, viewer, options = {}) {

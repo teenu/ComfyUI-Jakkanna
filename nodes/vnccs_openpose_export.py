@@ -2,12 +2,10 @@ import copy
 import json
 import math
 import os
-import time
 import types
 from functools import lru_cache
 
 import numpy as np
-from server import PromptServer
 
 from ..CharacterData import matrix
 from ..CharacterData.mh_parser import HumanSolver
@@ -15,6 +13,13 @@ from .pose_studio import POSE_STUDIO_CACHE, VNCCS_PoseStudio, _ensure_data_loade
 
 
 _FINGERS = ("thumb", "index", "middle", "ring", "pinky")
+_KEYPOINT_FIELD_LENGTHS = {
+    "pose_keypoints_2d": 18 * 3,
+    "foot_keypoints_2d": 6 * 3,
+    "face_keypoints_2d": 70 * 3,
+    "hand_right_keypoints_2d": 21 * 3,
+    "hand_left_keypoints_2d": 21 * 3,
+}
 _LENGTH_CONTROLS = {
     "lowerarm_l": "upper_arm_l_length",
     "lowerarm_r": "upper_arm_r_length",
@@ -32,6 +37,53 @@ _LENGTH_CONTROLS = {
 def _number(values, name, default):
     value = values.get(name, default)
     return float(value) if isinstance(value, (int, float)) else float(default)
+
+
+def _validate_openpose_keypoints(keypoints, frame_count, people_per_frame=1, max_canvas_size=4096):
+    if not isinstance(keypoints, list) or len(keypoints) != frame_count:
+        raise ValueError(f"openpose_keypoints must contain exactly {frame_count} frames")
+    for frame_index, frame in enumerate(keypoints):
+        if not isinstance(frame, dict):
+            raise ValueError(f"openpose_keypoints[{frame_index}] must be an object")
+        for name in ("canvas_width", "canvas_height"):
+            value = frame.get(name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value != int(value)
+                or value < 1
+                or (max_canvas_size is not None and value > max_canvas_size)
+            ):
+                limit = f" between 1 and {max_canvas_size}" if max_canvas_size is not None else " greater than zero"
+                raise ValueError(f"openpose_keypoints[{frame_index}].{name} must be an integer{limit}")
+        people = frame.get("people")
+        if not isinstance(people, list) or len(people) != people_per_frame:
+            raise ValueError(
+                f"openpose_keypoints[{frame_index}].people must contain exactly {people_per_frame} "
+                f"{'person' if people_per_frame == 1 else 'people'}"
+            )
+        for person_index, person in enumerate(people):
+            if not isinstance(person, dict):
+                raise ValueError(f"openpose_keypoints[{frame_index}].people[{person_index}] must be an object")
+            for field, expected_length in _KEYPOINT_FIELD_LENGTHS.items():
+                values = person.get(field)
+                if not isinstance(values, list) or len(values) != expected_length:
+                    raise ValueError(
+                        f"openpose_keypoints[{frame_index}].people[{person_index}].{field} "
+                        f"must contain {expected_length} numbers"
+                    )
+                if any(
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                    for value in values
+                ):
+                    raise ValueError(
+                        f"openpose_keypoints[{frame_index}].people[{person_index}].{field} "
+                        "must contain finite numbers"
+                    )
+    return keypoints
 
 
 def _solve_vertices(mesh):
@@ -232,20 +284,50 @@ def _openpose_frame(vertices, skeleton, world_matrices, export, pose):
     }
 
 
-def pose_data_to_openpose(pose_data):
-    data = json.loads(pose_data) if pose_data else {}
+def pose_data_to_openpose(pose_data, image_sizes=None):
+    data = pose_data if isinstance(pose_data, dict) else json.loads(pose_data) if pose_data else {}
     _validate_pose_data(data)
     mesh = data.get("mesh", {})
     export = data.get("export", {})
     poses = data.get("poses") or [{}]
+    if image_sizes is not None and (
+        not isinstance(image_sizes, (list, tuple))
+        or len(image_sizes) != len(poses)
+    ):
+        raise ValueError(f"image_sizes must contain exactly {len(poses)} entries")
 
     _ensure_data_loaded()
     vertices = _solve_vertices(mesh)
     frames = []
-    for pose in poses:
+    for pose_index, pose in enumerate(poses):
         skeleton, world_matrices = _pose_bones(vertices, mesh, pose)
-        frames.append(_openpose_frame(vertices, skeleton, world_matrices, export, pose))
+        frame_export = export
+        if image_sizes is not None:
+            width, height = image_sizes[pose_index]
+            frame_export = {**export, "view_width": width, "view_height": height}
+        frames.append(_openpose_frame(vertices, skeleton, world_matrices, frame_export, pose))
     return frames
+
+
+def _combine_openpose_grid(keypoints, columns, cell_width, cell_height):
+    people = []
+    for frame_index, frame in enumerate(keypoints):
+        person = copy.deepcopy(frame["people"][0])
+        offset_x = (frame_index % columns) * cell_width
+        offset_y = (frame_index // columns) * cell_height
+        for field in _KEYPOINT_FIELD_LENGTHS:
+            values = person[field]
+            for point_index in range(0, len(values), 3):
+                if values[point_index] != 0 or values[point_index + 1] != 0 or values[point_index + 2] != 0:
+                    values[point_index] += offset_x
+                    values[point_index + 1] += offset_y
+        people.append(person)
+    rows = (len(keypoints) + columns - 1) // columns
+    return [{
+        "canvas_width": columns * cell_width,
+        "canvas_height": rows * cell_height,
+        "people": people,
+    }]
 
 
 class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
@@ -255,19 +337,36 @@ class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
     FUNCTION = "generate_with_openpose"
 
     def generate_with_openpose(self, pose_data="{}", pose_image=None, unique_id=None):
-        effective_pose_data = pose_data
-        if unique_id and pose_image is None:
-            self._discard_frontend_sync(unique_id)
-            start_time = time.time()
-            PromptServer.instance.send_sync("vnccs_req_pose_sync", {"node_id": unique_id})
-            synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
-            if synced:
-                effective_pose_data = json.dumps(synced)
-        images, prompts = super().generate(effective_pose_data, pose_image, unique_id)
-        effective_data = json.loads(effective_pose_data) if effective_pose_data else {}
-        keypoints = effective_data.get("openpose_keypoints")
-        if not isinstance(keypoints, list) or not keypoints:
-            keypoints = pose_data_to_openpose(effective_pose_data)
+        data = self._resolve_execution_data(pose_data, pose_image, unique_id)
+        images, prompts = self._generate_from_execution_data(data)
+        pose_count = len(data.get("poses", [{}]))
+        output_mode = data.get("export", {}).get("output_mode", "LIST")
+        if output_mode == "GRID":
+            columns = min(int(data.get("export", {}).get("grid_columns", 2)), pose_count)
+            rows = (pose_count + columns - 1) // columns
+            grid_height, grid_width = images[0].shape[1:3]
+            if grid_width % columns or grid_height % rows:
+                raise ValueError("GRID output dimensions are not divisible into equal pose cells")
+            cell_width = grid_width // columns
+            cell_height = grid_height // rows
+            image_sizes = [(cell_width, cell_height)] * pose_count
+        else:
+            image_sizes = [(int(image.shape[2]), int(image.shape[1])) for image in images]
+
+        keypoints = data.get("openpose_keypoints")
+        if keypoints is None or keypoints == []:
+            keypoints = pose_data_to_openpose(data, image_sizes)
+        _validate_openpose_keypoints(keypoints, pose_count)
+        for frame_index, ((width, height), frame) in enumerate(zip(image_sizes, keypoints)):
+            if frame["canvas_width"] != width or frame["canvas_height"] != height:
+                raise ValueError(
+                    f"openpose_keypoints[{frame_index}] canvas dimensions do not match its captured image"
+                )
+        if output_mode == "GRID":
+            keypoints = _combine_openpose_grid(keypoints, columns, cell_width, cell_height)
+            _validate_openpose_keypoints(keypoints, 1, people_per_frame=pose_count, max_canvas_size=None)
+            if keypoints[0]["canvas_width"] != grid_width or keypoints[0]["canvas_height"] != grid_height:
+                raise ValueError("OpenPose GRID dimensions do not match the rendered grid")
         return images, prompts, keypoints
 
 
