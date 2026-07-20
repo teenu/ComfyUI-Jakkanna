@@ -1,8 +1,8 @@
 {
   "id": "c5808d61-e926-4099-9c8c-a0ef4eaa4efa",
   "revision": 0,
-  "last_node_id": 14,
-  "last_link_id": 16,
+  "last_node_id": 15,
+  "last_link_id": 17,
   "nodes": [
     {
       "id": 1,
@@ -32,7 +32,8 @@
           "shape": 6,
           "type": "IMAGE",
           "links": [
-            1
+            1,
+            17
           ]
         },
         {
@@ -45,7 +46,7 @@
           ]
         }
       ],
-      "title": "EDIT MANNEQUIN, SILHOUETTE, POSE, CAMERA, LIGHTING, AND PROMPT HERE",
+      "title": "EDIT MANNEQUIN AND PROMPT HERE — NAME THE POSE EXPLICITLY",
       "properties": {
         "Node name for S&R": "VNCCS_PoseStudio",
         "cnr_id": "jakkanna",
@@ -53,7 +54,7 @@
         "aux_id": "teenu/ComfyUI-Jakkanna"
       },
       "widgets_values": [
-        "{\"mesh\":{\"age\":27,\"gender\":0,\"weight\":0.5,\"muscle\":0.5,\"height\":0.5,\"head_size\":1,\"arm_size\":1,\"hand_size\":1},\"export\":{\"view_width\":1024,\"view_height\":1024,\"cam_zoom\":1,\"cam_offset_x\":0,\"cam_offset_y\":0,\"cam_yaw_deg\":0,\"cam_pitch_deg\":0,\"output_mode\":\"LIST\",\"grid_columns\":2,\"bg_color\":[32,32,32],\"debugMode\":false,\"debugPortraitMode\":false,\"debugKeepLighting\":false,\"debugShowSAMHelper\":false,\"debugShowSAMMeshOverlay\":false,\"samApplyCamera\":false,\"keepOriginalLighting\":false,\"user_prompt\":\"A museum-quality bronze sculpture with weathered gold patina, physically based materials, dramatic gallery lighting, intricate sculpted detail, sharp focus\",\"prompt_template\":\"A single full-body adult figure matching the mannequin's exact silhouette, pose, proportions, camera angle, and framing.\\n<user_prompt>\\n<lighting>\",\"skin_type\":\"dummy_white\",\"interface_mode\":\"studio\",\"hand_controls_v2\":true},\"poses\":[{\"prompt\":\"A museum-quality bronze sculpture with weathered gold patina, physically based materials, dramatic gallery lighting, intricate sculpted detail, sharp focus\"}],\"lights\":[{\"type\":\"ambient\",\"color\":\"#404040\",\"intensity\":0.5},{\"type\":\"directional\",\"color\":\"#ffffff\",\"intensity\":1,\"x\":1,\"y\":2,\"z\":3}],\"activeTab\":0}",
+        "{\"mesh\":{\"age\":27,\"gender\":0,\"weight\":0.5,\"muscle\":0.5,\"height\":0.5,\"head_size\":1,\"arm_size\":1,\"hand_size\":1},\"export\":{\"view_width\":704,\"view_height\":1280,\"cam_zoom\":1,\"cam_offset_x\":0,\"cam_offset_y\":0,\"cam_yaw_deg\":0,\"cam_pitch_deg\":0,\"output_mode\":\"LIST\",\"grid_columns\":2,\"bg_color\":[32,32,32],\"debugMode\":false,\"debugPortraitMode\":false,\"debugKeepLighting\":false,\"debugShowSAMHelper\":false,\"debugShowSAMMeshOverlay\":false,\"samApplyCamera\":false,\"keepOriginalLighting\":false,\"user_prompt\":\"A masterfully rendered cinematic 3D bronze sculpture of an adult figure, full body, preserving the exact pose, anatomy, silhouette, camera angle, and framing of the source image, polished bronze with weathered gold patina, museum-quality physically based materials, intricate sculpted surface detail, dramatic rim lighting, soft volumetric atmosphere, dark gallery background, physically plausible adult proportions, sharp focus, no text\",\"prompt_template\":\"<user_prompt>\",\"skin_type\":\"naked\",\"interface_mode\":\"studio\",\"hand_controls_v2\":true},\"poses\":[{\"prompt\":\"A masterfully rendered cinematic 3D bronze sculpture of an adult figure, full body, preserving the exact pose, anatomy, silhouette, camera angle, and framing of the source image, polished bronze with weathered gold patina, museum-quality physically based materials, intricate sculpted surface detail, dramatic rim lighting, soft volumetric atmosphere, dark gallery background, physically plausible adult proportions, sharp focus, no text\"}],\"lights\":[{\"type\":\"directional\",\"color\":\"#ffffff\",\"intensity\":2,\"x\":10,\"y\":20,\"z\":30},{\"type\":\"ambient\",\"color\":\"#505050\",\"intensity\":1,\"x\":0,\"y\":0,\"z\":0}],\"activeTab\":0}",
         ""
       ]
     },
@@ -413,18 +414,18 @@
           "slot_index": 0
         }
       ],
-      "title": "Community preset + adherence-first denoise 0.35",
+      "title": "Proven img2img preset — fixed seed, denoise 0.60",
       "properties": {
         "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         732456109,
-        "randomize",
-        12,
+        "fixed",
+        8,
         1.0,
-        "euler",
-        "beta",
-        0.35
+        "er_sde",
+        "simple",
+        0.6
       ]
     },
     {
@@ -563,6 +564,34 @@
         null,
         null
       ]
+    },
+    {
+      "id": 15,
+      "type": "PreviewImage",
+      "pos": [
+        1720,
+        840
+      ],
+      "size": [
+        860,
+        620
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "title": "RAW JAKKANNA CAPTURE — verify shading, contrast, pose, and framing",
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
     }
   ],
   "links": [
@@ -693,6 +722,14 @@
       13,
       0,
       "IMAGE"
+    ],
+    [
+      17,
+      1,
+      0,
+      15,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -724,7 +761,7 @@
     },
     {
       "id": 3,
-      "title": "3 · EULER / BETA / 12 STEPS / CFG 1 / DENOISE 0.35",
+      "title": "3 · PROVEN IMG2IMG PRESET — ER_SDE / SIMPLE / 8 STEPS / CFG 1 / DENOISE 0.60",
       "bounding": [
         2920,
         -20,
@@ -732,6 +769,19 @@
         1130
       ],
       "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "SOURCE CHECK — avoid flat grey captures; describe the pose explicitly in the prompt",
+      "bounding": [
+        1680,
+        780,
+        1190,
+        730
+      ],
+      "color": "#9e633f",
       "font_size": 24,
       "flags": {}
     }

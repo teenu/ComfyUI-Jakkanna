@@ -106,11 +106,15 @@ The [plain Krea 2 workflow](workflows/Krea%202%20Community%20Raw%20Mystic%20Turb
 provides a text-to-image baseline, while the
 [Pose Studio workflow](workflows/Jakkanna%20Pose%20Studio%20Krea%202%20Community.json)
 uses the editable mannequin render as an image-to-image structural reference.
-Both use `raw.safetensors`, MysticXXX Stripped at `0.55`, Raw-to-Turbo at
-`1.00`, and Euler with the beta scheduler for 12 steps at 1024 × 1024. The
-Pose Studio workflow starts at an adherence-first `0.35` denoise; raise it
-deliberately when stronger prompt-driven restyling matters more than the
-mannequin silhouette.
+Both use `raw.safetensors`, MysticXXX Stripped at `0.55`, and Raw-to-Turbo at
+`1.00`. The plain text-to-image baseline uses Euler/beta for 12 steps at
+1024 × 1024. The Pose Studio image-to-image workflow uses the empirically
+verified 704 × 1280 preset: ER-SDE/simple, 8 steps, CFG 1, denoise `0.60`, and
+a fixed seed. Its raw-capture preview should show a shaded, high-contrast
+figure; flat grey captures leave too little form information for restyling.
+Describe the pose explicitly in the prompt for the strongest adherence.
+This remains VAE image-to-image conditioning rather than ControlNet: at
+denoise `0.60`, Krea 2 can still reinterpret a pose that is not described.
 
 ## Jakkanna Pose Studio
 
