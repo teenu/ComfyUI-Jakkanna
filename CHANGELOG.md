@@ -1,3 +1,16 @@
+# Version 0.6.1
+## Project Positioning and License Documentation
+
+### Documentation
+
+*   Defined the primary audience for the maintained fork and clarified when a dedicated OpenPose editor may be a smaller alternative.
+*   Separated financial support for maintained-fork work from support for the original VNCCS project.
+*   Added a package-level third-party license inventory and the complete AGPLv3 text referenced by the bundled MakeHuman license notice.
+*   Marked the MakeHuman-derived skeleton implementation with its source, license, and modification notice.
+
+This patch changes project documentation and license completeness only. Runtime
+node behavior is unchanged from `0.6.0`.
+
 # Version 0.6.0
 ## Maintained Fork Correctness Baseline
 

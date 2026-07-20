@@ -2,10 +2,11 @@
 
 This is a maintained fork of
 [AHEKOT/ComfyUI_VNCCS_Utils](https://github.com/AHEKOT/ComfyUI_VNCCS_Utils),
-an MIT-licensed collection of utility nodes from the
-[VNCCS](https://github.com/AHEKOT/ComfyUI_VNCCS) project. It includes
-**VNCCS UniCanvas**, **VNCCS Pose Studio**, and supporting generation
-utilities.
+a collection of utility nodes from the
+[VNCCS](https://github.com/AHEKOT/ComfyUI_VNCCS) project. The original VNCCS
+code is distributed under the MIT license; bundled and derived third-party
+components remain under their respective licenses. The package includes
+**VNCCS UniCanvas**, **VNCCS Pose Studio**, and supporting generation utilities.
 
 > [!IMPORTANT]
 > Install this package as a replacement for the upstream `vnccs-utils`
@@ -15,7 +16,7 @@ utilities.
 
 ## Why This Fork Exists
 
-Release `0.6.0` provides a correctness-focused maintenance baseline:
+The correctness baseline introduced in release `0.6.0` provides:
 
 * Pose Studio and Pose Studio + OpenPose resolve one effective execution
   state and render from it exactly once.
@@ -37,16 +38,37 @@ Release `0.6.0` provides a correctness-focused maintenance baseline:
 See [FORK_NOTICE.md](FORK_NOTICE.md) for attribution, compatibility, and the
 comparison with related ComfyUI pose nodes.
 
+## Who This Fork Is For
+
+Use this fork when a ComfyUI workflow depends on VNCCS Pose Studio as an
+accurate production control source. It is particularly useful for:
+
+* existing VNCCS workflows that need the corrections without node migration;
+* workflows that require rendered frames and body, hand, and face OpenPose
+  data to remain exactly aligned;
+* batch, grid, Mixamo, SAM-driven, pose-library, and MakeHuman morph workflows;
+  and
+* workflow authors who need deterministic output when sharing graphs with
+  other users.
+
+If you only need lightweight 2D keypoint editing and do not use VNCCS
+workflows, a dedicated OpenPose editor may be a smaller fit.
+
 <table>
 <tr>
-<td width="50%" align="center">
+<td width="33%" align="center">
 <strong>Upstream VNCCS Community</strong><br>
 Share results, ask questions, and follow VNCCS updates.<br><br>
 <a href="https://discord.com/invite/9Dacp4wvQw" target="_blank"><img src="images/VNCCS_Discord_Button.png" alt="Join our Discord"></a>
 </td>
-<td width="50%" align="center">
-<strong>Support the Upstream Project</strong><br>
-VNCCS is developed independently. Support helps keep the project moving.<br><br>
+<td width="33%" align="center">
+<strong>Support This Maintained Fork</strong><br>
+Support ongoing compatibility work, testing, fixes, and releases.<br><br>
+<a href="https://www.buymeacoffee.com/teenu" target="_blank">Support fork maintenance</a>
+</td>
+<td width="33%" align="center">
+<strong>Support Original VNCCS</strong><br>
+Support MiuProject's original VNCCS development separately.<br><br>
 <a href="https://www.buymeacoffee.com/MIUProject" target="_blank"><img src="images/VNCCS_Donate_Button.png" alt="Support VNCCS"></a>
 </td>
 </tr>
@@ -182,8 +204,15 @@ Restart ComfyUI after installation.
 
 ## Attribution and Maintenance
 
-The original implementation and bundled assets remain attributed to
-MiuProject/VNCCS under their respective licenses. This fork is maintained at
+The original VNCCS implementation remains attributed to MiuProject under the
+MIT license. MakeHuman-derived code and assets, SAM 3D Body, MHR, Three.js,
+and other bundled components retain their own licenses and notices; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the package-level
+inventory.
+
+This fork is maintained independently at
 [teenu/ComfyUI-VNCCS-Utils-Maintained](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained).
 Please report fork-specific defects through its
 [issue tracker](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained/issues).
+Financial support for this fork funds its maintenance and does not imply
+endorsement by, or financial support for, the upstream project.

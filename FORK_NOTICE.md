@@ -3,7 +3,10 @@
 `vnccs-utils-maintained` is a maintained fork of
 [AHEKOT/ComfyUI_VNCCS_Utils](https://github.com/AHEKOT/ComfyUI_VNCCS_Utils).
 The original project and its bundled assets remain subject to their existing
-copyright notices and licenses. The fork retains the upstream MIT license.
+copyright notices and licenses. The original VNCCS code and this fork's
+MIT-licensed contributions retain the upstream MIT terms. Bundled and derived
+third-party components remain under the licenses identified in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Compatibility
 

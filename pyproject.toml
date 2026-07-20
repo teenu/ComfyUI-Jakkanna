@@ -1,7 +1,7 @@
 [project]
 name = "vnccs-utils-maintained"
 description = "Maintained VNCCS Utils fork with corrected Pose Studio, OpenPose, capture, and morph execution."
-version = "0.6.0"
+version = "0.6.1"
 license = {file = "LICENSE"} 
 
 dependencies = [
