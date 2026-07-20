@@ -6,21 +6,21 @@
 
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { PoseViewerCore, IK_CHAINS } from "./vnccs_pose_studio_core.js";
-import { HAND_PRESETS } from "./vnccs_hand_presets.js";
-import { importMixamoFBXAsPoses } from "./vnccs_mixamo_import.js";
-import { detectAndParseJSON, extractKeypointsFromImage, convertOpenPoseToPose, roundTripTest } from "./vnccs_openpose_import.js";
+import { PoseViewerCore, IK_CHAINS } from "./jakkanna_pose_studio_core.js";
+import { HAND_PRESETS } from "./jakkanna_hand_presets.js";
+import { importMixamoFBXAsPoses } from "./jakkanna_mixamo_import.js";
+import { detectAndParseJSON, extractKeypointsFromImage, convertOpenPoseToPose, roundTripTest } from "./jakkanna_openpose_import.js";
 
-const VNCCS_POSE_MORPH_WORKER_URL = new URL("./vnccs_pose_morph_worker.js", import.meta.url);
-const VNCCS_POSE_MAX_COUNT = 128;
-const VNCCS_LIGHT_MAX_COUNT = 32;
-const VNCCS_LIGHTING_PROMPT_MAX_LENGTH = 4096;
-const VNCCS_CAPTURE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024;
-let VNCCS_SHARED_MORPH_WORKER = null;
-let VNCCS_SHARED_MORPH_WORKER_FAILED = false;
-let VNCCS_SHARED_MORPH_WORKER_WARMED = false;
-let VNCCS_SHARED_MORPH_CLIENT_ID = 1;
-const VNCCS_SHARED_MORPH_CLIENTS = new Map();
+const JAKKANNA_POSE_MORPH_WORKER_URL = new URL("./jakkanna_pose_morph_worker.js", import.meta.url);
+const JAKKANNA_POSE_MAX_COUNT = 128;
+const JAKKANNA_LIGHT_MAX_COUNT = 32;
+const JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH = 4096;
+const JAKKANNA_CAPTURE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024;
+let JAKKANNA_SHARED_MORPH_WORKER = null;
+let JAKKANNA_SHARED_MORPH_WORKER_FAILED = false;
+let JAKKANNA_SHARED_MORPH_WORKER_WARMED = false;
+let JAKKANNA_SHARED_MORPH_CLIENT_ID = 1;
+const JAKKANNA_SHARED_MORPH_CLIENTS = new Map();
 
 async function requireSuccessfulResponse(response, action) {
     if (response.ok) return response;
@@ -34,50 +34,50 @@ async function requireSuccessfulResponse(response, action) {
     throw new Error(`${action} failed (${response.status})${detail ? `: ${detail}` : ""}`);
 }
 
-function getVNCCSSharedMorphWorker() {
-    if (VNCCS_SHARED_MORPH_WORKER_FAILED || typeof Worker === "undefined") return null;
-    if (VNCCS_SHARED_MORPH_WORKER) return VNCCS_SHARED_MORPH_WORKER;
+function getJakkannaSharedMorphWorker() {
+    if (JAKKANNA_SHARED_MORPH_WORKER_FAILED || typeof Worker === "undefined") return null;
+    if (JAKKANNA_SHARED_MORPH_WORKER) return JAKKANNA_SHARED_MORPH_WORKER;
 
     try {
-        const worker = new Worker(VNCCS_POSE_MORPH_WORKER_URL, { type: "module" });
+        const worker = new Worker(JAKKANNA_POSE_MORPH_WORKER_URL, { type: "module" });
         worker.onmessage = (event) => {
             const message = event.data || {};
-            const handler = VNCCS_SHARED_MORPH_CLIENTS.get(message.clientId);
+            const handler = JAKKANNA_SHARED_MORPH_CLIENTS.get(message.clientId);
             if (handler) {
                 handler(message);
                 return;
             }
             if (message.type === "error") {
-                for (const callback of VNCCS_SHARED_MORPH_CLIENTS.values()) callback(message);
+                for (const callback of JAKKANNA_SHARED_MORPH_CLIENTS.values()) callback(message);
             }
         };
         worker.onerror = (event) => {
-            VNCCS_SHARED_MORPH_WORKER_FAILED = true;
-            console.warn("[Jakkanna PoseStudio] Shared live morph worker error:", event.message || event);
-            for (const callback of VNCCS_SHARED_MORPH_CLIENTS.values()) {
+            JAKKANNA_SHARED_MORPH_WORKER_FAILED = true;
+            console.warn("[Jakkanna Pose Studio] Shared live morph worker error:", event.message || event);
+            for (const callback of JAKKANNA_SHARED_MORPH_CLIENTS.values()) {
                 callback({ type: "error", message: event.message || String(event) });
             }
             try { worker.terminate(); } catch (_) {}
-            VNCCS_SHARED_MORPH_WORKER = null;
-            VNCCS_SHARED_MORPH_WORKER_WARMED = false;
+            JAKKANNA_SHARED_MORPH_WORKER = null;
+            JAKKANNA_SHARED_MORPH_WORKER_WARMED = false;
         };
-        VNCCS_SHARED_MORPH_WORKER = worker;
+        JAKKANNA_SHARED_MORPH_WORKER = worker;
     } catch (error) {
-        VNCCS_SHARED_MORPH_WORKER_FAILED = true;
-        console.warn("[Jakkanna PoseStudio] Shared live morph worker unavailable:", error);
+        JAKKANNA_SHARED_MORPH_WORKER_FAILED = true;
+        console.warn("[Jakkanna Pose Studio] Shared live morph worker unavailable:", error);
     }
 
-    return VNCCS_SHARED_MORPH_WORKER;
+    return JAKKANNA_SHARED_MORPH_WORKER;
 }
 
-// Determine the extension's base URL dynamically to support varied directory names (e.g. ComfyUI_VNCCS_Utils or vnccs-utils)
+// Determine the extension's base URL dynamically so installation directory names do not matter.
 const EXTENSION_URL = new URL(".", import.meta.url).toString();
 
 // === Styles ===
 const STYLES = `
 /* ===== Jakkanna Pose Studio — Sakura Theme ===== */
 /* Variables scoped to the node container — won't leak to other ComfyUI tabs */
-.vnccs-pose-studio {
+.jakkanna-pose-studio {
     --ps-bg:            #0a0a0f;
     --ps-panel:         rgba(16, 14, 24, 0.92);
     --ps-elevated:      #1a1a26;
@@ -104,11 +104,11 @@ const STYLES = `
     --ps-radius-md:  12px;
     --ps-radius-lg:  16px;
     --ps-transition: 0.2s ease;
-    --vnccs-ps-ui-scale: 1;
+    --jakkanna-ps-ui-scale: 1;
 }
 
 /* Main Container */
-.vnccs-pose-studio {
+.jakkanna-pose-studio {
     display: flex;
     flex-direction: row;
     width: 100%;
@@ -124,9 +124,9 @@ const STYLES = `
 }
 
 /* === Left Panel === */
-.vnccs-ps-left {
+.jakkanna-ps-left {
     width: 220px;
-    zoom: var(--vnccs-ps-ui-scale);
+    zoom: var(--jakkanna-ps-ui-scale);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -138,11 +138,11 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-left::-webkit-scrollbar { width: 4px; }
-.vnccs-ps-left::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
+.jakkanna-ps-left::-webkit-scrollbar { width: 4px; }
+.jakkanna-ps-left::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
 
 /* === Center Panel (Canvas) === */
-.vnccs-ps-center {
+.jakkanna-ps-center {
     flex: 1;
     min-width: 0;      /* prevent flex auto-expansion beyond node width */
     min-height: 0;     /* allow shrinking in nested flex column */
@@ -155,9 +155,9 @@ const STYLES = `
 }
 
 /* === Right Sidebar (Lighting) === */
-.vnccs-ps-right-sidebar {
+.jakkanna-ps-right-sidebar {
     width: 220px;
-    zoom: var(--vnccs-ps-ui-scale);
+    zoom: var(--jakkanna-ps-ui-scale);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -171,11 +171,11 @@ const STYLES = `
     z-index: 1;
 }
 
-.vnccs-ps-right-sidebar::-webkit-scrollbar { width: 4px; }
-.vnccs-ps-right-sidebar::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
+.jakkanna-ps-right-sidebar::-webkit-scrollbar { width: 4px; }
+.jakkanna-ps-right-sidebar::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
 
 /* === Section Component — Glassmorphic === */
-.vnccs-ps-section {
+.jakkanna-ps-section {
     background: rgba(20, 16, 30, 0.72);
     border: 1px solid var(--ps-accent-border);
     border-radius: var(--ps-radius-md);
@@ -186,7 +186,7 @@ const STYLES = `
 }
 
 /* Luminous top highlight */
-.vnccs-ps-section::before {
+.jakkanna-ps-section::before {
     content: '';
     position: absolute;
     top: 0; left: 14%; right: 14%;
@@ -197,7 +197,7 @@ const STYLES = `
     z-index: 1;
 }
 
-.vnccs-ps-section-header {
+.jakkanna-ps-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -210,7 +210,7 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-section-title {
+.jakkanna-ps-section-title {
     font-size: 9px;
     font-weight: 700;
     color: var(--ps-accent);
@@ -221,7 +221,7 @@ const STYLES = `
     gap: 7px;
 }
 
-.vnccs-ps-section-title::before {
+.jakkanna-ps-section-title::before {
     content: '';
     width: 3px;
     height: 10px;
@@ -231,17 +231,17 @@ const STYLES = `
     flex-shrink: 0;
 }
 
-.vnccs-ps-section-toggle {
+.jakkanna-ps-section-toggle {
     font-size: 10px;
     color: var(--ps-text-muted);
     transition: transform var(--ps-transition);
 }
 
-.vnccs-ps-section.collapsed .vnccs-ps-section-toggle {
+.jakkanna-ps-section.collapsed .jakkanna-ps-section-toggle {
     transform: rotate(-90deg);
 }
 
-.vnccs-ps-section-content {
+.jakkanna-ps-section-content {
     padding: 8px;
     display: flex;
     flex-direction: column;
@@ -249,19 +249,19 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-section.collapsed .vnccs-ps-section-content {
+.jakkanna-ps-section.collapsed .jakkanna-ps-section-content {
     display: none;
 }
 
 /* === Form Fields === */
-.vnccs-ps-field {
+.jakkanna-ps-field {
     display: flex;
     flex-direction: column;
     gap: 3px;
     pointer-events: auto;
 }
 
-.vnccs-ps-label {
+.jakkanna-ps-label {
     font-size: 9px;
     color: var(--ps-text-muted);
     text-transform: uppercase;
@@ -269,21 +269,21 @@ const STYLES = `
     letter-spacing: 0.8px;
 }
 
-.vnccs-ps-value {
+.jakkanna-ps-value {
     font-size: 9px;
     color: var(--ps-accent);
     margin-left: auto;
     font-family: var(--ps-font-mono);
 }
 
-.vnccs-ps-label-row {
+.jakkanna-ps-label-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 /* Slider */
-.vnccs-ps-slider-wrap {
+.jakkanna-ps-slider-wrap {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -295,11 +295,11 @@ const STYLES = `
     transition: border-color var(--ps-transition);
 }
 
-.vnccs-ps-slider-wrap:hover {
+.jakkanna-ps-slider-wrap:hover {
     border-color: var(--ps-border-hover);
 }
 
-.vnccs-ps-slider {
+.jakkanna-ps-slider {
     flex: 1;
     -webkit-appearance: none;
     appearance: none;
@@ -310,7 +310,7 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-slider::-webkit-slider-thumb {
+.jakkanna-ps-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 13px;
     height: 13px;
@@ -321,11 +321,11 @@ const STYLES = `
     transition: box-shadow var(--ps-transition);
 }
 
-.vnccs-ps-slider::-webkit-slider-thumb:hover {
+.jakkanna-ps-slider::-webkit-slider-thumb:hover {
     box-shadow: 0 0 12px var(--ps-accent-glow);
 }
 
-.vnccs-ps-slider::-moz-range-thumb {
+.jakkanna-ps-slider::-moz-range-thumb {
     width: 13px;
     height: 13px;
     background: var(--ps-accent);
@@ -335,7 +335,7 @@ const STYLES = `
     box-shadow: 0 0 6px var(--ps-accent-glow);
 }
 
-.vnccs-ps-slider-val {
+.jakkanna-ps-slider-val {
     width: 35px;
     text-align: right;
     font-size: 10px;
@@ -346,7 +346,7 @@ const STYLES = `
 }
 
 /* Input */
-.vnccs-ps-input {
+.jakkanna-ps-input {
     background: var(--ps-input-bg);
     border: 1px solid var(--ps-border);
     color: var(--ps-text);
@@ -359,14 +359,14 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-input:focus {
+.jakkanna-ps-input:focus {
     outline: none;
     border-color: var(--ps-accent-border);
     background: rgba(255, 143, 163, 0.03);
     box-shadow: 0 0 0 2px rgba(255, 143, 163, 0.06);
 }
 
-.vnccs-ps-textarea {
+.jakkanna-ps-textarea {
     background: var(--ps-input-bg);
     border: 1px solid var(--ps-border);
     color: var(--ps-text);
@@ -384,7 +384,7 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-textarea:focus {
+.jakkanna-ps-textarea:focus {
     outline: none;
     border-color: var(--ps-accent-border);
     background: rgba(255, 143, 163, 0.03);
@@ -392,7 +392,7 @@ const STYLES = `
 }
 
 /* Select */
-.vnccs-ps-select {
+.jakkanna-ps-select {
     background: var(--ps-input-bg);
     border: 1px solid var(--ps-border);
     color: var(--ps-text);
@@ -406,7 +406,7 @@ const STYLES = `
 }
 
 /* Counter-zoom removed as zoom is now 1.0 */
-.vnccs-ps-select:focus {
+.jakkanna-ps-select:focus {
     outline: none;
     border-color: var(--ps-accent-border);
     transform: none;
@@ -414,7 +414,7 @@ const STYLES = `
 }
 
 /* Toggle */
-.vnccs-ps-toggle {
+.jakkanna-ps-toggle {
     display: flex;
     gap: 2px;
     background: rgba(0, 0, 0, 0.3);
@@ -423,7 +423,7 @@ const STYLES = `
     border: 1px solid var(--ps-border);
 }
 
-.vnccs-ps-toggle-btn {
+.jakkanna-ps-toggle-btn {
     flex: 1;
     border: none;
     padding: 4px 8px;
@@ -437,44 +437,44 @@ const STYLES = `
     color: var(--ps-text-muted);
 }
 
-.vnccs-ps-toggle-btn.active {
+.jakkanna-ps-toggle-btn.active {
     background: linear-gradient(135deg, var(--ps-accent), var(--ps-accent-hover));
     color: #1a1525;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 2px 8px var(--ps-accent-glow);
 }
 
-.vnccs-ps-toggle-btn.male.active {
+.jakkanna-ps-toggle-btn.male.active {
     background: linear-gradient(135deg, #6ab0f5, #a3d0ff);
     box-shadow: 0 2px 8px rgba(106, 176, 245, 0.3);
 }
 
-.vnccs-ps-toggle-btn.female.active {
+.jakkanna-ps-toggle-btn.female.active {
     background: linear-gradient(135deg, var(--ps-accent), var(--ps-accent-hover));
     box-shadow: 0 2px 8px var(--ps-accent-glow);
 }
 
-.vnccs-ps-toggle-btn.list.active {
+.jakkanna-ps-toggle-btn.list.active {
     background: linear-gradient(135deg, #64d8cb, #a0ede6);
     box-shadow: 0 2px 8px rgba(100, 216, 203, 0.3);
 }
 
-.vnccs-ps-toggle-btn.grid.active {
+.jakkanna-ps-toggle-btn.grid.active {
     background: linear-gradient(135deg, #ffb347, #ffd580);
     box-shadow: 0 2px 8px rgba(255, 179, 71, 0.3);
 }
 
 /* Input Row */
-.vnccs-ps-row {
+.jakkanna-ps-row {
     display: flex;
     gap: 8px;
 }
 
-.vnccs-ps-row > * {
+.jakkanna-ps-row > * {
     flex: 1;
 }
 
 /* Color Picker */
-.vnccs-ps-color {
+.jakkanna-ps-color {
     width: 100%;
     height: 26px;
     border: 1px solid var(--ps-border);
@@ -485,23 +485,23 @@ const STYLES = `
     transition: border-color var(--ps-transition);
 }
 
-.vnccs-ps-color:hover {
+.jakkanna-ps-color:hover {
     border-color: var(--ps-accent-border);
 }
 
 /* === Tab Bar === */
-.vnccs-ps-tabs-shell {
+.jakkanna-ps-tabs-shell {
     position: relative;
     display: flex;
     align-items: stretch;
-    zoom: var(--vnccs-ps-ui-scale);
+    zoom: var(--jakkanna-ps-ui-scale);
     background: rgba(0, 0, 0, 0.35);
     border-bottom: 1px solid var(--ps-border);
     flex-shrink: 0;
     min-width: 0;
 }
 
-.vnccs-ps-tabs {
+.jakkanna-ps-tabs {
     display: flex;
     align-items: flex-end;
     padding: 8px 10px 0;
@@ -515,13 +515,13 @@ const STYLES = `
     -ms-overflow-style: none;
 }
 
-.vnccs-ps-tabs::-webkit-scrollbar {
+.jakkanna-ps-tabs::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
 }
 
-.vnccs-ps-tab-scroll {
+.jakkanna-ps-tab-scroll {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -540,30 +540,30 @@ const STYLES = `
     box-shadow: none;
 }
 
-.vnccs-ps-tab-scroll.left {
+.jakkanna-ps-tab-scroll.left {
     left: 0;
 }
 
-.vnccs-ps-tab-scroll.right {
+.jakkanna-ps-tab-scroll.right {
     right: 0;
 }
 
-.vnccs-ps-tab-scroll.visible {
+.jakkanna-ps-tab-scroll.visible {
     display: flex;
 }
 
-.vnccs-ps-tab-scroll:disabled {
+.jakkanna-ps-tab-scroll:disabled {
     opacity: 0.28;
     cursor: default;
     pointer-events: none;
 }
 
-.vnccs-ps-tab-scroll:hover {
+.jakkanna-ps-tab-scroll:hover {
     color: var(--ps-accent);
     background: transparent;
 }
 
-.vnccs-ps-tab {
+.jakkanna-ps-tab {
     display: flex;
     align-items: center;
     gap: 5px;
@@ -581,13 +581,13 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-tab:hover {
+.jakkanna-ps-tab:hover {
     background: rgba(255, 143, 163, 0.08);
     color: var(--ps-text);
     border-color: var(--ps-accent-border);
 }
 
-.vnccs-ps-reset-btn {
+.jakkanna-ps-reset-btn {
     width: 20px;
     height: 20px;
     background: transparent;
@@ -603,14 +603,14 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-reset-btn:hover {
+.jakkanna-ps-reset-btn:hover {
     color: var(--ps-accent);
     border-color: var(--ps-accent-border);
     background: var(--ps-accent-subtle);
 }
 
 /* Lighting UI Styles */
-.vnccs-ps-light-list {
+.jakkanna-ps-light-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -620,7 +620,7 @@ const STYLES = `
 }
 
 /* Light Card */
-.vnccs-ps-light-card {
+.jakkanna-ps-light-card {
     background: rgba(20, 16, 30, 0.7);
     border: 1px solid var(--ps-border);
     border-radius: var(--ps-radius-sm);
@@ -628,14 +628,14 @@ const STYLES = `
     box-shadow: 0 4px 14px rgba(0,0,0,0.25);
     transition: all var(--ps-transition);
 }
-.vnccs-ps-light-card:hover {
+.jakkanna-ps-light-card:hover {
     border-color: var(--ps-border-hover);
     box-shadow: 0 6px 20px rgba(0,0,0,0.35);
     transform: translateY(-1px);
 }
 
 /* Header */
-.vnccs-ps-light-header {
+.jakkanna-ps-light-header {
     background: rgba(0,0,0,0.2);
     padding: 6px 10px;
     display: flex;
@@ -643,7 +643,7 @@ const STYLES = `
     justify-content: space-between;
     border-bottom: 1px solid var(--ps-border);
 }
-.vnccs-ps-light-title {
+.jakkanna-ps-light-title {
     font-weight: 600;
     font-size: 10px;
     color: var(--ps-text);
@@ -652,13 +652,13 @@ const STYLES = `
     gap: 6px;
     font-family: var(--ps-font);
 }
-.vnccs-ps-light-icon {
+.jakkanna-ps-light-icon {
     font-size: 14px;
     opacity: 0.8;
 }
 
 /* Remove Button */
-.vnccs-ps-light-remove {
+.jakkanna-ps-light-remove {
     width: 20px; height: 20px;
     border-radius: 5px;
     background: transparent;
@@ -672,14 +672,14 @@ const STYLES = `
     transition: all var(--ps-transition);
     padding: 0;
 }
-.vnccs-ps-light-remove:hover {
+.jakkanna-ps-light-remove:hover {
     background: rgba(255, 71, 87, 0.12);
     color: #ff4757;
     border-color: rgba(255, 71, 87, 0.3);
 }
 
 /* Body */
-.vnccs-ps-light-body {
+.jakkanna-ps-light-body {
     padding: 6px;
     display: flex;
     flex-direction: column;
@@ -687,7 +687,7 @@ const STYLES = `
 }
 
 /* Controls Grid */
-.vnccs-ps-light-grid {
+.jakkanna-ps-light-grid {
     display: grid;
     grid-template-columns: minmax(116px, 1.35fr) minmax(72px, 0.75fr);
     gap: 8px;
@@ -696,7 +696,7 @@ const STYLES = `
 }
 
 /* Input Styles */
-.vnccs-ps-light-select {
+.jakkanna-ps-light-select {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -711,9 +711,9 @@ const STYLES = `
     transition: border-color var(--ps-transition);
     text-overflow: ellipsis;
 }
-.vnccs-ps-light-select:focus { border-color: var(--ps-accent-border); outline: none; }
+.jakkanna-ps-light-select:focus { border-color: var(--ps-accent-border); outline: none; }
 
-.vnccs-ps-light-color {
+.jakkanna-ps-light-color {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -726,17 +726,17 @@ const STYLES = `
     transition: border-color var(--ps-transition);
 }
 
-.vnccs-ps-light-color:hover { border-color: var(--ps-accent-border); }
+.jakkanna-ps-light-color:hover { border-color: var(--ps-accent-border); }
 
 /* Sliders */
-.vnccs-ps-light-slider-row {
+.jakkanna-ps-light-slider-row {
     display: grid;
     grid-template-columns: 22px minmax(0, 1fr) 42px;
     align-items: center;
     gap: 8px;
     min-width: 0;
 }
-.vnccs-ps-light-slider {
+.jakkanna-ps-light-slider {
     width: 100%;
     min-width: 0;
     height: 3px;
@@ -744,7 +744,7 @@ const STYLES = `
     border-radius: 2px;
     -webkit-appearance: none;
 }
-.vnccs-ps-light-slider::-webkit-slider-thumb {
+.jakkanna-ps-light-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 12px; height: 12px;
     border-radius: 50%;
@@ -754,7 +754,7 @@ const STYLES = `
 }
 
 /* Position Grid */
-.vnccs-ps-light-pos-grid {
+.jakkanna-ps-light-pos-grid {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 6px 10px;
@@ -764,13 +764,13 @@ const STYLES = `
     border-radius: var(--ps-radius-sm);
     border: 1px solid var(--ps-border);
 }
-.vnccs-ps-light-pos-label {
+.jakkanna-ps-light-pos-label {
     font-size: 9px;
     color: var(--ps-text-muted);
     font-weight: 700;
     width: 10px;
 }
-.vnccs-ps-light-value {
+.jakkanna-ps-light-value {
     width: 42px;
     min-width: 42px;
     box-sizing: border-box;
@@ -781,7 +781,7 @@ const STYLES = `
 }
 
 /* Light Radar */
-.vnccs-ps-light-radar-wrap {
+.jakkanna-ps-light-radar-wrap {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -790,14 +790,14 @@ const STYLES = `
     border-radius: var(--ps-radius-sm);
     border: 1px solid var(--ps-border);
 }
-.vnccs-ps-light-radar-main {
+.jakkanna-ps-light-radar-main {
     display: flex;
     align-items: center;
     gap: 12px;
     justify-content: center;
     width: 100%;
 }
-.vnccs-ps-light-radar-canvas {
+.jakkanna-ps-light-radar-canvas {
     border-radius: 50%;
     border: 1px solid var(--ps-border);
     cursor: crosshair;
@@ -805,7 +805,7 @@ const STYLES = `
     box-shadow: inset 0 0 12px rgba(0,0,0,0.6), 0 0 8px rgba(255,143,163,0.05);
     flex-shrink: 0;
 }
-.vnccs-ps-light-slider-vert-wrap {
+.jakkanna-ps-light-slider-vert-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -814,7 +814,7 @@ const STYLES = `
     width: 35px;
     flex-shrink: 0;
 }
-.vnccs-ps-light-slider-vert {
+.jakkanna-ps-light-slider-vert {
     -webkit-appearance: slider-vertical;
     appearance: slider-vertical;
     writing-mode: vertical-lr;
@@ -825,20 +825,20 @@ const STYLES = `
     background: rgba(255,255,255,0.1);
     margin: 0;
 }
-.vnccs-ps-light-slider-vert::-webkit-slider-runnable-track {
+.jakkanna-ps-light-slider-vert::-webkit-slider-runnable-track {
     background: transparent;
 }
-.vnccs-ps-light-slider-vert::-webkit-slider-thumb {
+.jakkanna-ps-light-slider-vert::-webkit-slider-thumb {
     width: 12px; height: 12px;
 }
-.vnccs-ps-light-h-val {
+.jakkanna-ps-light-h-val {
     font-size: 10px;
     color: var(--ps-accent);
     height: 12px;
     line-height: 12px;
     font-family: var(--ps-font-mono);
 }
-.vnccs-ps-light-h-label {
+.jakkanna-ps-light-h-label {
     font-size: 9px;
     color: var(--ps-text-dim);
     font-weight: 700;
@@ -849,7 +849,7 @@ const STYLES = `
 
 
 /* Large Add Btn */
-.vnccs-ps-btn-add-large {
+.jakkanna-ps-btn-add-large {
     width: 100%;
     padding: 8px;
     background: rgba(255, 143, 163, 0.04);
@@ -862,13 +862,13 @@ const STYLES = `
     transition: all var(--ps-transition);
     margin-top: 5px;
 }
-.vnccs-ps-btn-add-large:hover {
+.jakkanna-ps-btn-add-large:hover {
     border-color: var(--ps-accent);
     color: var(--ps-accent);
     background: var(--ps-accent-subtle);
 }
 
-.vnccs-ps-tab.active {
+.jakkanna-ps-tab.active {
     background: rgba(255, 143, 163, 0.12);
     color: var(--ps-accent);
     border-color: var(--ps-accent-border);
@@ -877,7 +877,7 @@ const STYLES = `
     box-shadow: 0 -3px 10px rgba(255, 143, 163, 0.1);
 }
 
-.vnccs-ps-tab-close {
+.jakkanna-ps-tab-close {
     font-size: 14px;
     line-height: 1;
     color: var(--ps-text-muted);
@@ -886,12 +886,12 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-tab-close:hover {
+.jakkanna-ps-tab-close:hover {
     color: var(--ps-danger);
     opacity: 1;
 }
 
-.vnccs-ps-tab-add {
+.jakkanna-ps-tab-add {
     padding: 5px 10px;
     background: transparent;
     border: 1px dashed rgba(255, 255, 255, 0.12);
@@ -904,14 +904,14 @@ const STYLES = `
     line-height: 1;
 }
 
-.vnccs-ps-tab-add:hover {
+.jakkanna-ps-tab-add:hover {
     background: var(--ps-accent-subtle);
     border-color: var(--ps-accent-border);
     color: var(--ps-accent);
 }
 
 /* === SAM Camera Banner === */
-.vnccs-ps-sam-cam-banner {
+.jakkanna-ps-sam-cam-banner {
     display: none;
     position: absolute;
     top: 8px;
@@ -937,25 +937,25 @@ const STYLES = `
     white-space: nowrap;
     pointer-events: auto;
 }
-.vnccs-ps-sam-cam-banner.vnccs-sam-visible { display: flex; }
-.vnccs-ps-sam-cam-banner.vnccs-sam-paused {
+.jakkanna-ps-sam-cam-banner.jakkanna-sam-visible { display: flex; }
+.jakkanna-ps-sam-cam-banner.jakkanna-sam-paused {
     color: rgba(160, 140, 120, 0.6);
     border-color: rgba(120, 100, 80, 0.35);
 }
-.vnccs-ps-sam-cam-banner .vnccs-sam-dot {
+.jakkanna-ps-sam-cam-banner .jakkanna-sam-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
     background: #ffaa33;
     flex-shrink: 0;
     box-shadow: 0 0 6px #ffaa33;
 }
-.vnccs-ps-sam-cam-banner.vnccs-sam-paused .vnccs-sam-dot {
+.jakkanna-ps-sam-cam-banner.jakkanna-sam-paused .jakkanna-sam-dot {
     background: #555;
     box-shadow: none;
 }
 
 /* === 3D Canvas === */
-.vnccs-ps-canvas-wrap {
+.jakkanna-ps-canvas-wrap {
     flex: 1;
     position: relative;
     overflow: hidden;
@@ -966,7 +966,7 @@ const STYLES = `
     background-size: 22px 22px, 100% 100%;
 }
 
-.vnccs-ps-canvas-wrap canvas {
+.jakkanna-ps-canvas-wrap canvas {
     /* NOTE: must be 100% not max-width/max-height — viewer fills full container */
     width: 100% !important;
     height: 100% !important;
@@ -974,10 +974,10 @@ const STYLES = `
 }
 
 /* === Action Bar === */
-.vnccs-ps-actions {
+.jakkanna-ps-actions {
     display: flex;
     flex-wrap: wrap;
-    zoom: var(--vnccs-ps-ui-scale);
+    zoom: var(--jakkanna-ps-ui-scale);
     gap: 5px;
     padding: 7px 8px;
     background: rgba(0, 0, 0, 0.3);
@@ -985,7 +985,7 @@ const STYLES = `
     flex-shrink: 0;
 }
 
-.vnccs-ps-btn {
+.jakkanna-ps-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1002,13 +1002,13 @@ const STYLES = `
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-btn:hover {
+.jakkanna-ps-btn:hover {
     background: rgba(255, 255, 255, 0.09);
     border-color: var(--ps-border-hover);
     transform: translateY(-1px);
 }
 
-.vnccs-ps-btn.primary {
+.jakkanna-ps-btn.primary {
     background: linear-gradient(135deg, var(--ps-accent) 0%, var(--ps-accent-hover) 100%);
     border-color: var(--ps-accent);
     color: #1a1525;
@@ -1018,7 +1018,7 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-btn.primary::after {
+.jakkanna-ps-btn.primary::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -1034,42 +1034,42 @@ const STYLES = `
     100%{ transform: translateX(120%) skewX(-15deg); opacity: 0; }
 }
 
-.vnccs-ps-btn.primary:hover {
+.jakkanna-ps-btn.primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px var(--ps-accent-glow);
 }
 
-.vnccs-ps-btn.danger {
+.jakkanna-ps-btn.danger {
     background: rgba(255, 71, 87, 0.12);
     border-color: rgba(255, 71, 87, 0.3);
     color: #ff4757;
 }
 
-.vnccs-ps-btn.danger:hover {
+.jakkanna-ps-btn.danger:hover {
     background: #ff4757;
     border-color: #ff4757;
     color: white;
 }
 
-.vnccs-ps-btn--sync-tabs {
+.jakkanna-ps-btn--sync-tabs {
     background: rgba(80, 120, 200, 0.18);
     border-color: rgba(100, 150, 255, 0.35);
     color: #8ab4ff;
 }
 
-.vnccs-ps-btn--sync-tabs:hover {
+.jakkanna-ps-btn--sync-tabs:hover {
     background: rgba(80, 120, 200, 0.32);
     border-color: rgba(100, 150, 255, 0.6);
     color: #b8d0ff;
 }
 
-.vnccs-ps-btn-icon {
+.jakkanna-ps-btn-icon {
     font-size: 14px;
     line-height: 1;
 }
 
 /* === Modal Dialog === */
-.vnccs-ps-modal-overlay {
+.jakkanna-ps-modal-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -1084,7 +1084,7 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-modal {
+.jakkanna-ps-modal {
     background: rgba(18, 14, 28, 0.95);
     border: 1px solid var(--ps-accent-border);
     border-radius: var(--ps-radius-lg);
@@ -1097,7 +1097,7 @@ const STYLES = `
     position: relative;
 }
 
-.vnccs-ps-modal::before {
+.jakkanna-ps-modal::before {
     content: '';
     position: absolute;
     top: 0; left: 15%; right: 15%;
@@ -1106,7 +1106,7 @@ const STYLES = `
     pointer-events: none;
 }
 
-.vnccs-ps-footer {
+.jakkanna-ps-footer {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -1115,52 +1115,52 @@ const STYLES = `
     margin-top: 8px;
 }
 
-.vnccs-ps-footer .vnccs-ps-btn {
+.jakkanna-ps-footer .jakkanna-ps-btn {
     flex: 1;
     min-width: 40px;
 }
 
-.vnccs-ps-actions .vnccs-ps-btn {
+.jakkanna-ps-actions .jakkanna-ps-btn {
     flex: 1;
     min-width: 40px;
 }
 
 /* === Pose Manager === */
-.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-left,
-.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-center,
-.vnccs-pose-studio.vnccs-ps-mode-manager > .vnccs-ps-right-sidebar {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager > .jakkanna-ps-left,
+.jakkanna-pose-studio.jakkanna-ps-mode-manager > .jakkanna-ps-center,
+.jakkanna-pose-studio.jakkanna-ps-mode-manager > .jakkanna-ps-right-sidebar {
     display: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-tabs-shell {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-tabs-shell {
     display: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-main-moved-manager,
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-camera-dim-row {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-main-moved-manager,
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-camera-dim-row {
     display: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager .vnccs-ps-btn.primary::after,
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-btn.primary::after {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager .jakkanna-ps-btn.primary::after,
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-btn.primary::after {
     display: none;
     animation: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail {
     padding-top: 130px;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager,
-.vnccs-pose-studio:not(.vnccs-ps-mode-manager) .vnccs-ps-manager {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-manager,
+.jakkanna-pose-studio:not(.jakkanna-ps-mode-manager) .jakkanna-ps-manager {
     display: none;
 }
 
-.vnccs-ps-manager-detail-strip {
+.jakkanna-ps-manager-detail-strip {
     display: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-manager-detail-strip {
     --pm-detail-card-w: 96px;
     display: flex;
     position: absolute;
@@ -1182,16 +1182,16 @@ const STYLES = `
     scrollbar-color: rgba(255, 143, 163, 0.45) transparent;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip::-webkit-scrollbar {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-manager-detail-strip::-webkit-scrollbar {
     height: 6px;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-detail-strip::-webkit-scrollbar-thumb {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-manager-detail-strip::-webkit-scrollbar-thumb {
     background: rgba(255, 143, 163, 0.45);
     border-radius: 999px;
 }
 
-.vnccs-ps-detail-card {
+.jakkanna-ps-detail-card {
     width: var(--pm-detail-card-w);
     height: 106px;
     flex: 0 0 var(--pm-detail-card-w);
@@ -1206,12 +1206,12 @@ const STYLES = `
     box-sizing: border-box;
 }
 
-.vnccs-ps-detail-card.active {
+.jakkanna-ps-detail-card.active {
     border-color: rgba(255, 143, 163, 0.85);
     box-shadow: 0 0 0 1px rgba(255, 143, 163, 0.12);
 }
 
-.vnccs-ps-detail-card-preview {
+.jakkanna-ps-detail-card-preview {
     flex: 1;
     min-height: 0;
     display: flex;
@@ -1221,14 +1221,14 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-detail-card-preview img {
+.jakkanna-ps-detail-card-preview img {
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
 }
 
-.vnccs-ps-detail-card-bottom {
+.jakkanna-ps-detail-card-bottom {
     height: 28px;
     flex-shrink: 0;
     display: grid;
@@ -1240,7 +1240,7 @@ const STYLES = `
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.vnccs-ps-detail-card-name {
+.jakkanna-ps-detail-card-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1249,7 +1249,7 @@ const STYLES = `
     font-weight: 800;
 }
 
-.vnccs-ps-detail-card-delete {
+.jakkanna-ps-detail-card-delete {
     width: 18px;
     height: 18px;
     padding: 0;
@@ -1257,7 +1257,7 @@ const STYLES = `
     font-size: 10px;
 }
 
-.vnccs-ps-manager {
+.jakkanna-ps-manager {
     flex: 1;
     min-width: 0;
     min-height: 0;
@@ -1267,7 +1267,7 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-manager-header {
+.jakkanna-ps-manager-header {
     height: 50px;
     flex-shrink: 0;
     display: flex;
@@ -1279,7 +1279,7 @@ const STYLES = `
     background: rgba(12, 11, 18, 0.96);
 }
 
-.vnccs-ps-manager-title {
+.jakkanna-ps-manager-title {
     font-size: 12px;
     line-height: 1;
     font-weight: 800;
@@ -1289,23 +1289,23 @@ const STYLES = `
     white-space: nowrap;
 }
 
-.vnccs-ps-manager-actions {
+.jakkanna-ps-manager-actions {
     display: flex;
     gap: 8px;
     align-items: center;
     flex-shrink: 0;
 }
 
-.vnccs-ps-manager-body {
+.jakkanna-ps-manager-body {
     flex: 1;
     min-height: 0;
     display: flex;
     overflow: hidden;
 }
 
-.vnccs-ps-manager-sidebar {
+.jakkanna-ps-manager-sidebar {
     width: 220px;
-    zoom: var(--vnccs-ps-ui-scale);
+    zoom: var(--jakkanna-ps-ui-scale);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -1317,10 +1317,10 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-manager-sidebar::-webkit-scrollbar { width: 4px; }
-.vnccs-ps-manager-sidebar::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
+.jakkanna-ps-manager-sidebar::-webkit-scrollbar { width: 4px; }
+.jakkanna-ps-manager-sidebar::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 2px; }
 
-.vnccs-ps-manager-stage {
+.jakkanna-ps-manager-stage {
     --pm-card-w: 260px;
     --pm-card-h: 370px;
     --pm-card-footer-h: 52px;
@@ -1330,7 +1330,7 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-manager-grid {
+.jakkanna-ps-manager-grid {
     height: 100%;
     display: grid;
     grid-template-columns: repeat(var(--pm-cols, 1), var(--pm-cell-w, 220px));
@@ -1341,7 +1341,7 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-pose-card {
+.jakkanna-ps-pose-card {
     width: var(--pm-card-w);
     height: var(--pm-card-h);
     min-width: 28px;
@@ -1361,14 +1361,14 @@ const STYLES = `
     box-sizing: border-box;
 }
 
-.vnccs-ps-pose-card:hover,
-.vnccs-ps-pose-card.active {
+.jakkanna-ps-pose-card:hover,
+.jakkanna-ps-pose-card.active {
     border-color: rgba(255, 143, 163, 0.72);
     box-shadow: 0 14px 36px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(255, 143, 163, 0.1);
     transform: translateY(-1px);
 }
 
-.vnccs-ps-pose-preview {
+.jakkanna-ps-pose-preview {
     flex: 1;
     min-height: 0;
     display: flex;
@@ -1379,14 +1379,14 @@ const STYLES = `
     overflow: hidden;
 }
 
-.vnccs-ps-pose-preview img {
+.jakkanna-ps-pose-preview img {
     width: calc(100% - 10px);
     height: calc(100% - 10px);
     object-fit: contain;
     display: block;
 }
 
-.vnccs-ps-pose-preview-empty {
+.jakkanna-ps-pose-preview-empty {
     width: 38%;
     aspect-ratio: 1 / 2.15;
     border-radius: 999px 999px 12px 12px;
@@ -1395,7 +1395,7 @@ const STYLES = `
     position: relative;
 }
 
-.vnccs-ps-pose-preview-empty::before {
+.jakkanna-ps-pose-preview-empty::before {
     content: '';
     position: absolute;
     width: 34%;
@@ -1406,7 +1406,7 @@ const STYLES = `
     background: rgba(238, 226, 214, 0.84);
 }
 
-.vnccs-ps-pose-card-bottom {
+.jakkanna-ps-pose-card-bottom {
     flex-shrink: 0;
     height: var(--pm-card-footer-h);
     display: grid;
@@ -1419,7 +1419,7 @@ const STYLES = `
     background: rgba(7, 7, 13, 0.98);
 }
 
-.vnccs-ps-pose-card-name {
+.jakkanna-ps-pose-card-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1428,7 +1428,7 @@ const STYLES = `
     min-width: 0;
 }
 
-.vnccs-ps-pose-card-delete {
+.jakkanna-ps-pose-card-delete {
     min-width: clamp(14px, calc(var(--pm-card-w) * 0.24), 76px);
     height: clamp(20px, calc(var(--pm-card-footer-h) - 12px), 48px);
     padding: 0 clamp(2px, calc(var(--pm-card-w) * 0.04), 14px);
@@ -1439,23 +1439,23 @@ const STYLES = `
     white-space: nowrap;
 }
 
-.vnccs-ps-pose-card-delete {
+.jakkanna-ps-pose-card-delete {
     min-width: clamp(14px, calc(var(--pm-card-w) * 0.16), 52px);
     color: #ff6474;
 }
 
-.vnccs-ps-manager-empty {
+.jakkanna-ps-manager-empty {
     margin: auto;
     color: var(--ps-text-muted);
     font-size: 12px;
     font-weight: 700;
 }
 
-.vnccs-ps-manager-back {
+.jakkanna-ps-manager-back {
     display: none;
 }
 
-.vnccs-pose-studio.vnccs-ps-mode-manager-detail .vnccs-ps-manager-back {
+.jakkanna-pose-studio.jakkanna-ps-mode-manager-detail .jakkanna-ps-manager-back {
     display: flex;
     width: 100%;
     position: static !important;
@@ -1472,7 +1472,7 @@ const STYLES = `
     pointer-events: auto;
 }
 
-.vnccs-ps-modal-title {
+.jakkanna-ps-modal-title {
     background: rgba(0, 0, 0, 0.3);
     padding: 12px 16px;
     border-bottom: 1px solid var(--ps-border);
@@ -1484,14 +1484,14 @@ const STYLES = `
     letter-spacing: 0.5px;
 }
 
-.vnccs-ps-modal-content {
+.jakkanna-ps-modal-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 14px;
 }
 
-.vnccs-ps-modal-btn {
+.jakkanna-ps-modal-btn {
     padding: 10px 12px;
     border: 1px solid var(--ps-border);
     background: rgba(255, 255, 255, 0.04);
@@ -1507,29 +1507,29 @@ const STYLES = `
     font-size: 11px;
 }
 
-.vnccs-ps-modal-btn:hover {
+.jakkanna-ps-modal-btn:hover {
     background: var(--ps-accent-subtle);
     border-color: var(--ps-accent-border);
     color: var(--ps-accent-hover);
 }
 
-.vnccs-ps-save-library-modal {
+.jakkanna-ps-save-library-modal {
     width: min(680px, calc(100% - 32px));
     border-radius: 32px;
 }
 
-.vnccs-ps-save-library-modal .vnccs-ps-modal-title {
+.jakkanna-ps-save-library-modal .jakkanna-ps-modal-title {
     padding: 24px 32px;
     font-size: 26px;
 }
 
-.vnccs-ps-save-library-modal .vnccs-ps-modal-content {
+.jakkanna-ps-save-library-modal .jakkanna-ps-modal-content {
     gap: 16px;
     padding: 28px;
 }
 
-.vnccs-ps-save-library-modal .vnccs-ps-input,
-.vnccs-ps-save-library-modal .vnccs-ps-textarea {
+.jakkanna-ps-save-library-modal .jakkanna-ps-input,
+.jakkanna-ps-save-library-modal .jakkanna-ps-textarea {
     width: 100%;
     min-height: 56px;
     padding: 16px 20px;
@@ -1537,19 +1537,19 @@ const STYLES = `
     border-radius: 16px;
 }
 
-.vnccs-ps-save-library-modal .vnccs-ps-save-prompt {
+.jakkanna-ps-save-library-modal .jakkanna-ps-save-prompt {
     min-height: 120px;
     resize: vertical;
 }
 
-.vnccs-ps-save-library-label {
+.jakkanna-ps-save-library-label {
     display: block;
     color: var(--ps-text-muted);
     font-size: 22px;
     margin-top: 8px;
 }
 
-.vnccs-ps-save-library-check {
+.jakkanna-ps-save-library-check {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -1557,12 +1557,12 @@ const STYLES = `
     font-size: 22px;
 }
 
-.vnccs-ps-save-library-check input[type="checkbox"] {
+.jakkanna-ps-save-library-check input[type="checkbox"] {
     width: 26px;
     height: 26px;
 }
 
-.vnccs-ps-save-library-modal .vnccs-ps-modal-btn {
+.jakkanna-ps-save-library-modal .jakkanna-ps-modal-btn {
     min-height: 72px;
     padding: 20px 24px;
     font-size: 22px;
@@ -1570,7 +1570,7 @@ const STYLES = `
     justify-content: center;
 }
 
-.vnccs-ps-settings-panel {
+.jakkanna-ps-settings-panel {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(8, 6, 16, 0.97);
@@ -1580,7 +1580,7 @@ const STYLES = `
     flex-direction: column;
 }
 
-.vnccs-ps-hand-popover {
+.jakkanna-ps-hand-popover {
     position: absolute;
     width: 240px;
     max-width: calc(100% - 20px);
@@ -1596,19 +1596,19 @@ const STYLES = `
     gap: 10px;
 }
 
-.vnccs-ps-hand-popover.visible {
+.jakkanna-ps-hand-popover.visible {
     display: flex;
     flex-direction: column;
 }
 
-.vnccs-ps-hand-popover-header {
+.jakkanna-ps-hand-popover-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
 }
 
-.vnccs-ps-hand-popover-title {
+.jakkanna-ps-hand-popover-title {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -1616,7 +1616,7 @@ const STYLES = `
     color: #ffd666;
 }
 
-.vnccs-ps-hand-popover-close {
+.jakkanna-ps-hand-popover-close {
     width: 24px;
     height: 24px;
     border: 1px solid var(--ps-border);
@@ -1628,12 +1628,12 @@ const STYLES = `
     line-height: 1;
 }
 
-.vnccs-ps-hand-popover-close:hover {
+.jakkanna-ps-hand-popover-close:hover {
     border-color: rgba(255, 214, 102, 0.45);
     color: #ffd666;
 }
 
-.vnccs-ps-settings-header {
+.jakkanna-ps-settings-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1642,7 +1642,7 @@ const STYLES = `
     border-bottom: 1px solid var(--ps-border);
 }
 
-.vnccs-ps-settings-title {
+.jakkanna-ps-settings-title {
     font-size: 13px;
     font-weight: 700;
     color: var(--ps-accent);
@@ -1653,7 +1653,7 @@ const STYLES = `
     letter-spacing: 0.5px;
 }
 
-.vnccs-ps-settings-content {
+.jakkanna-ps-settings-content {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
@@ -1662,7 +1662,7 @@ const STYLES = `
     gap: 16px;
 }
 
-.vnccs-ps-settings-close {
+.jakkanna-ps-settings-close {
     background: transparent;
     border: none;
     color: var(--ps-text-muted);
@@ -1672,11 +1672,11 @@ const STYLES = `
     transition: color var(--ps-transition);
 }
 
-.vnccs-ps-settings-close:hover {
+.jakkanna-ps-settings-close:hover {
     color: var(--ps-accent);
 }
 
-.vnccs-ps-msg-modal {
+.jakkanna-ps-msg-modal {
     background: rgba(18, 14, 28, 0.95);
     border: 1px solid var(--ps-accent-border);
     border-radius: var(--ps-radius-lg);
@@ -1688,13 +1688,13 @@ const STYLES = `
     padding: 0;
 }
 
-.vnccs-ps-modal-btn.cancel:hover {
+.jakkanna-ps-modal-btn.cancel:hover {
     color: var(--ps-text);
     background: rgba(255, 255, 255, 0.06);
 }
 
 /* === Pose Library Panel === */
-.vnccs-ps-library-btn {
+.jakkanna-ps-library-btn {
     position: absolute;
     right: 0;
     top: 50%;
@@ -1712,13 +1712,13 @@ const STYLES = `
     box-shadow: -4px 0 20px var(--ps-accent-glow);
 }
 
-.vnccs-ps-library-btn:hover {
+.jakkanna-ps-library-btn:hover {
     padding-right: 12px;
     box-shadow: -6px 0 28px var(--ps-accent-glow);
 }
 
 /* Library Modal Overlay */
-.vnccs-ps-modal-overlay {
+.jakkanna-ps-modal-overlay {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
@@ -1731,8 +1731,8 @@ const STYLES = `
     backdrop-filter: blur(10px);
 }
 
-.vnccs-ps-library-modal {
-    --vnccs-ps-library-ui-scale: 1;
+.jakkanna-ps-library-modal {
+    --jakkanna-ps-library-ui-scale: 1;
     width: calc(100% - 24px);
     max-width: none;
     height: calc(100% - 24px);
@@ -1748,7 +1748,7 @@ const STYLES = `
     position: relative;
 }
 
-.vnccs-ps-library-modal::before {
+.jakkanna-ps-library-modal::before {
     content: '';
     position: absolute;
     top: 0; left: 15%; right: 15%;
@@ -1757,158 +1757,158 @@ const STYLES = `
     pointer-events: none;
 }
 
-.vnccs-ps-library-modal-header {
+.jakkanna-ps-library-modal-header {
     display: flex;
     align-items: center;
-    gap: calc(24px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(32px * var(--vnccs-ps-library-ui-scale)) calc(44px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(24px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(32px * var(--jakkanna-ps-library-ui-scale)) calc(44px * var(--jakkanna-ps-library-ui-scale));
     background: rgba(0, 0, 0, 0.3);
     border-bottom: 1px solid var(--ps-border);
 }
 
-.vnccs-ps-library-modal-title {
-    font-size: calc(32px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-modal-title {
+    font-size: calc(32px * var(--jakkanna-ps-library-ui-scale));
     font-weight: 700;
     color: var(--ps-accent);
     display: flex;
     align-items: center;
-    gap: calc(20px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(20px * var(--jakkanna-ps-library-ui-scale));
     font-family: var(--ps-font);
-    letter-spacing: calc(1px * var(--vnccs-ps-library-ui-scale));
+    letter-spacing: calc(1px * var(--jakkanna-ps-library-ui-scale));
     margin-right: auto;
 }
 
-.vnccs-ps-library-header-actions {
+.jakkanna-ps-library-header-actions {
     display: flex;
     align-items: center;
-    gap: calc(20px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(20px * var(--jakkanna-ps-library-ui-scale));
     min-width: 0;
 }
 
-.vnccs-ps-library-save-current {
+.jakkanna-ps-library-save-current {
     width: auto;
-    min-width: calc(300px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(18px * var(--vnccs-ps-library-ui-scale)) calc(28px * var(--vnccs-ps-library-ui-scale));
+    min-width: calc(300px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(18px * var(--jakkanna-ps-library-ui-scale)) calc(28px * var(--jakkanna-ps-library-ui-scale));
     justify-content: center;
 }
 
-.vnccs-ps-library-modal-header .vnccs-ps-btn,
-.vnccs-ps-library-settings .vnccs-ps-btn {
-    gap: calc(10px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(12px * var(--vnccs-ps-library-ui-scale)) calc(24px * var(--vnccs-ps-library-ui-scale));
-    font-size: calc(20px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-modal-header .jakkanna-ps-btn,
+.jakkanna-ps-library-settings .jakkanna-ps-btn {
+    gap: calc(10px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(12px * var(--jakkanna-ps-library-ui-scale)) calc(24px * var(--jakkanna-ps-library-ui-scale));
+    font-size: calc(20px * var(--jakkanna-ps-library-ui-scale));
 }
 
-.vnccs-ps-library-modal-header .vnccs-ps-btn-icon,
-.vnccs-ps-library-settings .vnccs-ps-btn-icon {
-    font-size: calc(28px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-modal-header .jakkanna-ps-btn-icon,
+.jakkanna-ps-library-settings .jakkanna-ps-btn-icon {
+    font-size: calc(28px * var(--jakkanna-ps-library-ui-scale));
 }
 
-.vnccs-ps-library-menu-btn {
-    width: calc(76px * var(--vnccs-ps-library-ui-scale));
-    height: calc(76px * var(--vnccs-ps-library-ui-scale));
-    border-radius: calc(8px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-menu-btn {
+    width: calc(76px * var(--jakkanna-ps-library-ui-scale));
+    height: calc(76px * var(--jakkanna-ps-library-ui-scale));
+    border-radius: calc(8px * var(--jakkanna-ps-library-ui-scale));
     border: 1px solid var(--ps-border);
     background: var(--ps-input-bg);
     color: var(--ps-text);
     cursor: pointer;
-    font-size: calc(32px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(32px * var(--jakkanna-ps-library-ui-scale));
     transition: all var(--ps-transition);
 }
 
-.vnccs-ps-library-menu-btn:hover {
+.jakkanna-ps-library-menu-btn:hover {
     border-color: var(--ps-accent-border);
     color: var(--ps-accent);
 }
 
-.vnccs-ps-library-toolbar {
+.jakkanna-ps-library-toolbar {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: calc(20px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(28px * var(--vnccs-ps-library-ui-scale)) calc(44px * var(--vnccs-ps-library-ui-scale)) calc(16px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(20px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(28px * var(--jakkanna-ps-library-ui-scale)) calc(44px * var(--jakkanna-ps-library-ui-scale)) calc(16px * var(--jakkanna-ps-library-ui-scale));
     background: rgba(0, 0, 0, 0.16);
 }
 
-.vnccs-ps-library-search {
-    flex: 1 1 calc(420px * var(--vnccs-ps-library-ui-scale));
-    min-width: calc(260px * var(--vnccs-ps-library-ui-scale));
-    height: calc(76px * var(--vnccs-ps-library-ui-scale));
-    border-radius: calc(8px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-search {
+    flex: 1 1 calc(420px * var(--jakkanna-ps-library-ui-scale));
+    min-width: calc(260px * var(--jakkanna-ps-library-ui-scale));
+    height: calc(76px * var(--jakkanna-ps-library-ui-scale));
+    border-radius: calc(8px * var(--jakkanna-ps-library-ui-scale));
     border: 1px solid var(--ps-border);
     background: rgba(255,255,255,0.055);
     color: var(--ps-text);
-    padding: 0 calc(28px * var(--vnccs-ps-library-ui-scale));
+    padding: 0 calc(28px * var(--jakkanna-ps-library-ui-scale));
     font-family: var(--ps-font);
-    font-size: calc(26px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(26px * var(--jakkanna-ps-library-ui-scale));
     outline: none;
 }
 
-.vnccs-ps-library-search:focus {
+.jakkanna-ps-library-search:focus {
     border-color: var(--ps-accent-border);
     box-shadow: 0 0 0 2px rgba(255,143,163,0.12);
 }
 
-.vnccs-ps-library-size-control {
-    width: calc(380px * var(--vnccs-ps-library-ui-scale));
-    flex: 0 0 calc(380px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-size-control {
+    width: calc(380px * var(--jakkanna-ps-library-ui-scale));
+    flex: 0 0 calc(380px * var(--jakkanna-ps-library-ui-scale));
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: calc(16px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(16px * var(--jakkanna-ps-library-ui-scale));
     color: var(--ps-text-muted);
-    font-size: calc(20px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(20px * var(--jakkanna-ps-library-ui-scale));
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: calc(1.4px * var(--vnccs-ps-library-ui-scale));
+    letter-spacing: calc(1.4px * var(--jakkanna-ps-library-ui-scale));
     font-family: var(--ps-font);
 }
 
-.vnccs-ps-library-size-control input {
+.jakkanna-ps-library-size-control input {
     width: 100%;
-    height: calc(28px * var(--vnccs-ps-library-ui-scale));
+    height: calc(28px * var(--jakkanna-ps-library-ui-scale));
     accent-color: var(--ps-accent);
 }
 
-.vnccs-ps-library-size-value {
-    width: calc(68px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-size-value {
+    width: calc(68px * var(--jakkanna-ps-library-ui-scale));
     text-align: right;
     color: var(--ps-accent);
 }
 
-.vnccs-ps-library-categories {
+.jakkanna-ps-library-categories {
     display: flex;
-    gap: calc(16px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(8px * var(--vnccs-ps-library-ui-scale)) calc(44px * var(--vnccs-ps-library-ui-scale)) calc(24px * var(--vnccs-ps-library-ui-scale));
+    gap: calc(16px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(8px * var(--jakkanna-ps-library-ui-scale)) calc(44px * var(--jakkanna-ps-library-ui-scale)) calc(24px * var(--jakkanna-ps-library-ui-scale));
     overflow-x: auto;
     border-bottom: 1px solid var(--ps-border);
 }
 
-.vnccs-ps-library-category-chip {
-    height: calc(60px * var(--vnccs-ps-library-ui-scale));
-    padding: 0 calc(24px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-category-chip {
+    height: calc(60px * var(--jakkanna-ps-library-ui-scale));
+    padding: 0 calc(24px * var(--jakkanna-ps-library-ui-scale));
     border-radius: 999px;
     border: 1px solid var(--ps-border);
     background: rgba(255,255,255,0.04);
     color: var(--ps-text-muted);
     font-family: var(--ps-font);
-    font-size: calc(22px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(22px * var(--jakkanna-ps-library-ui-scale));
     white-space: nowrap;
     cursor: pointer;
 }
 
-.vnccs-ps-library-category-chip.active,
-.vnccs-ps-library-category-chip:hover {
+.jakkanna-ps-library-category-chip.active,
+.jakkanna-ps-library-category-chip:hover {
     color: var(--ps-accent);
     border-color: var(--ps-accent-border);
     background: var(--ps-accent-subtle);
 }
 
-.vnccs-ps-library-workspace {
-    --vnccs-ps-library-inspector-base-width: 510px;
-    --vnccs-ps-library-inspector-scale: 1;
-    --vnccs-ps-library-inspector-width: calc(
-        var(--vnccs-ps-library-inspector-base-width) * var(--vnccs-ps-library-inspector-scale)
+.jakkanna-ps-library-workspace {
+    --jakkanna-ps-library-inspector-base-width: 510px;
+    --jakkanna-ps-library-inspector-scale: 1;
+    --jakkanna-ps-library-inspector-width: calc(
+        var(--jakkanna-ps-library-inspector-base-width) * var(--jakkanna-ps-library-inspector-scale)
     );
     flex: 1;
     min-height: 0;
@@ -1917,20 +1917,20 @@ const STYLES = `
     gap: 0;
 }
 
-.vnccs-ps-library-workspace.has-inspector {
-    grid-template-columns: minmax(0, 1fr) var(--vnccs-ps-library-inspector-width);
+.jakkanna-ps-library-workspace.has-inspector {
+    grid-template-columns: minmax(0, 1fr) var(--jakkanna-ps-library-inspector-width);
 }
 
-.vnccs-ps-library-workspace.settings-mode {
+.jakkanna-ps-library-workspace.settings-mode {
     grid-template-columns: minmax(0, 1fr);
 }
 
-.vnccs-ps-library-workspace.settings-mode .vnccs-ps-library-modal-grid,
-.vnccs-ps-library-workspace.settings-mode .vnccs-ps-library-inspector {
+.jakkanna-ps-library-workspace.settings-mode .jakkanna-ps-library-modal-grid,
+.jakkanna-ps-library-workspace.settings-mode .jakkanna-ps-library-inspector {
     display: none;
 }
 
-.vnccs-ps-library-settings {
+.jakkanna-ps-library-settings {
     min-height: 0;
     overflow-y: auto;
     padding: 40px 44px;
@@ -1939,37 +1939,37 @@ const STYLES = `
     gap: 28px;
 }
 
-.vnccs-ps-library-workspace.settings-mode .vnccs-ps-library-settings {
+.jakkanna-ps-library-workspace.settings-mode .jakkanna-ps-library-settings {
     display: flex;
 }
 
-.vnccs-ps-library-settings-head {
+.jakkanna-ps-library-settings-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
 }
 
-.vnccs-ps-library-settings-title {
+.jakkanna-ps-library-settings-title {
     color: var(--ps-text);
     font-size: 30px;
     font-weight: 700;
     font-family: var(--ps-font);
 }
 
-.vnccs-ps-library-settings-subtitle {
+.jakkanna-ps-library-settings-subtitle {
     color: var(--ps-text-muted);
     font-size: 22px;
     margin-top: 8px;
 }
 
-.vnccs-ps-library-repo-add {
+.jakkanna-ps-library-repo-add {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
 }
 
-.vnccs-ps-library-repo-notice {
+.jakkanna-ps-library-repo-notice {
     display: none;
     padding: 14px 18px;
     border: 1px solid var(--ps-accent-border);
@@ -1980,32 +1980,32 @@ const STYLES = `
     line-height: 1.35;
 }
 
-.vnccs-ps-library-repo-notice.visible {
+.jakkanna-ps-library-repo-notice.visible {
     display: block;
 }
 
-.vnccs-ps-library-repo-notice.error {
+.jakkanna-ps-library-repo-notice.error {
     border-color: rgba(255,71,87,0.45);
     background: rgba(255,71,87,0.1);
     color: var(--ps-danger);
 }
 
-.vnccs-ps-library-settings .vnccs-ps-input {
+.jakkanna-ps-library-settings .jakkanna-ps-input {
     padding: 10px 16px;
     font-size: 20px;
 }
 
-.vnccs-ps-library-repo-list {
+.jakkanna-ps-library-repo-list {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-.vnccs-ps-library-local-repo {
+.jakkanna-ps-library-local-repo {
     margin-bottom: 20px;
 }
 
-.vnccs-ps-library-repo-card {
+.jakkanna-ps-library-repo-card {
     border: 1px solid var(--ps-border);
     border-radius: 8px;
     background: rgba(255,255,255,0.035);
@@ -2016,7 +2016,7 @@ const STYLES = `
     align-items: center;
 }
 
-.vnccs-ps-library-repo-title {
+.jakkanna-ps-library-repo-title {
     color: var(--ps-text);
     font-weight: 700;
     font-size: 24px;
@@ -2025,8 +2025,8 @@ const STYLES = `
     white-space: nowrap;
 }
 
-.vnccs-ps-library-repo-id,
-.vnccs-ps-library-repo-meta {
+.jakkanna-ps-library-repo-id,
+.jakkanna-ps-library-repo-meta {
     color: var(--ps-text-muted);
     font-size: 20px;
     margin-top: 8px;
@@ -2035,13 +2035,13 @@ const STYLES = `
     white-space: nowrap;
 }
 
-.vnccs-ps-library-repo-actions {
+.jakkanna-ps-library-repo-actions {
     display: flex;
     gap: 12px;
     align-items: center;
 }
 
-.vnccs-ps-library-repo-action {
+.jakkanna-ps-library-repo-action {
     height: 60px;
     padding: 0 20px;
     border-radius: 7px;
@@ -2052,44 +2052,44 @@ const STYLES = `
     cursor: pointer;
 }
 
-.vnccs-ps-library-repo-action:hover {
+.jakkanna-ps-library-repo-action:hover {
     color: var(--ps-accent);
     border-color: var(--ps-accent-border);
 }
 
-.vnccs-ps-library-repo-action.primary {
+.jakkanna-ps-library-repo-action.primary {
     background: var(--ps-accent);
     color: var(--ps-bg);
     border-color: var(--ps-accent-border);
     font-weight: 700;
 }
 
-.vnccs-ps-library-repo-action.primary:hover {
+.jakkanna-ps-library-repo-action.primary:hover {
     color: var(--ps-bg);
     filter: brightness(1.05);
 }
 
-.vnccs-ps-library-repo-action.danger:hover {
+.jakkanna-ps-library-repo-action.danger:hover {
     color: var(--ps-danger);
     border-color: rgba(255,71,87,0.45);
 }
 
-.vnccs-ps-library-repo-card.is-running .vnccs-ps-library-repo-action {
+.jakkanna-ps-library-repo-card.is-running .jakkanna-ps-library-repo-action {
     opacity: 0.55;
     pointer-events: none;
 }
 
-.vnccs-ps-library-repo-progress {
+.jakkanna-ps-library-repo-progress {
     grid-column: 1 / -1;
     display: none;
     margin-top: 4px;
 }
 
-.vnccs-ps-library-repo-progress.visible {
+.jakkanna-ps-library-repo-progress.visible {
     display: block;
 }
 
-.vnccs-ps-library-repo-progress-head {
+.jakkanna-ps-library-repo-progress-head {
     display: flex;
     justify-content: space-between;
     gap: 20px;
@@ -2099,20 +2099,20 @@ const STYLES = `
     margin-bottom: 12px;
 }
 
-.vnccs-ps-library-repo-progress-message {
+.jakkanna-ps-library-repo-progress-message {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.vnccs-ps-library-repo-progress-percent {
+.jakkanna-ps-library-repo-progress-percent {
     flex: 0 0 auto;
     color: var(--ps-accent);
     font-weight: 700;
 }
 
-.vnccs-ps-library-repo-progress-track {
+.jakkanna-ps-library-repo-progress-track {
     height: 16px;
     border-radius: 999px;
     overflow: hidden;
@@ -2120,7 +2120,7 @@ const STYLES = `
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-.vnccs-ps-library-repo-progress-fill {
+.jakkanna-ps-library-repo-progress-fill {
     width: 0%;
     height: 100%;
     border-radius: inherit;
@@ -2129,15 +2129,15 @@ const STYLES = `
     transition: width 0.25s ease;
 }
 
-.vnccs-ps-library-repo-progress.error .vnccs-ps-library-repo-progress-fill {
+.jakkanna-ps-library-repo-progress.error .jakkanna-ps-library-repo-progress-fill {
     background: var(--ps-danger);
 }
 
-.vnccs-ps-library-repo-progress.success .vnccs-ps-library-repo-progress-fill {
+.jakkanna-ps-library-repo-progress.success .jakkanna-ps-library-repo-progress-fill {
     background: linear-gradient(90deg, #64d8cb, #8fe3ff);
 }
 
-.vnccs-ps-modal-close {
+.jakkanna-ps-modal-close {
     background: transparent;
     border: none;
     color: var(--ps-text-muted);
@@ -2147,28 +2147,28 @@ const STYLES = `
     padding: 4px 12px;
 }
 
-.vnccs-ps-modal-close:hover { color: var(--ps-accent); }
+.jakkanna-ps-modal-close:hover { color: var(--ps-accent); }
 
-.vnccs-ps-library-modal .vnccs-ps-modal-close {
-    font-size: calc(44px * var(--vnccs-ps-library-ui-scale));
-    padding: calc(4px * var(--vnccs-ps-library-ui-scale)) calc(12px * var(--vnccs-ps-library-ui-scale));
+.jakkanna-ps-library-modal .jakkanna-ps-modal-close {
+    font-size: calc(44px * var(--jakkanna-ps-library-ui-scale));
+    padding: calc(4px * var(--jakkanna-ps-library-ui-scale)) calc(12px * var(--jakkanna-ps-library-ui-scale));
 }
 
-.vnccs-ps-library-modal-grid {
+.jakkanna-ps-library-modal-grid {
     min-height: 0;
     overflow-y: auto;
-    padding: calc(20px * var(--vnccs-ps-library-ui-scale));
+    padding: calc(20px * var(--jakkanna-ps-library-ui-scale));
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--vnccs-ps-library-thumb-size, 320px), 1fr));
-    gap: calc(16px * var(--vnccs-ps-library-ui-scale));
+    grid-template-columns: repeat(auto-fill, minmax(var(--jakkanna-ps-library-thumb-size, 320px), 1fr));
+    gap: calc(16px * var(--jakkanna-ps-library-ui-scale));
     align-content: start;
 }
-.vnccs-ps-library-modal-grid::-webkit-scrollbar { width: 6px; }
-.vnccs-ps-library-modal-grid::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-.vnccs-ps-library-modal-grid::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 3px; }
-.vnccs-ps-library-modal-grid::-webkit-scrollbar-thumb:hover { background: var(--ps-accent); }
+.jakkanna-ps-library-modal-grid::-webkit-scrollbar { width: 6px; }
+.jakkanna-ps-library-modal-grid::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+.jakkanna-ps-library-modal-grid::-webkit-scrollbar-thumb { background: var(--ps-accent-border); border-radius: 3px; }
+.jakkanna-ps-library-modal-grid::-webkit-scrollbar-thumb:hover { background: var(--ps-accent); }
 
-.vnccs-ps-library-header {
+.jakkanna-ps-library-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2177,7 +2177,7 @@ const STYLES = `
     background: rgba(0, 0, 0, 0.25);
 }
 
-.vnccs-ps-library-title {
+.jakkanna-ps-library-title {
     font-weight: 700;
     color: var(--ps-accent);
     font-size: 11px;
@@ -2186,7 +2186,7 @@ const STYLES = `
     font-family: var(--ps-font);
 }
 
-.vnccs-ps-library-close {
+.jakkanna-ps-library-close {
     background: transparent;
     border: none;
     color: var(--ps-text-muted);
@@ -2197,11 +2197,11 @@ const STYLES = `
     transition: color var(--ps-transition);
 }
 
-.vnccs-ps-library-close:hover {
+.jakkanna-ps-library-close:hover {
     color: var(--ps-accent);
 }
 
-.vnccs-ps-library-grid {
+.jakkanna-ps-library-grid {
     flex: 1;
     overflow-y: auto;
     padding: 8px;
@@ -2211,7 +2211,7 @@ const STYLES = `
     align-content: start;
 }
 
-.vnccs-ps-library-item {
+.jakkanna-ps-library-item {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--ps-border);
     border-radius: 9px;
@@ -2219,29 +2219,29 @@ const STYLES = `
     cursor: pointer;
     transition: all var(--ps-transition);
     position: relative;
-    min-height: var(--vnccs-ps-library-thumb-height, 420px);
+    min-height: var(--jakkanna-ps-library-thumb-height, 420px);
     display: flex;
     flex-direction: column;
 }
 
-.vnccs-ps-library-item.selected {
+.jakkanna-ps-library-item.selected {
     border-color: var(--ps-accent);
     box-shadow: 0 0 0 1px var(--ps-accent-border), 0 10px 28px rgba(0,0,0,0.35);
 }
 
-.vnccs-ps-library-item-delete {
+.jakkanna-ps-library-item-delete {
     position: absolute;
-    top: calc(6px * var(--vnccs-ps-library-ui-scale));
-    right: calc(6px * var(--vnccs-ps-library-ui-scale));
-    width: calc(22px * var(--vnccs-ps-library-ui-scale));
-    height: calc(22px * var(--vnccs-ps-library-ui-scale));
+    top: calc(6px * var(--jakkanna-ps-library-ui-scale));
+    right: calc(6px * var(--jakkanna-ps-library-ui-scale));
+    width: calc(22px * var(--jakkanna-ps-library-ui-scale));
+    height: calc(22px * var(--jakkanna-ps-library-ui-scale));
     background: rgba(255, 71, 87, 0.75);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: calc(14px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(14px * var(--jakkanna-ps-library-ui-scale));
     line-height: 1;
     cursor: pointer;
     opacity: 0;
@@ -2249,22 +2249,22 @@ const STYLES = `
     z-index: 10;
 }
 
-.vnccs-ps-library-item:hover .vnccs-ps-library-item-delete {
+.jakkanna-ps-library-item:hover .jakkanna-ps-library-item-delete {
     opacity: 1;
 }
 
-.vnccs-ps-library-item-delete:hover {
+.jakkanna-ps-library-item-delete:hover {
     background: #ff4757;
     transform: scale(1.15);
 }
 
-.vnccs-ps-library-item:hover {
+.jakkanna-ps-library-item:hover {
     border-color: var(--ps-accent-border);
     transform: translateY(-3px);
     box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 12px var(--ps-accent-subtle);
 }
 
-.vnccs-ps-library-item-preview {
+.jakkanna-ps-library-item-preview {
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -2273,12 +2273,12 @@ const STYLES = `
     align-items: center;
     justify-content: center;
     color: var(--ps-text-muted);
-    font-size: calc(28px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(28px * var(--jakkanna-ps-library-ui-scale));
     overflow: hidden;
     border-radius: inherit;
 }
 
-.vnccs-ps-library-item-preview img {
+.jakkanna-ps-library-item-preview img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -2286,15 +2286,15 @@ const STYLES = `
     border-radius: inherit;
 }
 
-.vnccs-ps-library-item-name {
+.jakkanna-ps-library-item-name {
     position: absolute;
     bottom: 0; left: 0; right: 0;
     width: 100%;
     box-sizing: border-box;
-    padding: calc(9px * var(--vnccs-ps-library-ui-scale)) calc(8px * var(--vnccs-ps-library-ui-scale)) calc(10px * var(--vnccs-ps-library-ui-scale));
+    padding: calc(9px * var(--jakkanna-ps-library-ui-scale)) calc(8px * var(--jakkanna-ps-library-ui-scale)) calc(10px * var(--jakkanna-ps-library-ui-scale));
     background: rgba(0, 0, 0, 0.82);
     backdrop-filter: blur(4px);
-    font-size: calc(11px * var(--vnccs-ps-library-ui-scale));
+    font-size: calc(11px * var(--jakkanna-ps-library-ui-scale));
     text-align: center;
     color: var(--ps-text);
     overflow: hidden;
@@ -2302,14 +2302,14 @@ const STYLES = `
     white-space: nowrap;
     z-index: 5;
     font-family: var(--ps-font);
-    border-radius: 0 0 calc(8px * var(--vnccs-ps-library-ui-scale)) calc(8px * var(--vnccs-ps-library-ui-scale));
+    border-radius: 0 0 calc(8px * var(--jakkanna-ps-library-ui-scale)) calc(8px * var(--jakkanna-ps-library-ui-scale));
 }
 
-.vnccs-ps-library-item-meta {
+.jakkanna-ps-library-item-meta {
     display: none;
 }
 
-.vnccs-ps-library-inspector {
+.jakkanna-ps-library-inspector {
     min-height: 0;
     overflow: hidden;
     padding: 0;
@@ -2319,31 +2319,31 @@ const STYLES = `
     position: relative;
 }
 
-.vnccs-ps-library-inspector.visible {
+.jakkanna-ps-library-inspector.visible {
     display: block;
 }
 
-.vnccs-ps-library-inspector-inner {
-    width: var(--vnccs-ps-library-inspector-base-width);
-    height: calc(100% / var(--vnccs-ps-library-inspector-scale));
+.jakkanna-ps-library-inspector-inner {
+    width: var(--jakkanna-ps-library-inspector-base-width);
+    height: calc(100% / var(--jakkanna-ps-library-inspector-scale));
     box-sizing: border-box;
     padding: 18px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     overflow-y: auto;
-    transform: scale(var(--vnccs-ps-library-inspector-scale));
+    transform: scale(var(--jakkanna-ps-library-inspector-scale));
     transform-origin: top left;
 }
 
-.vnccs-ps-library-inspector-empty {
+.jakkanna-ps-library-inspector-empty {
     color: var(--ps-text-muted);
     font-size: 12px;
     line-height: 1.5;
     padding: 24px 4px;
 }
 
-.vnccs-ps-library-inspector-preview {
+.jakkanna-ps-library-inspector-preview {
     width: 100%;
     aspect-ratio: 1 / 1.25;
     border-radius: var(--ps-radius-sm);
@@ -2357,19 +2357,19 @@ const STYLES = `
     font-size: 34px;
 }
 
-.vnccs-ps-library-inspector-preview img {
+.jakkanna-ps-library-inspector-preview img {
     width: 100%;
     height: 100%;
     object-fit: contain;
 }
 
-.vnccs-ps-library-inspector-actions {
+.jakkanna-ps-library-inspector-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 
-.vnccs-ps-library-field {
+.jakkanna-ps-library-field {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -2380,28 +2380,28 @@ const STYLES = `
     letter-spacing: 0.7px;
 }
 
-.vnccs-ps-library-field input[type="text"],
-.vnccs-ps-library-field input[type="file"] {
+.jakkanna-ps-library-field input[type="text"],
+.jakkanna-ps-library-field input[type="file"] {
     width: 100%;
     box-sizing: border-box;
 }
 
-.vnccs-ps-library-image-input {
+.jakkanna-ps-library-image-input {
     color: var(--ps-text-muted);
     font-size: 11px;
 }
 
-.vnccs-ps-library-save-edit {
+.jakkanna-ps-library-save-edit {
     justify-content: center;
     margin-top: 4px;
 }
 
-.vnccs-ps-library-footer {
+.jakkanna-ps-library-footer {
     padding: 8px;
     border-top: 1px solid var(--ps-border);
 }
 
-.vnccs-ps-library-empty {
+.jakkanna-ps-library-empty {
     grid-column: 1 / -1;
     text-align: center;
     color: var(--ps-text-muted);
@@ -2411,7 +2411,7 @@ const STYLES = `
 }
 
 /* === Loading Overlay === */
-.vnccs-ps-loading-overlay {
+.jakkanna-ps-loading-overlay {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
@@ -2428,14 +2428,14 @@ const STYLES = `
 }
 
 /* Dual-ring sakura spinner */
-.vnccs-ps-loading-spinner {
+.jakkanna-ps-loading-spinner {
     width: 50px;
     height: 50px;
     position: relative;
 }
 
-.vnccs-ps-loading-spinner::before,
-.vnccs-ps-loading-spinner::after {
+.jakkanna-ps-loading-spinner::before,
+.jakkanna-ps-loading-spinner::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -2443,14 +2443,14 @@ const STYLES = `
     border: 3px solid transparent;
 }
 
-.vnccs-ps-loading-spinner::before {
+.jakkanna-ps-loading-spinner::before {
     border-top-color: var(--ps-accent);
     border-right-color: rgba(255, 143, 163, 0.3);
     animation: ps-spin 1s linear infinite;
     box-shadow: 0 0 18px var(--ps-accent-glow);
 }
 
-.vnccs-ps-import-progress {
+.jakkanna-ps-import-progress {
     width: 100%;
     height: 8px;
     border-radius: 999px;
@@ -2460,7 +2460,7 @@ const STYLES = `
     margin: 8px 0 2px;
 }
 
-.vnccs-ps-import-progress-fill {
+.jakkanna-ps-import-progress-fill {
     height: 100%;
     width: 0%;
     border-radius: inherit;
@@ -2469,14 +2469,14 @@ const STYLES = `
     transition: width 0.25s ease;
 }
 
-.vnccs-ps-import-progress-percent {
+.jakkanna-ps-import-progress-percent {
     min-height: 16px;
     font-size: 11px;
     color: var(--ps-text-muted);
     text-align: center;
 }
 
-.vnccs-ps-loading-spinner::after {
+.jakkanna-ps-loading-spinner::after {
     inset: 8px;
     border-bottom-color: var(--ps-accent-lavender);
     border-left-color: rgba(184, 169, 232, 0.25);
@@ -2488,7 +2488,7 @@ const STYLES = `
     100% { transform: rotate(360deg); }
 }
 
-.vnccs-ps-loading-text {
+.jakkanna-ps-loading-text {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 2px;
@@ -2504,14 +2504,14 @@ styleEl.textContent = STYLES;
 document.head.appendChild(styleEl);
 
 function enablePoseStudioCanvasNavigationForwarding(root) {
-    if (!root || root._vnccsPoseCanvasNavigationForwarding) return;
-    root._vnccsPoseCanvasNavigationForwarding = true;
+    if (!root || root._jakkannaPoseCanvasNavigationForwarding) return;
+    root._jakkannaPoseCanvasNavigationForwarding = true;
 
     const canvas = () => app.canvasEl || app.canvas?.canvas || document.querySelector("canvas.litegraph");
     let panning = false;
 
     const markForwarded = (event) => {
-        Object.defineProperty(event, "_vnccsPoseForwardedCanvasInput", { value: true });
+        Object.defineProperty(event, "_jakkannaPoseForwardedCanvasInput", { value: true });
         return event;
     };
 
@@ -2620,22 +2620,22 @@ function enablePoseStudioCanvasNavigationForwarding(root) {
             "canvas",
             "[contenteditable='true']",
             "[role='button']",
-            ".vnccs-ps-toggle",
-            ".vnccs-ps-slider-wrap",
-            ".vnccs-ps-tabs-shell",
-            ".vnccs-ps-canvas-wrap",
-            ".vnccs-ps-radar-wrap",
-            ".vnccs-ps-light-radar-wrap",
-            ".vnccs-ps-manager-grid",
-            ".vnccs-ps-manager-actions",
-            ".vnccs-ps-manager-detail-strip",
-            ".vnccs-ps-hand-popover",
-            ".vnccs-ps-settings-panel",
-            ".vnccs-ps-modal-overlay",
-            ".vnccs-ps-library-modal",
-            ".vnccs-ps-library-grid",
-            ".vnccs-ps-library-modal-grid",
-            ".vnccs-ps-library-inspector",
+            ".jakkanna-ps-toggle",
+            ".jakkanna-ps-slider-wrap",
+            ".jakkanna-ps-tabs-shell",
+            ".jakkanna-ps-canvas-wrap",
+            ".jakkanna-ps-radar-wrap",
+            ".jakkanna-ps-light-radar-wrap",
+            ".jakkanna-ps-manager-grid",
+            ".jakkanna-ps-manager-actions",
+            ".jakkanna-ps-manager-detail-strip",
+            ".jakkanna-ps-hand-popover",
+            ".jakkanna-ps-settings-panel",
+            ".jakkanna-ps-modal-overlay",
+            ".jakkanna-ps-library-modal",
+            ".jakkanna-ps-library-grid",
+            ".jakkanna-ps-library-modal-grid",
+            ".jakkanna-ps-library-inspector",
         ].join(",")));
     };
 
@@ -2647,7 +2647,7 @@ function enablePoseStudioCanvasNavigationForwarding(root) {
     };
 
     const finishPan = (event) => {
-        if (event._vnccsPoseForwardedCanvasInput) return;
+        if (event._jakkannaPoseForwardedCanvasInput) return;
         if (!panning) return;
         panning = false;
         event.preventDefault();
@@ -2658,7 +2658,7 @@ function enablePoseStudioCanvasNavigationForwarding(root) {
     };
 
     const movePan = (event) => {
-        if (event._vnccsPoseForwardedCanvasInput) return;
+        if (event._jakkannaPoseForwardedCanvasInput) return;
         if (!panning) return;
         event.preventDefault();
         event.stopPropagation();
@@ -2666,7 +2666,7 @@ function enablePoseStudioCanvasNavigationForwarding(root) {
     };
 
     root.addEventListener("mousedown", (event) => {
-        if (event._vnccsPoseForwardedCanvasInput) return;
+        if (event._jakkannaPoseForwardedCanvasInput) return;
         if (event.button !== 1) return;
         if (!canForwardFrom(event.target)) return;
         if (!forwardMouse("mousedown", event, 4)) return;
@@ -2685,7 +2685,7 @@ function enablePoseStudioCanvasNavigationForwarding(root) {
     }, true);
 
     root.addEventListener("wheel", (event) => {
-        if (event._vnccsPoseForwardedCanvasInput) return;
+        if (event._jakkannaPoseForwardedCanvasInput) return;
         if (!canForwardFrom(event.target)) return;
         if (!forwardWheel(event)) return;
         event.preventDefault();
@@ -2822,7 +2822,8 @@ class PoseStudioWidget {
         this._boundHandleDocumentPointerDown = (event) => this._handleDocumentPointerDown(event);
         this._boundHandleDocumentPointerUp = (event) => this._handleDocumentPointerUp(event);
         this._boundHandleDocumentPointerCancel = (event) => this._handleDocumentPointerCancel(event);
-        this.libraryThumbSizeStorageKey = "vnccsPoseLibraryPreviewSize";
+        this.libraryThumbSizeStorageKey = "jakkannaPoseLibraryPreviewSize";
+        this.legacyLibraryThumbSizeStorageKey = "vnccsPoseLibraryPreviewSize";
         this.libraryThumbSize = this.loadLibraryThumbnailSize();
         this.libraryResizeObserver = null;
         this.repositoryProgressStates = {};
@@ -2842,38 +2843,38 @@ class PoseStudioWidget {
 
     _createLayout() {
         this.container = document.createElement("div");
-        this.container.className = "vnccs-pose-studio";
+        this.container.className = "jakkanna-pose-studio";
         enablePoseStudioCanvasNavigationForwarding(this.container);
 
         this.leftPanel = document.createElement("div");
-        this.leftPanel.className = "vnccs-ps-left";
+        this.leftPanel.className = "jakkanna-ps-left";
         this.container.appendChild(this.leftPanel);
 
         this.centerPanel = document.createElement("div");
-        this.centerPanel.className = "vnccs-ps-center";
+        this.centerPanel.className = "jakkanna-ps-center";
         this.container.appendChild(this.centerPanel);
 
         this.rightSidebar = document.createElement("div");
-        this.rightSidebar.className = "vnccs-ps-right-sidebar";
+        this.rightSidebar.className = "jakkanna-ps-right-sidebar";
         this.container.appendChild(this.rightSidebar);
     }
 
     _createPoseManager() {
         this.managerPanel = document.createElement("div");
-        this.managerPanel.className = "vnccs-ps-manager";
+        this.managerPanel.className = "jakkanna-ps-manager";
 
         const header = document.createElement("div");
-        header.className = "vnccs-ps-manager-header";
+        header.className = "jakkanna-ps-manager-header";
 
         const title = document.createElement("div");
-        title.className = "vnccs-ps-manager-title";
+        title.className = "jakkanna-ps-manager-title";
         title.textContent = "Jakkanna Pose Manager";
 
         const actions = document.createElement("div");
-        actions.className = "vnccs-ps-manager-actions";
+        actions.className = "jakkanna-ps-manager-actions";
 
         const addBtn = document.createElement("button");
-        addBtn.className = "vnccs-ps-btn primary";
+        addBtn.className = "jakkanna-ps-btn primary";
         addBtn.type = "button";
         addBtn.textContent = "Add Pose";
         addBtn.addEventListener("click", () => {
@@ -2886,13 +2887,13 @@ class PoseStudioWidget {
         header.appendChild(actions);
 
         this.managerBody = document.createElement("div");
-        this.managerBody.className = "vnccs-ps-manager-body";
+        this.managerBody.className = "jakkanna-ps-manager-body";
         this.managerSidebar = this._createPoseManagerSidebar();
 
         this.managerStage = document.createElement("div");
-        this.managerStage.className = "vnccs-ps-manager-stage";
+        this.managerStage.className = "jakkanna-ps-manager-stage";
         this.managerGrid = document.createElement("div");
-        this.managerGrid.className = "vnccs-ps-manager-grid";
+        this.managerGrid.className = "jakkanna-ps-manager-grid";
         this.managerStage.appendChild(this.managerGrid);
         this.managerBody.appendChild(this.managerSidebar);
         this.managerBody.appendChild(this.managerStage);
@@ -2910,24 +2911,24 @@ class PoseStudioWidget {
 
     _createPoseManagerSidebar() {
         const sidebar = document.createElement("div");
-        sidebar.className = "vnccs-ps-manager-sidebar";
+        sidebar.className = "jakkanna-ps-manager-sidebar";
 
         const meshSection = this.createSection("Mesh Parameters", true);
 
         const genderField = document.createElement("div");
-        genderField.className = "vnccs-ps-field";
+        genderField.className = "jakkanna-ps-field";
         const genderLabel = document.createElement("div");
-        genderLabel.className = "vnccs-ps-label";
+        genderLabel.className = "jakkanna-ps-label";
         genderLabel.innerText = "Gender";
         const genderToggle = document.createElement("div");
-        genderToggle.className = "vnccs-ps-toggle";
+        genderToggle.className = "jakkanna-ps-toggle";
 
         const btnMale = document.createElement("button");
-        btnMale.className = "vnccs-ps-toggle-btn male";
+        btnMale.className = "jakkanna-ps-toggle-btn male";
         btnMale.type = "button";
         btnMale.innerText = "Male";
         const btnFemale = document.createElement("button");
-        btnFemale.className = "vnccs-ps-toggle-btn female";
+        btnFemale.className = "jakkanna-ps-toggle-btn female";
         btnFemale.type = "button";
         btnFemale.innerText = "Female";
         this.managerGenderBtns = { male: btnMale, female: btnFemale };
@@ -2952,7 +2953,7 @@ class PoseStudioWidget {
 
         const cameraSection = this.createSection("Camera", true);
         const dimRow = document.createElement("div");
-        dimRow.className = "vnccs-ps-row";
+        dimRow.className = "jakkanna-ps-row";
         dimRow.appendChild(this.createManagerInput({ key: "view_width", label: "Width", min: 64, max: 4096, step: 8 }));
         dimRow.appendChild(this.createManagerInput({ key: "view_height", label: "Height", min: 64, max: 4096, step: 8 }));
         cameraSection.content.appendChild(dimRow);
@@ -2964,27 +2965,27 @@ class PoseStudioWidget {
 
     createManagerSlider(def, group) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const labelRow = document.createElement("div");
-        labelRow.className = "vnccs-ps-label-row";
+        labelRow.className = "jakkanna-ps-label-row";
         labelRow.style.display = "flex";
         labelRow.style.justifyContent = "space-between";
         labelRow.style.alignItems = "center";
 
         const label = document.createElement("span");
-        label.className = "vnccs-ps-label";
+        label.className = "jakkanna-ps-label";
         label.innerText = def.label;
 
         const value = document.createElement("span");
-        value.className = "vnccs-ps-value";
+        value.className = "jakkanna-ps-value";
 
         const wrap = document.createElement("div");
-        wrap.className = "vnccs-ps-slider-wrap";
+        wrap.className = "jakkanna-ps-slider-wrap";
 
         const slider = document.createElement("input");
         slider.type = "range";
-        slider.className = "vnccs-ps-slider";
+        slider.className = "jakkanna-ps-slider";
         slider.min = def.min;
         slider.max = def.max;
         slider.step = def.step;
@@ -3013,15 +3014,15 @@ class PoseStudioWidget {
 
     createManagerInput(def) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const label = document.createElement("div");
-        label.className = "vnccs-ps-label";
+        label.className = "jakkanna-ps-label";
         label.innerText = def.label;
 
         const input = document.createElement("input");
         input.type = "number";
-        input.className = "vnccs-ps-input";
+        input.className = "jakkanna-ps-input";
         input.min = def.min;
         input.max = def.max;
         input.step = def.step;
@@ -3173,7 +3174,7 @@ class PoseStudioWidget {
         const managerBackWrap = document.createElement("div");
         managerBackWrap.style.paddingBottom = "5px";
         this.managerBackBtn = document.createElement("button");
-        this.managerBackBtn.className = "vnccs-ps-btn primary vnccs-ps-manager-back";
+        this.managerBackBtn.className = "jakkanna-ps-btn primary jakkanna-ps-manager-back";
         this.managerBackBtn.type = "button";
         this.managerBackBtn.textContent = "Back to Pose Manager";
         this.managerBackBtn.addEventListener("click", () => this.setInterfaceMode("manager"));
@@ -3182,26 +3183,26 @@ class PoseStudioWidget {
 
         // --- MESH PARAMS SECTION ---
         const meshSection = this.createSection("Mesh Parameters", true);
-        meshSection.el.classList.add("vnccs-ps-main-moved-manager");
+        meshSection.el.classList.add("jakkanna-ps-main-moved-manager");
 
         // Gender Toggle
         const genderField = document.createElement("div");
-        genderField.className = "vnccs-ps-field";
+        genderField.className = "jakkanna-ps-field";
 
         const genderLabel = document.createElement("div");
-        genderLabel.className = "vnccs-ps-label";
+        genderLabel.className = "jakkanna-ps-label";
         genderLabel.innerText = "Gender";
         genderField.appendChild(genderLabel);
 
         const genderToggle = document.createElement("div");
-        genderToggle.className = "vnccs-ps-toggle";
+        genderToggle.className = "jakkanna-ps-toggle";
 
         const btnMale = document.createElement("button");
-        btnMale.className = "vnccs-ps-toggle-btn male";
+        btnMale.className = "jakkanna-ps-toggle-btn male";
         btnMale.innerText = "Male";
 
         const btnFemale = document.createElement("button");
-        btnFemale.className = "vnccs-ps-toggle-btn female";
+        btnFemale.className = "jakkanna-ps-toggle-btn female";
         btnFemale.innerText = "Female";
 
         this.genderBtns = { male: btnMale, female: btnFemale };
@@ -3302,21 +3303,21 @@ class PoseStudioWidget {
 
         ['x', 'y', 'z'].forEach(axis => {
             const field = document.createElement("div");
-            field.className = "vnccs-ps-field";
+            field.className = "jakkanna-ps-field";
 
             const labelRow = document.createElement("div");
-            labelRow.className = "vnccs-ps-label-row";
+            labelRow.className = "jakkanna-ps-label-row";
 
             const labelSpan = document.createElement("span");
-            labelSpan.className = "vnccs-ps-label";
+            labelSpan.className = "jakkanna-ps-label";
             labelSpan.textContent = axis.toUpperCase();
 
             const valueSpan = document.createElement("span");
-            valueSpan.className = "vnccs-ps-value";
+            valueSpan.className = "jakkanna-ps-value";
             valueSpan.textContent = "0°";
 
             const resetBtn = document.createElement("button");
-            resetBtn.className = "vnccs-ps-reset-btn";
+            resetBtn.className = "jakkanna-ps-reset-btn";
             resetBtn.innerHTML = "↺";
             resetBtn.title = "Reset to 0°";
             resetBtn.onclick = (e) => {
@@ -3340,11 +3341,11 @@ class PoseStudioWidget {
             labelRow.appendChild(valueRow);
 
             const wrap = document.createElement("div");
-            wrap.className = "vnccs-ps-slider-wrap";
+            wrap.className = "jakkanna-ps-slider-wrap";
 
             const slider = document.createElement("input");
             slider.type = "range";
-            slider.className = "vnccs-ps-slider";
+            slider.className = "jakkanna-ps-slider";
             slider.min = -180;
             slider.max = 180;
             slider.step = 1;
@@ -3372,7 +3373,7 @@ class PoseStudioWidget {
         // --- CAMERA SETTINGS SECTION ---
         const camSection = this.createSection("Camera", true);
         const dimRow = document.createElement("div");
-        dimRow.className = "vnccs-ps-row vnccs-ps-camera-dim-row";
+        dimRow.className = "jakkanna-ps-row jakkanna-ps-camera-dim-row";
         dimRow.appendChild(this.createInputField("Width", "view_width", "number", 64, 4096, 8));
         dimRow.appendChild(this.createInputField("Height", "view_height", "number", 64, 4096, 8));
         camSection.content.appendChild(dimRow);
@@ -3393,19 +3394,19 @@ class PoseStudioWidget {
         const exportSection = this.createSection("Export Settings", true);
 
         const modeField = document.createElement("div");
-        modeField.className = "vnccs-ps-field";
+        modeField.className = "jakkanna-ps-field";
         const modeLabel = document.createElement("div");
-        modeLabel.className = "vnccs-ps-label";
+        modeLabel.className = "jakkanna-ps-label";
         modeLabel.innerText = "Output Mode";
 
         const modeToggle = document.createElement("div");
-        modeToggle.className = "vnccs-ps-toggle";
+        modeToggle.className = "jakkanna-ps-toggle";
 
         const btnList = document.createElement("button");
-        btnList.className = "vnccs-ps-toggle-btn list";
+        btnList.className = "jakkanna-ps-toggle-btn list";
         btnList.innerText = "List";
         const btnGrid = document.createElement("button");
-        btnGrid.className = "vnccs-ps-toggle-btn grid";
+        btnGrid.className = "jakkanna-ps-toggle-btn grid";
         btnGrid.innerText = "Grid";
 
         const updateModeUI = () => {
@@ -3455,21 +3456,21 @@ class PoseStudioWidget {
 
         // Tab Bar
         this.tabsShell = document.createElement("div");
-        this.tabsShell.className = "vnccs-ps-tabs-shell";
+        this.tabsShell.className = "jakkanna-ps-tabs-shell";
 
         this.tabScrollLeft = document.createElement("button");
-        this.tabScrollLeft.className = "vnccs-ps-tab-scroll left";
+        this.tabScrollLeft.className = "jakkanna-ps-tab-scroll left";
         this.tabScrollLeft.type = "button";
         this.tabScrollLeft.title = "Scroll tabs left";
         this.tabScrollLeft.textContent = "<";
         this.tabScrollLeft.addEventListener("click", () => this.scrollTabs(-1));
 
         this.tabsContainer = document.createElement("div");
-        this.tabsContainer.className = "vnccs-ps-tabs";
+        this.tabsContainer.className = "jakkanna-ps-tabs";
         this.tabsContainer.addEventListener("scroll", () => this.updateTabScrollButtons());
 
         this.tabScrollRight = document.createElement("button");
-        this.tabScrollRight.className = "vnccs-ps-tab-scroll right";
+        this.tabScrollRight.className = "jakkanna-ps-tab-scroll right";
         this.tabScrollRight.type = "button";
         this.tabScrollRight.title = "Scroll tabs right";
         this.tabScrollRight.textContent = ">";
@@ -3486,19 +3487,19 @@ class PoseStudioWidget {
         this.updateTabs();
 
         this.managerDetailStrip = document.createElement("div");
-        this.managerDetailStrip.className = "vnccs-ps-manager-detail-strip";
+        this.managerDetailStrip.className = "jakkanna-ps-manager-detail-strip";
         this.container.appendChild(this.managerDetailStrip);
 
         // Canvas Container
         this.canvasContainer = document.createElement("div");
-        this.canvasContainer.className = "vnccs-ps-canvas-wrap";
+        this.canvasContainer.className = "jakkanna-ps-canvas-wrap";
 
         // SAM camera banner (top of viewport, toggle on click)
         this._samCamBanner = document.createElement('div');
-        this._samCamBanner.className = 'vnccs-ps-sam-cam-banner';
+        this._samCamBanner.className = 'jakkanna-ps-sam-cam-banner';
         this._samCamBanner.innerHTML =
-            '<span class="vnccs-sam-dot"></span>' +
-            '<span class="vnccs-sam-label">SAM Camera Applied</span>' +
+            '<span class="jakkanna-sam-dot"></span>' +
+            '<span class="jakkanna-sam-label">SAM Camera Applied</span>' +
             '<small style="opacity:0.65;font-weight:400">· click to toggle</small>';
         this._samCamBanner.addEventListener('click', () => this._toggleSAMCameraDisplay());
         this.canvasContainer.appendChild(this._samCamBanner);
@@ -3510,39 +3511,39 @@ class PoseStudioWidget {
 
         // Action Bar
         const actions = document.createElement("div");
-        actions.className = "vnccs-ps-actions";
+        actions.className = "jakkanna-ps-actions";
 
         const undoBtn = document.createElement("button");
-        undoBtn.className = "vnccs-ps-btn";
-        undoBtn.innerHTML = '<span class="vnccs-ps-btn-icon">↩</span> Undo';
+        undoBtn.className = "jakkanna-ps-btn";
+        undoBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">↩</span> Undo';
         undoBtn.onclick = () => this.viewer && this.viewer.undo();
 
         const redoBtn = document.createElement("button");
-        redoBtn.className = "vnccs-ps-btn";
-        redoBtn.innerHTML = '<span class="vnccs-ps-btn-icon">↪</span> Redo';
+        redoBtn.className = "jakkanna-ps-btn";
+        redoBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">↪</span> Redo';
         redoBtn.onclick = () => this.viewer && this.viewer.redo();
 
         const resetBtn = document.createElement("button");
-        resetBtn.className = "vnccs-ps-btn";
-        resetBtn.innerHTML = '<span class="vnccs-ps-btn-icon">↺</span> Reset';
+        resetBtn.className = "jakkanna-ps-btn";
+        resetBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">↺</span> Reset';
         resetBtn.addEventListener("click", () => this.resetCurrentPose());
 
         const snapBtn = document.createElement("button");
-        snapBtn.className = "vnccs-ps-btn primary";
-        snapBtn.innerHTML = '<span class="vnccs-ps-btn-icon">👁</span> Preview';
+        snapBtn.className = "jakkanna-ps-btn primary";
+        snapBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">👁</span> Preview';
         snapBtn.title = "Snap viewport camera to output camera";
         snapBtn.addEventListener("click", () => {
             this.applyCameraToViewer(true);
         });
 
         const copyBtn = document.createElement("button");
-        copyBtn.className = "vnccs-ps-btn";
-        copyBtn.innerHTML = '<span class="vnccs-ps-btn-icon">📋</span> Copy';
+        copyBtn.className = "jakkanna-ps-btn";
+        copyBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">📋</span> Copy';
         copyBtn.addEventListener("click", () => this.copyPose());
 
         const pasteBtn = document.createElement("button");
-        pasteBtn.className = "vnccs-ps-btn";
-        pasteBtn.innerHTML = '<span class="vnccs-ps-btn-icon">📋</span> Paste';
+        pasteBtn.className = "jakkanna-ps-btn";
+        pasteBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">📋</span> Paste';
         pasteBtn.addEventListener("click", () => this.pastePose());
 
         actions.appendChild(undoBtn);
@@ -3554,28 +3555,28 @@ class PoseStudioWidget {
 
         // Footer
         const footer = document.createElement("div");
-        footer.className = "vnccs-ps-footer";
+        footer.className = "jakkanna-ps-footer";
 
         const exportBtn = document.createElement("button");
-        exportBtn.className = "vnccs-ps-btn";
-        exportBtn.innerHTML = '<span class="vnccs-ps-btn-icon">📥</span> Export';
+        exportBtn.className = "jakkanna-ps-btn";
+        exportBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">📥</span> Export';
         exportBtn.addEventListener("click", () => this.showExportModal());
 
         const importBtn = document.createElement("button");
-        importBtn.className = "vnccs-ps-btn";
-        importBtn.innerHTML = '<span class="vnccs-ps-btn-icon">📤</span> Import';
+        importBtn.className = "jakkanna-ps-btn";
+        importBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">📤</span> Import';
         importBtn.addEventListener("click", () => this.importPose());
 
         const refBtn = document.createElement("button");
-        refBtn.className = "vnccs-ps-btn";
-        refBtn.innerHTML = '<span class="vnccs-ps-btn-icon">🖼️</span> Background';
+        refBtn.className = "jakkanna-ps-btn";
+        refBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">🖼️</span> Background';
         refBtn.title = "Load or Remove Background Image";
         refBtn.onclick = () => {
             if (this.viewer && this.viewer.hasReferenceImage()) {
                 this.viewer.removeReferenceImage();
                 this.exportParams.background_url = null;
                 this.syncToNode(false);
-                refBtn.innerHTML = '<span class="vnccs-ps-btn-icon">🖼️</span> Background';
+                refBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">🖼️</span> Background';
                 refBtn.classList.remove('danger');
             } else {
                 this.loadReference();
@@ -3584,8 +3585,8 @@ class PoseStudioWidget {
         this.refBtn = refBtn;
 
         const settingsBtn = document.createElement("button");
-        settingsBtn.className = "vnccs-ps-btn";
-        settingsBtn.innerHTML = '<span class="vnccs-ps-btn-icon">⚙️</span>';
+        settingsBtn.className = "jakkanna-ps-btn";
+        settingsBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">⚙️</span>';
         settingsBtn.title = "Settings (Debug)";
         settingsBtn.onclick = () => this.showSettingsModal();
         this.settingsBtn = settingsBtn;
@@ -3619,10 +3620,10 @@ class PoseStudioWidget {
         const libBtnWrap = document.createElement("div");
         libBtnWrap.style.paddingBottom = "5px";
         const libBtn = document.createElement("button");
-        libBtn.className = "vnccs-ps-btn primary";
+        libBtn.className = "jakkanna-ps-btn primary";
         libBtn.style.width = "100%";
         libBtn.style.padding = "10px";
-        libBtn.innerHTML = '<span class="vnccs-ps-btn-icon">📚</span> Pose Library Gallery';
+        libBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">📚</span> Pose Library Gallery';
         libBtn.onclick = () => this.showLibraryModal();
         libBtnWrap.appendChild(libBtn);
         rightSidebar.appendChild(libBtnWrap);
@@ -3630,10 +3631,10 @@ class PoseStudioWidget {
         // Lighting Section
         const lightSection = this.createSection("Lighting", true);
         this.lightListContainer = document.createElement("div");
-        this.lightListContainer.className = "vnccs-ps-light-list";
+        this.lightListContainer.className = "jakkanna-ps-light-list";
 
         const overrideBtn = document.createElement("button");
-        overrideBtn.className = "vnccs-ps-btn full";
+        overrideBtn.className = "jakkanna-ps-btn full";
         overrideBtn.style.marginBottom = "12px";
         overrideBtn.style.height = "36px";
         overrideBtn.style.fontSize = "11px";
@@ -3666,15 +3667,15 @@ class PoseStudioWidget {
         lightSection.content.appendChild(overrideBtn);
 
         const lightToolbar = document.createElement("div");
-        lightToolbar.className = "vnccs-ps-light-header";
+        lightToolbar.className = "jakkanna-ps-light-header";
         lightToolbar.style.padding = "0 0 8px 0";
 
         const lightLabel = document.createElement("span");
-        lightLabel.className = "vnccs-ps-label";
+        lightLabel.className = "jakkanna-ps-label";
         lightLabel.innerText = "Scene Lights";
 
         const resetLightBtn = document.createElement("button");
-        resetLightBtn.className = "vnccs-ps-reset-btn";
+        resetLightBtn.className = "jakkanna-ps-reset-btn";
         resetLightBtn.innerHTML = "↺";
         resetLightBtn.onclick = () => {
             this.lightParams = [
@@ -3694,9 +3695,9 @@ class PoseStudioWidget {
         // Prompt Section
         const promptSection = this.createSection("Prompt", true);
         const promptArea = document.createElement("textarea");
-        promptArea.className = "vnccs-ps-textarea";
+        promptArea.className = "jakkanna-ps-textarea";
         promptArea.placeholder = "Describe your scene/character details...";
-        promptArea.maxLength = VNCCS_LIGHTING_PROMPT_MAX_LENGTH;
+        promptArea.maxLength = JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH;
         promptArea.value = this.getPosePrompt(this.activeTab);
 
         const autoExpand = () => {
@@ -3720,10 +3721,10 @@ class PoseStudioWidget {
     _setupFinalUI() {
         // Loading Overlay
         this.loadingOverlay = document.createElement("div");
-        this.loadingOverlay.className = "vnccs-ps-loading-overlay";
+        this.loadingOverlay.className = "jakkanna-ps-loading-overlay";
         this.loadingOverlay.innerHTML = `
-            <div class="vnccs-ps-loading-spinner"></div>
-            <div class="vnccs-ps-loading-text">Loading Model...</div>
+            <div class="jakkanna-ps-loading-spinner"></div>
+            <div class="jakkanna-ps-loading-text">Loading Model...</div>
         `;
         this.container.appendChild(this.loadingOverlay);
 
@@ -3769,20 +3770,20 @@ class PoseStudioWidget {
 
     createSection(title, expanded = true) {
         const section = document.createElement("div");
-        section.className = "vnccs-ps-section" + (expanded ? "" : " collapsed");
+        section.className = "jakkanna-ps-section" + (expanded ? "" : " collapsed");
 
         const header = document.createElement("div");
-        header.className = "vnccs-ps-section-header";
+        header.className = "jakkanna-ps-section-header";
         header.innerHTML = `
-            <span class="vnccs-ps-section-title">${title}</span>
-            <span class="vnccs-ps-section-toggle">▼</span>
+            <span class="jakkanna-ps-section-title">${title}</span>
+            <span class="jakkanna-ps-section-toggle">▼</span>
         `;
         header.addEventListener("click", () => {
             section.classList.toggle("collapsed");
         });
 
         const content = document.createElement("div");
-        content.className = "vnccs-ps-section-content";
+        content.className = "jakkanna-ps-section-content";
 
         section.appendChild(header);
         section.appendChild(content);
@@ -3844,7 +3845,7 @@ class PoseStudioWidget {
         const normalized = mode === "manager" || mode === "managerDetail" ? mode : "studio";
         this.interfaceMode = normalized;
         this.exportParams.interface_mode = normalized === "studio" ? "studio" : "manager";
-        this.node?._vnccsSetPoseImageInputDisabled?.(normalized !== "studio");
+        this.node?._jakkannaSetPoseImageInputDisabled?.(normalized !== "studio");
         this.applyInterfaceMode();
         if (normalized === "manager") {
             this.refreshPoseManagerControls();
@@ -3858,8 +3859,8 @@ class PoseStudioWidget {
 
     applyInterfaceMode() {
         if (!this.container) return;
-        this.container.classList.toggle("vnccs-ps-mode-manager", this.interfaceMode === "manager");
-        this.container.classList.toggle("vnccs-ps-mode-manager-detail", this.interfaceMode === "managerDetail");
+        this.container.classList.toggle("jakkanna-ps-mode-manager", this.interfaceMode === "manager");
+        this.container.classList.toggle("jakkanna-ps-mode-manager-detail", this.interfaceMode === "managerDetail");
         if (this.interfaceMode === "managerDetail") {
             this.renderPoseManagerDetailStrip();
         }
@@ -3878,7 +3879,7 @@ class PoseStudioWidget {
 
     updateExistingPoseManagerCards() {
         if (!this.managerGrid || !this.poses.length) return false;
-        const cards = Array.from(this.managerGrid.children).filter(card => card.classList?.contains("vnccs-ps-pose-card"));
+        const cards = Array.from(this.managerGrid.children).filter(card => card.classList?.contains("jakkanna-ps-pose-card"));
         if (cards.length !== this.poses.length || cards.length !== this.managerGrid.children.length) return false;
 
         for (let i = 0; i < cards.length; i++) {
@@ -3887,10 +3888,10 @@ class PoseStudioWidget {
             card.dataset.poseIndex = String(i);
             card.title = `Open Pose ${i + 1}`;
 
-            const name = card.querySelector(".vnccs-ps-pose-card-name");
+            const name = card.querySelector(".jakkanna-ps-pose-card-name");
             if (name) name.textContent = `Pose ${i + 1}`;
 
-            const del = card.querySelector(".vnccs-ps-pose-card-delete");
+            const del = card.querySelector(".jakkanna-ps-pose-card-delete");
             if (del) {
                 del.title = `Delete Pose ${i + 1}`;
                 del.disabled = this.poses.length <= 1;
@@ -3915,7 +3916,7 @@ class PoseStudioWidget {
 
         if (!this.poses.length) {
             const empty = document.createElement("div");
-            empty.className = "vnccs-ps-manager-empty";
+            empty.className = "jakkanna-ps-manager-empty";
             empty.textContent = "No poses";
             this.managerGrid.appendChild(empty);
             return;
@@ -3923,14 +3924,14 @@ class PoseStudioWidget {
 
         for (let i = 0; i < this.poses.length; i++) {
             const card = document.createElement("div");
-            card.className = "vnccs-ps-pose-card" + (i === this.activeTab ? " active" : "");
+            card.className = "jakkanna-ps-pose-card" + (i === this.activeTab ? " active" : "");
             card.dataset.poseIndex = String(i);
             card.tabIndex = 0;
             card.role = "button";
             card.title = `Open Pose ${i + 1}`;
 
             const preview = document.createElement("div");
-            preview.className = "vnccs-ps-pose-preview";
+            preview.className = "jakkanna-ps-pose-preview";
             const capture = this.poseCaptures?.[i];
             if (capture) {
                 const img = document.createElement("img");
@@ -3939,19 +3940,19 @@ class PoseStudioWidget {
                 preview.appendChild(img);
             } else {
                 const placeholder = document.createElement("div");
-                placeholder.className = "vnccs-ps-pose-preview-empty";
+                placeholder.className = "jakkanna-ps-pose-preview-empty";
                 preview.appendChild(placeholder);
             }
 
             const bottom = document.createElement("div");
-            bottom.className = "vnccs-ps-pose-card-bottom";
+            bottom.className = "jakkanna-ps-pose-card-bottom";
 
             const name = document.createElement("div");
-            name.className = "vnccs-ps-pose-card-name";
+            name.className = "jakkanna-ps-pose-card-name";
             name.textContent = `Pose ${i + 1}`;
 
             const del = document.createElement("button");
-            del.className = "vnccs-ps-btn danger vnccs-ps-pose-card-delete";
+            del.className = "jakkanna-ps-btn danger jakkanna-ps-pose-card-delete";
             del.type = "button";
             del.textContent = "X";
             del.title = `Delete Pose ${i + 1}`;
@@ -4105,7 +4106,7 @@ class PoseStudioWidget {
         this.managerGrid.style.setProperty("--pm-cell-h", `${Math.max(1, Math.floor(best.cellH))}px`);
 
         [...this.managerGrid.children].forEach((card, index) => {
-            if (!card.classList?.contains("vnccs-ps-pose-card")) return;
+            if (!card.classList?.contains("jakkanna-ps-pose-card")) return;
             const aspect = aspects[index] || fallbackAspect;
             const drawW = Math.min(best.cellW, Math.max(1, best.cellH - best.footerH) * aspect);
             const drawH = drawW / aspect;
@@ -4126,10 +4127,10 @@ class PoseStudioWidget {
             const preview = card.querySelector(previewSelector);
             if (!preview) return;
             if (!capture) {
-                if (!preview.querySelector(".vnccs-ps-pose-preview-empty")) {
+                if (!preview.querySelector(".jakkanna-ps-pose-preview-empty")) {
                     preview.innerHTML = "";
                     const placeholder = document.createElement("div");
-                    placeholder.className = "vnccs-ps-pose-preview-empty";
+                    placeholder.className = "jakkanna-ps-pose-preview-empty";
                     preview.appendChild(placeholder);
                 }
                 return;
@@ -4145,12 +4146,12 @@ class PoseStudioWidget {
         };
 
         updateCard(
-            this.managerGrid?.querySelector(`.vnccs-ps-pose-card[data-pose-index="${index}"]`),
-            ".vnccs-ps-pose-preview"
+            this.managerGrid?.querySelector(`.jakkanna-ps-pose-card[data-pose-index="${index}"]`),
+            ".jakkanna-ps-pose-preview"
         );
         updateCard(
-            this.managerDetailStrip?.querySelector(`.vnccs-ps-detail-card[data-pose-index="${index}"]`),
-            ".vnccs-ps-detail-card-preview"
+            this.managerDetailStrip?.querySelector(`.jakkanna-ps-detail-card[data-pose-index="${index}"]`),
+            ".jakkanna-ps-detail-card-preview"
         );
     }
 
@@ -4238,7 +4239,7 @@ class PoseStudioWidget {
 
     updateExistingPoseManagerDetailCards() {
         if (!this.managerDetailStrip || this.interfaceMode !== "managerDetail" || !this.poses.length) return false;
-        const cards = Array.from(this.managerDetailStrip.children).filter(card => card.classList?.contains("vnccs-ps-detail-card"));
+        const cards = Array.from(this.managerDetailStrip.children).filter(card => card.classList?.contains("jakkanna-ps-detail-card"));
         if (cards.length !== this.poses.length || cards.length !== this.managerDetailStrip.children.length) return false;
 
         for (let i = 0; i < cards.length; i++) {
@@ -4247,10 +4248,10 @@ class PoseStudioWidget {
             card.dataset.poseIndex = String(i);
             card.title = `Open Pose ${i + 1}`;
 
-            const name = card.querySelector(".vnccs-ps-detail-card-name");
+            const name = card.querySelector(".jakkanna-ps-detail-card-name");
             if (name) name.textContent = `Pose ${i + 1}`;
 
-            const del = card.querySelector(".vnccs-ps-detail-card-delete");
+            const del = card.querySelector(".jakkanna-ps-detail-card-delete");
             if (del) {
                 del.title = `Delete Pose ${i + 1}`;
                 del.disabled = this.poses.length <= 1;
@@ -4268,7 +4269,7 @@ class PoseStudioWidget {
 
         if (this.updateExistingPoseManagerDetailCards()) {
             requestAnimationFrame(() => {
-                const active = this.managerDetailStrip?.querySelector(".vnccs-ps-detail-card.active");
+                const active = this.managerDetailStrip?.querySelector(".jakkanna-ps-detail-card.active");
                 active?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
             });
             return;
@@ -4278,14 +4279,14 @@ class PoseStudioWidget {
 
         for (let i = 0; i < this.poses.length; i++) {
             const card = document.createElement("div");
-            card.className = "vnccs-ps-detail-card" + (i === this.activeTab ? " active" : "");
+            card.className = "jakkanna-ps-detail-card" + (i === this.activeTab ? " active" : "");
             card.dataset.poseIndex = String(i);
             card.tabIndex = 0;
             card.role = "button";
             card.title = `Open Pose ${i + 1}`;
 
             const preview = document.createElement("div");
-            preview.className = "vnccs-ps-detail-card-preview";
+            preview.className = "jakkanna-ps-detail-card-preview";
             const capture = this.poseCaptures?.[i];
             if (capture) {
                 const img = document.createElement("img");
@@ -4294,19 +4295,19 @@ class PoseStudioWidget {
                 preview.appendChild(img);
             } else {
                 const placeholder = document.createElement("div");
-                placeholder.className = "vnccs-ps-pose-preview-empty";
+                placeholder.className = "jakkanna-ps-pose-preview-empty";
                 preview.appendChild(placeholder);
             }
 
             const bottom = document.createElement("div");
-            bottom.className = "vnccs-ps-detail-card-bottom";
+            bottom.className = "jakkanna-ps-detail-card-bottom";
 
             const name = document.createElement("div");
-            name.className = "vnccs-ps-detail-card-name";
+            name.className = "jakkanna-ps-detail-card-name";
             name.textContent = `Pose ${i + 1}`;
 
             const del = document.createElement("button");
-            del.className = "vnccs-ps-btn danger vnccs-ps-detail-card-delete";
+            del.className = "jakkanna-ps-btn danger jakkanna-ps-detail-card-delete";
             del.type = "button";
             del.textContent = "X";
             del.title = `Delete Pose ${i + 1}`;
@@ -4337,7 +4338,7 @@ class PoseStudioWidget {
         }
 
         requestAnimationFrame(() => {
-            const active = this.managerDetailStrip?.querySelector(".vnccs-ps-detail-card.active");
+            const active = this.managerDetailStrip?.querySelector(".jakkanna-ps-detail-card.active");
             active?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
         });
     }
@@ -4362,8 +4363,8 @@ class PoseStudioWidget {
             const widget = this.exportWidgets[key];
             if (widget) {
                 widget.value = this.exportParams[key];
-                if (widget._vnccsValueSpan) {
-                    widget._vnccsValueSpan.innerText = Number(this.exportParams[key] || 0).toFixed(2);
+                if (widget._jakkannaValueSpan) {
+                    widget._jakkannaValueSpan.innerText = Number(this.exportParams[key] || 0).toFixed(2);
                 }
             }
         }
@@ -4388,16 +4389,16 @@ class PoseStudioWidget {
         if (!this._samCamBanner) return;
         const show = this.exportParams.samApplyCamera && this._samCamBannerVisible;
         if (!show) {
-            this._samCamBanner.classList.remove('vnccs-sam-visible', 'vnccs-sam-paused');
+            this._samCamBanner.classList.remove('jakkanna-sam-visible', 'jakkanna-sam-paused');
             return;
         }
-        this._samCamBanner.classList.add('vnccs-sam-visible');
-        const label = this._samCamBanner.querySelector('.vnccs-sam-label');
+        this._samCamBanner.classList.add('jakkanna-sam-visible');
+        const label = this._samCamBanner.querySelector('.jakkanna-sam-label');
         if (this._samCamDisplayActive) {
-            this._samCamBanner.classList.remove('vnccs-sam-paused');
+            this._samCamBanner.classList.remove('jakkanna-sam-paused');
             if (label) label.textContent = 'SAM Camera Applied';
         } else {
-            this._samCamBanner.classList.add('vnccs-sam-paused');
+            this._samCamBanner.classList.add('jakkanna-sam-paused');
             if (label) label.textContent = 'SAM Camera (paused)';
         }
     }
@@ -4497,10 +4498,10 @@ class PoseStudioWidget {
 
     createSliderField(label, key, min, max, step, defaultValue, target, isExport = false) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const labelRow = document.createElement("div");
-        labelRow.className = "vnccs-ps-label-row";
+        labelRow.className = "jakkanna-ps-label-row";
         labelRow.style.display = "flex";
         labelRow.style.justifyContent = "space-between";
         labelRow.style.alignItems = "center";
@@ -4513,11 +4514,11 @@ class PoseStudioWidget {
         valueRow.style.gap = "6px";
 
         const valueSpan = document.createElement("span");
-        valueSpan.className = "vnccs-ps-value";
+        valueSpan.className = "jakkanna-ps-value";
         valueSpan.innerText = displayVal;
 
         const resetBtn = document.createElement("button");
-        resetBtn.className = "vnccs-ps-reset-btn";
+        resetBtn.className = "jakkanna-ps-reset-btn";
         resetBtn.innerHTML = "↺";
         resetBtn.title = `Reset to ${defaultValue}`;
 
@@ -4526,7 +4527,7 @@ class PoseStudioWidget {
 
         // Label Side
         const labelEl = document.createElement("span");
-        labelEl.className = "vnccs-ps-label";
+        labelEl.className = "jakkanna-ps-label";
         labelEl.innerText = label;
 
         labelRow.innerHTML = '';
@@ -4534,16 +4535,16 @@ class PoseStudioWidget {
         labelRow.appendChild(valueRow);
 
         const wrap = document.createElement("div");
-        wrap.className = "vnccs-ps-slider-wrap";
+        wrap.className = "jakkanna-ps-slider-wrap";
 
         const slider = document.createElement("input");
         slider.type = "range";
-        slider.className = "vnccs-ps-slider";
+        slider.className = "jakkanna-ps-slider";
         slider.min = min;
         slider.max = max;
         slider.step = step;
         slider.value = value;
-        slider._vnccsValueSpan = valueSpan;
+        slider._jakkannaValueSpan = valueSpan;
         const isLiveMorphSlider = !isExport && this.isLiveMorphKey?.(key);
 
         // Reset logic
@@ -4621,15 +4622,15 @@ class PoseStudioWidget {
 
     createInputField(label, key, type, min, max, step) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const labelEl = document.createElement("div");
-        labelEl.className = "vnccs-ps-label";
+        labelEl.className = "jakkanna-ps-label";
         labelEl.innerText = label;
 
         const input = document.createElement("input");
         input.type = type;
-        input.className = "vnccs-ps-input";
+        input.className = "jakkanna-ps-input";
         input.min = min;
         input.max = max;
         input.step = step;
@@ -4666,14 +4667,14 @@ class PoseStudioWidget {
 
     createSelectField(label, key, options) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const labelEl = document.createElement("div");
-        labelEl.className = "vnccs-ps-label";
+        labelEl.className = "jakkanna-ps-label";
         labelEl.innerText = label;
 
         const select = document.createElement("select");
-        select.className = "vnccs-ps-select";
+        select.className = "jakkanna-ps-select";
 
         options.forEach(opt => {
             const el = document.createElement("option");
@@ -4719,7 +4720,7 @@ class PoseStudioWidget {
             }
             : null;
 
-        if (window.VNCCS_POSE_RADAR_DEBUG) {
+        if (window.JAKKANNA_POSE_RADAR_DEBUG || window.VNCCS_POSE_RADAR_DEBUG) {
             console.log("[Jakkanna Pose Studio] radar pointer", {
                 source: "rect",
                 point: rectPoint,
@@ -4746,7 +4747,7 @@ class PoseStudioWidget {
                     canvasHeight: canvas.height,
                 },
                 uiScale: this.container
-                    ? getComputedStyle(this.container).getPropertyValue("--vnccs-ps-ui-scale")
+                    ? getComputedStyle(this.container).getPropertyValue("--jakkanna-ps-ui-scale")
                     : null,
                 devicePixelRatio: window.devicePixelRatio,
                 visualViewport: window.visualViewport
@@ -4766,7 +4767,7 @@ class PoseStudioWidget {
 
     createCameraRadar(section) {
         const wrap = document.createElement("div");
-        wrap.className = "vnccs-ps-radar-wrap";
+        wrap.className = "jakkanna-ps-radar-wrap";
         wrap.style.display = "flex";
         wrap.style.flexDirection = "column";
         wrap.style.alignItems = "center";
@@ -4964,10 +4965,10 @@ class PoseStudioWidget {
 
         // Recenter Button
         const recenterBtn = document.createElement("button");
-        recenterBtn.className = "vnccs-ps-btn";
+        recenterBtn.className = "jakkanna-ps-btn";
         recenterBtn.style.marginTop = "8px";
         recenterBtn.style.width = "100%";
-        recenterBtn.innerHTML = '<span class="vnccs-ps-btn-icon">⌖</span> Re-center';
+        recenterBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">⌖</span> Re-center';
         recenterBtn.onclick = () => {
             this.clearSAMCameraMode();
             this.exportParams.cam_offset_x = 0;
@@ -4980,10 +4981,10 @@ class PoseStudioWidget {
 
         // Sync Tabs Button
         const syncTabsBtn = document.createElement("button");
-        syncTabsBtn.className = "vnccs-ps-btn vnccs-ps-btn--sync-tabs";
+        syncTabsBtn.className = "jakkanna-ps-btn jakkanna-ps-btn--sync-tabs";
         syncTabsBtn.style.marginTop = "6px";
         syncTabsBtn.style.width = "100%";
-        syncTabsBtn.innerHTML = '<span class="vnccs-ps-btn-icon">⇄</span> Sync Zoom to All Tabs';
+        syncTabsBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">⇄</span> Sync Zoom to All Tabs';
         syncTabsBtn.style.display = "none"; // Hidden by default
         syncTabsBtn.onclick = () => {
             const currentZoom = this.exportParams.cam_zoom;
@@ -5019,7 +5020,7 @@ class PoseStudioWidget {
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
-        canvas.className = "vnccs-ps-light-radar-canvas";
+        canvas.className = "jakkanna-ps-light-radar-canvas";
         const ctx = canvas.getContext("2d");
 
         let isDragging = false;
@@ -5141,15 +5142,15 @@ class PoseStudioWidget {
 
     createColorField(label, key) {
         const field = document.createElement("div");
-        field.className = "vnccs-ps-field";
+        field.className = "jakkanna-ps-field";
 
         const labelEl = document.createElement("div");
-        labelEl.className = "vnccs-ps-label";
+        labelEl.className = "jakkanna-ps-label";
         labelEl.innerText = label;
 
         const input = document.createElement("input");
         input.type = "color";
-        input.className = "vnccs-ps-color";
+        input.className = "jakkanna-ps-color";
 
         // Convert RGB to Hex
         const rgb = this.exportParams[key];
@@ -5297,17 +5298,17 @@ class PoseStudioWidget {
 
     _createHandPopover() {
         const panel = document.createElement("div");
-        panel.className = "vnccs-ps-hand-popover";
+        panel.className = "jakkanna-ps-hand-popover";
 
         const header = document.createElement("div");
-        header.className = "vnccs-ps-hand-popover-header";
+        header.className = "jakkanna-ps-hand-popover-header";
 
         const title = document.createElement("div");
-        title.className = "vnccs-ps-hand-popover-title";
+        title.className = "jakkanna-ps-hand-popover-title";
         title.textContent = "Hand Control";
 
         const closeBtn = document.createElement("button");
-        closeBtn.className = "vnccs-ps-hand-popover-close";
+        closeBtn.className = "jakkanna-ps-hand-popover-close";
         closeBtn.type = "button";
         closeBtn.textContent = "✕";
         closeBtn.addEventListener("click", () => this.hideHandControlPopover());
@@ -5329,7 +5330,7 @@ class PoseStudioWidget {
             slider.max = "1";
             slider.step = "0.01";
             slider.value = "0";
-            slider.className = "vnccs-ps-slider";
+            slider.className = "jakkanna-ps-slider";
 
             const value = document.createElement("span");
             value.style.cssText = "font-size:10px;color:var(--ps-accent);text-align:right;font-family:var(--ps-font-mono);";
@@ -5385,7 +5386,7 @@ class PoseStudioWidget {
         }
 
         const resetBtn = document.createElement("button");
-        resetBtn.className = "vnccs-ps-btn";
+        resetBtn.className = "jakkanna-ps-btn";
         resetBtn.style.width = "100%";
         resetBtn.textContent = "Reset Hand Sliders";
         resetBtn.addEventListener("click", () => {
@@ -5610,7 +5611,7 @@ class PoseStudioWidget {
 
         for (let i = 0; i < this.poses.length; i++) {
             const tab = document.createElement("button");
-            tab.className = "vnccs-ps-tab" + (i === this.activeTab ? " active" : "");
+            tab.className = "jakkanna-ps-tab" + (i === this.activeTab ? " active" : "");
 
             const text = document.createElement("span");
             text.innerText = `Pose ${i + 1}`;
@@ -5618,7 +5619,7 @@ class PoseStudioWidget {
 
             if (this.poses.length > 1) {
                 const close = document.createElement("span");
-                close.className = "vnccs-ps-tab-close";
+                close.className = "jakkanna-ps-tab-close";
                 close.innerText = "×";
 
                 close.onclick = (e) => {
@@ -5633,7 +5634,7 @@ class PoseStudioWidget {
         }
 
         const addBtn = document.createElement("button");
-        addBtn.className = "vnccs-ps-tab-add";
+        addBtn.className = "jakkanna-ps-tab-add";
         addBtn.innerText = "+";
         addBtn.addEventListener("click", () => this.addTab());
         this.tabsContainer.appendChild(addBtn);
@@ -5674,7 +5675,7 @@ class PoseStudioWidget {
 
     scrollActiveTabIntoView() {
         if (!this.tabsContainer) return;
-        const active = this.tabsContainer.querySelector('.vnccs-ps-tab.active');
+        const active = this.tabsContainer.querySelector('.jakkanna-ps-tab.active');
         if (!active) return;
         active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     }
@@ -5737,8 +5738,8 @@ class PoseStudioWidget {
     }
 
     addTab(options = {}) {
-        if (this.poses.length >= VNCCS_POSE_MAX_COUNT) {
-            this.showMessage(`Pose Studio supports at most ${VNCCS_POSE_MAX_COUNT} poses.`, true);
+        if (this.poses.length >= JAKKANNA_POSE_MAX_COUNT) {
+            this.showMessage(`Pose Studio supports at most ${JAKKANNA_POSE_MAX_COUNT} poses.`, true);
             return;
         }
 
@@ -5871,17 +5872,17 @@ class PoseStudioWidget {
     showExportModal() {
         // Create modal structure
         const overlay = document.createElement("div");
-        overlay.className = "vnccs-ps-modal-overlay";
+        overlay.className = "jakkanna-ps-modal-overlay";
 
         const modal = document.createElement("div");
-        modal.className = "vnccs-ps-modal";
+        modal.className = "jakkanna-ps-modal";
 
         const title = document.createElement("div");
-        title.className = "vnccs-ps-modal-title";
+        title.className = "jakkanna-ps-modal-title";
         title.innerText = "Export Pose Data";
 
         const content = document.createElement("div");
-        content.className = "vnccs-ps-modal-content";
+        content.className = "jakkanna-ps-modal-content";
 
         const inputRow = document.createElement("div");
         inputRow.style.marginBottom = "10px";
@@ -5889,14 +5890,14 @@ class PoseStudioWidget {
         const nameInput = document.createElement("input");
         nameInput.type = "text";
         nameInput.placeholder = "Filename (optional)";
-        nameInput.className = "vnccs-ps-input";
+        nameInput.className = "jakkanna-ps-input";
         nameInput.style.width = "100%";
         nameInput.style.marginBottom = "5px";
 
         inputRow.appendChild(nameInput);
 
         const btnSingle = document.createElement("button");
-        btnSingle.className = "vnccs-ps-modal-btn";
+        btnSingle.className = "jakkanna-ps-modal-btn";
         btnSingle.innerText = "Current Pose Only";
         btnSingle.onclick = () => {
             this.exportPose('single', nameInput.value);
@@ -5904,7 +5905,7 @@ class PoseStudioWidget {
         };
 
         const btnSet = document.createElement("button");
-        btnSet.className = "vnccs-ps-modal-btn";
+        btnSet.className = "jakkanna-ps-modal-btn";
         btnSet.innerText = "All Poses (Set)";
         btnSet.onclick = () => {
             this.exportPose('set', nameInput.value);
@@ -5912,7 +5913,7 @@ class PoseStudioWidget {
         };
 
         const btnCancel = document.createElement("button");
-        btnCancel.className = "vnccs-ps-modal-btn cancel";
+        btnCancel.className = "jakkanna-ps-modal-btn cancel";
         btnCancel.innerText = "Cancel";
         btnCancel.onclick = () => {
             this.container.removeChild(overlay);
@@ -5977,36 +5978,36 @@ class PoseStudioWidget {
 
     showImportProgressModal(titleText = "SAM 3D Body") {
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-modal';
+        modal.className = 'jakkanna-ps-modal';
         modal.style.maxWidth = "420px";
         modal.style.alignItems = "center";
 
         const title = document.createElement('div');
-        title.className = 'vnccs-ps-modal-title';
+        title.className = 'jakkanna-ps-modal-title';
         title.textContent = titleText;
 
         const spinner = document.createElement('div');
-        spinner.className = 'vnccs-ps-loading-spinner';
+        spinner.className = 'jakkanna-ps-loading-spinner';
         spinner.style.position = 'relative';
         spinner.style.margin = '8px auto 14px';
 
         const content = document.createElement('div');
-        content.className = 'vnccs-ps-modal-content';
+        content.className = 'jakkanna-ps-modal-content';
         content.style.textAlign = 'center';
         content.textContent = 'Preparing image...';
 
         const progressTrack = document.createElement('div');
-        progressTrack.className = 'vnccs-ps-import-progress';
+        progressTrack.className = 'jakkanna-ps-import-progress';
 
         const progressFill = document.createElement('div');
-        progressFill.className = 'vnccs-ps-import-progress-fill';
+        progressFill.className = 'jakkanna-ps-import-progress-fill';
         progressTrack.appendChild(progressFill);
 
         const progressPercent = document.createElement('div');
-        progressPercent.className = 'vnccs-ps-import-progress-percent';
+        progressPercent.className = 'jakkanna-ps-import-progress-percent';
         progressPercent.textContent = '0%';
 
         modal.appendChild(title);
@@ -6297,11 +6298,11 @@ class PoseStudioWidget {
                     this.resetCameraParams();
                     const result = await importMixamoFBXAsPoses(file, this.viewer, {
                         fps: 12,
-                        maxFrames: VNCCS_POSE_MAX_COUNT,
+                        maxFrames: JAKKANNA_POSE_MAX_COUNT,
                     });
 
-                    if (result.poses.length > VNCCS_POSE_MAX_COUNT) {
-                        throw new Error(`Animation contains more than ${VNCCS_POSE_MAX_COUNT} sampled poses.`);
+                    if (result.poses.length > JAKKANNA_POSE_MAX_COUNT) {
+                        throw new Error(`Animation contains more than ${JAKKANNA_POSE_MAX_COUNT} sampled poses.`);
                     }
                     this.poses = result.poses;
                     this.activeTab = 0;
@@ -6403,7 +6404,7 @@ class PoseStudioWidget {
                     return;
                 }
 
-                // Try pose JSON formats (HMR2 / OpenPose / VNCCS)
+                // Try pose JSON formats (HMR2 / OpenPose / legacy skeleton)
                 const openPoseKeypoints = detectAndParseJSON(data);
                 if (openPoseKeypoints) {
                     if (this.viewer && this.viewer.isInitialized()) {
@@ -6421,7 +6422,7 @@ class PoseStudioWidget {
                             if (openPoseKeypoints.source === 'hmr2') msg = "HMR2/pose3d JSON imported successfully.";
                             else if (openPoseKeypoints.source === 'rtmw') msg = "RTMW JSON imported successfully.";
                             else if (openPoseKeypoints.source === 'metrabs') msg = "MeTRAbs JSON imported successfully.";
-                            else if (openPoseKeypoints.source === 'vnccs') msg = "VNCCS skeleton JSON imported successfully.";
+                            else if (openPoseKeypoints.source === 'vnccs') msg = "Legacy skeleton JSON imported successfully.";
                             this.showMessage(msg);
 
                             // Debug: round-trip angle test
@@ -6437,8 +6438,8 @@ class PoseStudioWidget {
                         if (!newPoses.length) {
                             throw new Error("Pose set must contain at least one pose.");
                         }
-                        if (newPoses.length > VNCCS_POSE_MAX_COUNT) {
-                            throw new Error(`Pose set contains more than ${VNCCS_POSE_MAX_COUNT} poses.`);
+                        if (newPoses.length > JAKKANNA_POSE_MAX_COUNT) {
+                            throw new Error(`Pose set contains more than ${JAKKANNA_POSE_MAX_COUNT} poses.`);
                         }
                         this.clearSAMCameraMode();
                         this.resetCameraParams();
@@ -6500,7 +6501,7 @@ class PoseStudioWidget {
                 this.loadModel(false, false);
 
                 if (this.refBtn) {
-                    this.refBtn.innerHTML = '<span class="vnccs-ps-btn-icon">🗑️</span> Remove Background';
+                    this.refBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">🗑️</span> Remove Background';
                     this.refBtn.classList.add('danger');
                 }
             }
@@ -6518,7 +6519,12 @@ class PoseStudioWidget {
     loadLibraryThumbnailSize() {
         const bounds = this.getLibraryThumbnailBounds();
         try {
-            const stored = Number(localStorage.getItem(this.libraryThumbSizeStorageKey));
+            const currentValue = localStorage.getItem(this.libraryThumbSizeStorageKey);
+            const storedValue = currentValue ?? localStorage.getItem(this.legacyLibraryThumbSizeStorageKey);
+            const stored = Number(storedValue);
+            if (currentValue === null && storedValue !== null) {
+                localStorage.setItem(this.libraryThumbSizeStorageKey, storedValue);
+            }
             if (Number.isFinite(stored)) {
                 return Math.max(bounds.min, Math.min(bounds.max, stored));
             }
@@ -6543,53 +6549,53 @@ class PoseStudioWidget {
         const target = root || this.libraryWorkspace || this.libraryGrid;
         if (!target) return;
         const size = this.libraryThumbSize || this.getLibraryThumbnailBounds().defaultSize;
-        target.style.setProperty("--vnccs-ps-library-thumb-size", `${size}px`);
-        target.style.setProperty("--vnccs-ps-library-thumb-height", `${Math.round(size * 1.3125)}px`);
+        target.style.setProperty("--jakkanna-ps-library-thumb-size", `${size}px`);
+        target.style.setProperty("--jakkanna-ps-library-thumb-height", `${Math.round(size * 1.3125)}px`);
         if (this.librarySizeValue) this.librarySizeValue.textContent = `${Math.round(size)}`;
     }
 
     showLibraryModal() {
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay vnccs-ps-library-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay jakkanna-ps-library-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-library-modal';
+        modal.className = 'jakkanna-ps-library-modal';
         modal.innerHTML = `
-            <div class="vnccs-ps-library-modal-header">
-                <div class="vnccs-ps-library-modal-title">📚 Pose Library</div>
-                <div class="vnccs-ps-library-header-actions">
-                    <button class="vnccs-ps-btn primary vnccs-ps-library-save-current">
-                        <span class="vnccs-ps-btn-icon">💾</span> Save Current Pose
+            <div class="jakkanna-ps-library-modal-header">
+                <div class="jakkanna-ps-library-modal-title">📚 Pose Library</div>
+                <div class="jakkanna-ps-library-header-actions">
+                    <button class="jakkanna-ps-btn primary jakkanna-ps-library-save-current">
+                        <span class="jakkanna-ps-btn-icon">💾</span> Save Current Pose
                     </button>
                 </div>
-                <button class="vnccs-ps-modal-close">✕</button>
+                <button class="jakkanna-ps-modal-close">✕</button>
             </div>
-            <div class="vnccs-ps-library-toolbar">
-                <input class="vnccs-ps-library-search" type="search" placeholder="Search poses and tags...">
-                <label class="vnccs-ps-library-size-control" title="Preview size">
+            <div class="jakkanna-ps-library-toolbar">
+                <input class="jakkanna-ps-library-search" type="search" placeholder="Search poses and tags...">
+                <label class="jakkanna-ps-library-size-control" title="Preview size">
                     <span>Preview</span>
-                    <input class="vnccs-ps-library-size-slider" type="range" min="160" max="520" step="10">
-                    <span class="vnccs-ps-library-size-value"></span>
+                    <input class="jakkanna-ps-library-size-slider" type="range" min="160" max="520" step="10">
+                    <span class="jakkanna-ps-library-size-value"></span>
                 </label>
-                <button class="vnccs-ps-library-menu-btn" title="Pose library settings">⚙️</button>
+                <button class="jakkanna-ps-library-menu-btn" title="Pose library settings">⚙️</button>
             </div>
-            <div class="vnccs-ps-library-categories"></div>
-            <div class="vnccs-ps-library-workspace">
-                <div class="vnccs-ps-library-modal-grid"></div>
-                <aside class="vnccs-ps-library-inspector"></aside>
-                <section class="vnccs-ps-library-settings"></section>
+            <div class="jakkanna-ps-library-categories"></div>
+            <div class="jakkanna-ps-library-workspace">
+                <div class="jakkanna-ps-library-modal-grid"></div>
+                <aside class="jakkanna-ps-library-inspector"></aside>
+                <section class="jakkanna-ps-library-settings"></section>
             </div>
         `;
 
         this.libraryModal = modal;
-        this.libraryGrid = modal.querySelector('.vnccs-ps-library-modal-grid');
-        this.libraryInspector = modal.querySelector('.vnccs-ps-library-inspector');
-        this.libraryWorkspace = modal.querySelector('.vnccs-ps-library-workspace');
-        this.librarySearchInput = modal.querySelector('.vnccs-ps-library-search');
-        this.librarySizeInput = modal.querySelector('.vnccs-ps-library-size-slider');
-        this.librarySizeValue = modal.querySelector('.vnccs-ps-library-size-value');
-        this.libraryCategoriesEl = modal.querySelector('.vnccs-ps-library-categories');
-        this.librarySettingsEl = modal.querySelector('.vnccs-ps-library-settings');
+        this.libraryGrid = modal.querySelector('.jakkanna-ps-library-modal-grid');
+        this.libraryInspector = modal.querySelector('.jakkanna-ps-library-inspector');
+        this.libraryWorkspace = modal.querySelector('.jakkanna-ps-library-workspace');
+        this.librarySearchInput = modal.querySelector('.jakkanna-ps-library-search');
+        this.librarySizeInput = modal.querySelector('.jakkanna-ps-library-size-slider');
+        this.librarySizeValue = modal.querySelector('.jakkanna-ps-library-size-value');
+        this.libraryCategoriesEl = modal.querySelector('.jakkanna-ps-library-categories');
+        this.librarySettingsEl = modal.querySelector('.jakkanna-ps-library-settings');
         this.librarySettingsMode = false;
         this.librarySelectedName = null;
         this.libraryActiveCategory = "All";
@@ -6607,9 +6613,9 @@ class PoseStudioWidget {
             this.libraryModal = null;
             overlay.remove();
         };
-        modal.querySelector('.vnccs-ps-modal-close').onclick = closeLibraryModal;
-        modal.querySelector('.vnccs-ps-library-save-current').onclick = () => this.showSaveToLibraryModal();
-        modal.querySelector('.vnccs-ps-library-menu-btn').onclick = () => this.toggleLibrarySettings();
+        modal.querySelector('.jakkanna-ps-modal-close').onclick = closeLibraryModal;
+        modal.querySelector('.jakkanna-ps-library-save-current').onclick = () => this.showSaveToLibraryModal();
+        modal.querySelector('.jakkanna-ps-library-menu-btn').onclick = () => this.toggleLibrarySettings();
         this.librarySearchInput.addEventListener('input', () => this.renderLibrary());
         overlay.onclick = (e) => { if (e.target === overlay) closeLibraryModal(); };
 
@@ -6637,7 +6643,7 @@ class PoseStudioWidget {
         if (this.libraryModal) {
             const modalWidth = this.libraryModal.clientWidth || this.libraryModal.getBoundingClientRect().width || 1600;
             const scale = Math.max(0.5, Math.min(1.4, modalWidth / 1600));
-            this.libraryModal.style.setProperty("--vnccs-ps-library-ui-scale", scale.toFixed(3));
+            this.libraryModal.style.setProperty("--jakkanna-ps-library-ui-scale", scale.toFixed(3));
         }
         this.updateLibraryInspectorScale();
     }
@@ -6651,7 +6657,7 @@ class PoseStudioWidget {
         const availableWidth = Math.max(260, Math.min(baseWidth, workspaceWidth * 0.38));
         const availableHeight = Math.max(420, workspaceHeight - 2);
         const scale = Math.max(0.45, Math.min(1, availableWidth / baseWidth, availableHeight / baseHeight));
-        this.libraryWorkspace.style.setProperty("--vnccs-ps-library-inspector-scale", scale.toFixed(3));
+        this.libraryWorkspace.style.setProperty("--jakkanna-ps-library-inspector-scale", scale.toFixed(3));
     }
 
     async refreshLibrary(forceFull = false) {
@@ -6663,7 +6669,7 @@ class PoseStudioWidget {
         } catch (err) {
             console.error("Failed to load library:", err);
             if (this.libraryGrid) {
-                this.libraryGrid.innerHTML = '<div class="vnccs-ps-library-empty">Failed to load library.</div>';
+                this.libraryGrid.innerHTML = '<div class="jakkanna-ps-library-empty">Failed to load library.</div>';
             }
         }
     }
@@ -6688,7 +6694,7 @@ class PoseStudioWidget {
 
     async refreshPoseRepositories(forceRepoId = "") {
         if (!this.librarySettingsEl) return;
-        this.librarySettingsEl.innerHTML = '<div class="vnccs-ps-library-empty">Loading repositories...</div>';
+        this.librarySettingsEl.innerHTML = '<div class="jakkanna-ps-library-empty">Loading repositories...</div>';
         try {
             const url = '/vnccs/pose_library/repositories';
             const res = await fetch(url);
@@ -6698,7 +6704,7 @@ class PoseStudioWidget {
             this.renderPoseRepositorySettings();
             if (forceRepoId) await this.refreshSinglePoseRepository(forceRepoId);
         } catch (err) {
-            this.librarySettingsEl.innerHTML = `<div class="vnccs-ps-library-empty">Failed to load repositories.<br>${this.escapeHtml(err?.message || err)}</div>`;
+            this.librarySettingsEl.innerHTML = `<div class="jakkanna-ps-library-empty">Failed to load repositories.<br>${this.escapeHtml(err?.message || err)}</div>`;
         }
     }
 
@@ -6706,37 +6712,37 @@ class PoseStudioWidget {
         if (!this.librarySettingsEl) return;
         const repos = this.poseRepositories || [];
         this.librarySettingsEl.innerHTML = `
-            <div class="vnccs-ps-library-settings-head">
+            <div class="jakkanna-ps-library-settings-head">
                 <div>
-                    <div class="vnccs-ps-library-settings-title">Pose Repositories</div>
-                    <div class="vnccs-ps-library-settings-subtitle">Hugging Face libraries can be enabled, disabled, refreshed, or removed.</div>
+                    <div class="jakkanna-ps-library-settings-title">Pose Repositories</div>
+                    <div class="jakkanna-ps-library-settings-subtitle">Hugging Face libraries can be enabled, disabled, refreshed, or removed.</div>
                 </div>
-                <button class="vnccs-ps-btn vnccs-ps-library-settings-back">Back to poses</button>
+                <button class="jakkanna-ps-btn jakkanna-ps-library-settings-back">Back to poses</button>
             </div>
-            <div class="vnccs-ps-library-local-repo"></div>
-            <div class="vnccs-ps-library-repo-notice"></div>
-            <div class="vnccs-ps-library-repo-add">
-                <input class="vnccs-ps-input vnccs-ps-library-repo-input" type="text" placeholder="owner/repository">
-                <button class="vnccs-ps-btn primary vnccs-ps-library-repo-add-btn">Add Repository</button>
+            <div class="jakkanna-ps-library-local-repo"></div>
+            <div class="jakkanna-ps-library-repo-notice"></div>
+            <div class="jakkanna-ps-library-repo-add">
+                <input class="jakkanna-ps-input jakkanna-ps-library-repo-input" type="text" placeholder="owner/repository">
+                <button class="jakkanna-ps-btn primary jakkanna-ps-library-repo-add-btn">Add Repository</button>
             </div>
-            <div class="vnccs-ps-library-repo-list"></div>
+            <div class="jakkanna-ps-library-repo-list"></div>
         `;
-        this.librarySettingsEl.querySelector('.vnccs-ps-library-settings-back').onclick = () => this.toggleLibrarySettings(false);
-        this.librarySettingsEl.querySelector('.vnccs-ps-library-repo-add-btn').onclick = () => this.addPoseRepository();
-        const input = this.librarySettingsEl.querySelector('.vnccs-ps-library-repo-input');
+        this.librarySettingsEl.querySelector('.jakkanna-ps-library-settings-back').onclick = () => this.toggleLibrarySettings(false);
+        this.librarySettingsEl.querySelector('.jakkanna-ps-library-repo-add-btn').onclick = () => this.addPoseRepository();
+        const input = this.librarySettingsEl.querySelector('.jakkanna-ps-library-repo-input');
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') this.addPoseRepository();
         });
         this.renderLocalPoseRepositorySettings();
 
-        const list = this.librarySettingsEl.querySelector('.vnccs-ps-library-repo-list');
+        const list = this.librarySettingsEl.querySelector('.jakkanna-ps-library-repo-list');
         if (repos.length === 0) {
-            list.innerHTML = '<div class="vnccs-ps-library-empty">No repositories configured.</div>';
+            list.innerHTML = '<div class="jakkanna-ps-library-empty">No repositories configured.</div>';
             return;
         }
         for (const repo of repos) {
             const card = document.createElement('div');
-            card.className = 'vnccs-ps-library-repo-card';
+            card.className = 'jakkanna-ps-library-repo-card';
             const progressKey = `repo:${repo.repo_id}`;
             card.dataset.repoProgressKey = progressKey;
             const status = repo.status === 'error' ? `Error: ${repo.last_error || 'refresh failed'}` : (repo.status || 'not checked');
@@ -6746,14 +6752,14 @@ class PoseStudioWidget {
                 : '';
             card.innerHTML = `
                 <div>
-                    <div class="vnccs-ps-library-repo-title">${this.escapeHtml(repo.title || repo.repo_id)}</div>
-                    <div class="vnccs-ps-library-repo-id">${this.escapeHtml(repo.repo_id)}</div>
-                    <div class="vnccs-ps-library-repo-meta">${Number(repo.pose_count || 0)} poses · ${repo.enabled ? 'enabled' : 'disabled'} · ${this.escapeHtml(status)} · checked ${this.escapeHtml(checked)}${this.escapeHtml(syncMeta)}</div>
+                    <div class="jakkanna-ps-library-repo-title">${this.escapeHtml(repo.title || repo.repo_id)}</div>
+                    <div class="jakkanna-ps-library-repo-id">${this.escapeHtml(repo.repo_id)}</div>
+                    <div class="jakkanna-ps-library-repo-meta">${Number(repo.pose_count || 0)} poses · ${repo.enabled ? 'enabled' : 'disabled'} · ${this.escapeHtml(status)} · checked ${this.escapeHtml(checked)}${this.escapeHtml(syncMeta)}</div>
                 </div>
-                <div class="vnccs-ps-library-repo-actions">
-                    <button class="vnccs-ps-library-repo-action toggle">${repo.enabled ? 'Disable' : 'Enable'}</button>
-                    <button class="vnccs-ps-library-repo-action refresh">Refresh</button>
-                    <button class="vnccs-ps-library-repo-action danger remove" ${repo.builtin ? 'disabled title="Default repositories can be disabled, not deleted"' : ''}>Remove</button>
+                <div class="jakkanna-ps-library-repo-actions">
+                    <button class="jakkanna-ps-library-repo-action toggle">${repo.enabled ? 'Disable' : 'Enable'}</button>
+                    <button class="jakkanna-ps-library-repo-action refresh">Refresh</button>
+                    <button class="jakkanna-ps-library-repo-action danger remove" ${repo.builtin ? 'disabled title="Default repositories can be disabled, not deleted"' : ''}>Remove</button>
                 </div>
                 ${this.repositoryProgressMarkup()}
             `;
@@ -6766,7 +6772,7 @@ class PoseStudioWidget {
     }
 
     renderLocalPoseRepositorySettings() {
-        const holder = this.librarySettingsEl?.querySelector('.vnccs-ps-library-local-repo');
+        const holder = this.librarySettingsEl?.querySelector('.jakkanna-ps-library-local-repo');
         if (!holder) return;
         const repo = this.localPoseRepository || {};
         const publishRepo = repo.publish_repo_id || "Not linked";
@@ -6775,15 +6781,15 @@ class PoseStudioWidget {
             ? `${Number(repo.last_publish_result.uploaded_count || 0)} uploaded · ${Number(repo.last_publish_result.deleted_count || 0)} deleted · ${Number(repo.last_publish_result.skipped_count || 0)} unchanged`
             : "not published yet";
         holder.innerHTML = `
-            <div class="vnccs-ps-library-repo-card" data-repo-progress-key="local:publish">
+            <div class="jakkanna-ps-library-repo-card" data-repo-progress-key="local:publish">
                 <div>
-                    <div class="vnccs-ps-library-repo-title">Local User Poses</div>
-                    <div class="vnccs-ps-library-repo-id">local_user_poses → ${this.escapeHtml(publishRepo)}</div>
-                    <div class="vnccs-ps-library-repo-meta">${Number(repo.pose_count || 0)} poses · last publish ${this.escapeHtml(lastPublish)} · ${this.escapeHtml(lastResult)}</div>
+                    <div class="jakkanna-ps-library-repo-title">Local User Poses</div>
+                    <div class="jakkanna-ps-library-repo-id">local_user_poses → ${this.escapeHtml(publishRepo)}</div>
+                    <div class="jakkanna-ps-library-repo-meta">${Number(repo.pose_count || 0)} poses · last publish ${this.escapeHtml(lastPublish)} · ${this.escapeHtml(lastResult)}</div>
                 </div>
-                <div class="vnccs-ps-library-repo-actions">
-                    <button class="vnccs-ps-library-repo-action primary publish">Publish</button>
-                    ${repo.publish_repo_id ? '<button class="vnccs-ps-library-repo-action relink">Change target</button>' : ''}
+                <div class="jakkanna-ps-library-repo-actions">
+                    <button class="jakkanna-ps-library-repo-action primary publish">Publish</button>
+                    ${repo.publish_repo_id ? '<button class="jakkanna-ps-library-repo-action relink">Change target</button>' : ''}
                 </div>
                 ${this.repositoryProgressMarkup()}
             </div>
@@ -6794,7 +6800,7 @@ class PoseStudioWidget {
     }
 
     showRepositoryNotice(message, isError = false) {
-        const notice = this.librarySettingsEl?.querySelector('.vnccs-ps-library-repo-notice');
+        const notice = this.librarySettingsEl?.querySelector('.jakkanna-ps-library-repo-notice');
         if (!notice) return;
         notice.textContent = message;
         notice.classList.toggle('error', !!isError);
@@ -6802,7 +6808,7 @@ class PoseStudioWidget {
     }
 
     clearRepositoryNotice() {
-        const notice = this.librarySettingsEl?.querySelector('.vnccs-ps-library-repo-notice');
+        const notice = this.librarySettingsEl?.querySelector('.jakkanna-ps-library-repo-notice');
         if (!notice) return;
         notice.textContent = "";
         notice.classList.remove('visible', 'error');
@@ -6823,42 +6829,42 @@ class PoseStudioWidget {
     showPublishLocalRepositoryModal(forceConfigure = false) {
         const current = this.localPoseRepository || {};
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-modal';
+        modal.className = 'jakkanna-ps-modal';
         modal.style.maxWidth = "420px";
         modal.innerHTML = `
-            <div class="vnccs-ps-modal-title">Publish Local Pose Repository</div>
-            <div class="vnccs-ps-modal-content">
-                <label class="vnccs-ps-library-field">
+            <div class="jakkanna-ps-modal-title">Publish Local Pose Repository</div>
+            <div class="jakkanna-ps-modal-content">
+                <label class="jakkanna-ps-library-field">
                     <span>Target</span>
-                    <select class="vnccs-ps-input vnccs-ps-publish-mode">
+                    <select class="jakkanna-ps-input jakkanna-ps-publish-mode">
                         <option value="create">Create new repository</option>
                         <option value="existing">Use existing repository</option>
                     </select>
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Hugging Face repo</span>
-                    <input class="vnccs-ps-input vnccs-ps-publish-repo" type="text" placeholder="owner/repository" value="${this.escapeHtml(current.publish_repo_id || "")}">
+                    <input class="jakkanna-ps-input jakkanna-ps-publish-repo" type="text" placeholder="owner/repository" value="${this.escapeHtml(current.publish_repo_id || "")}">
                 </label>
-                <label class="vnccs-ps-library-field vnccs-ps-publish-private-row">
+                <label class="jakkanna-ps-library-field jakkanna-ps-publish-private-row">
                     <span>Visibility</span>
                     <label style="display:flex;align-items:center;gap:8px;color:var(--ps-text-muted);font-size:12px;">
-                        <input class="vnccs-ps-publish-private" type="checkbox"> Private repository
+                        <input class="jakkanna-ps-publish-private" type="checkbox"> Private repository
                     </label>
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>HF token ${current.has_hf_token ? '(saved)' : ''}</span>
-                    <input class="vnccs-ps-input vnccs-ps-publish-token" type="password" placeholder="${current.has_hf_token ? 'Leave empty to use saved token' : 'hf_...'}">
+                    <input class="jakkanna-ps-input jakkanna-ps-publish-token" type="password" placeholder="${current.has_hf_token ? 'Leave empty to use saved token' : 'hf_...'}">
                 </label>
             </div>
-            <button class="vnccs-ps-modal-btn primary" style="justify-content:center;">Publish</button>
-            <button class="vnccs-ps-modal-btn cancel">Cancel</button>
+            <button class="jakkanna-ps-modal-btn primary" style="justify-content:center;">Publish</button>
+            <button class="jakkanna-ps-modal-btn cancel">Cancel</button>
         `;
 
-        const modeEl = modal.querySelector('.vnccs-ps-publish-mode');
-        const privateRow = modal.querySelector('.vnccs-ps-publish-private-row');
+        const modeEl = modal.querySelector('.jakkanna-ps-publish-mode');
+        const privateRow = modal.querySelector('.jakkanna-ps-publish-private-row');
         const syncMode = () => {
             privateRow.style.display = modeEl.value === "create" ? "" : "none";
         };
@@ -6866,11 +6872,11 @@ class PoseStudioWidget {
         modeEl.onchange = syncMode;
         syncMode();
 
-        modal.querySelector('.vnccs-ps-modal-btn.primary').onclick = async () => {
-            const repoId = modal.querySelector('.vnccs-ps-publish-repo').value.trim();
-            const token = modal.querySelector('.vnccs-ps-publish-token').value.trim();
+        modal.querySelector('.jakkanna-ps-modal-btn.primary').onclick = async () => {
+            const repoId = modal.querySelector('.jakkanna-ps-publish-repo').value.trim();
+            const token = modal.querySelector('.jakkanna-ps-publish-token').value.trim();
             if (!repoId) {
-                const repoInput = modal.querySelector('.vnccs-ps-publish-repo');
+                const repoInput = modal.querySelector('.jakkanna-ps-publish-repo');
                 repoInput.style.borderColor = "rgba(255,71,87,0.7)";
                 repoInput.placeholder = "Repository id is required";
                 repoInput.focus();
@@ -6881,14 +6887,14 @@ class PoseStudioWidget {
                 repo_id: repoId,
                 hf_token: token,
                 create: modeEl.value === "create",
-                private: modal.querySelector('.vnccs-ps-publish-private').checked,
+                private: modal.querySelector('.jakkanna-ps-publish-private').checked,
             });
         };
-        modal.querySelector('.vnccs-ps-modal-btn.cancel').onclick = () => overlay.remove();
+        modal.querySelector('.jakkanna-ps-modal-btn.cancel').onclick = () => overlay.remove();
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         overlay.appendChild(modal);
         this.container.appendChild(overlay);
-        modal.querySelector('.vnccs-ps-publish-repo').focus();
+        modal.querySelector('.jakkanna-ps-publish-repo').focus();
     }
 
     async runLocalPoseRepositoryPublish(payload) {
@@ -6928,7 +6934,7 @@ class PoseStudioWidget {
     }
 
     async addPoseRepository() {
-        const input = this.librarySettingsEl?.querySelector('.vnccs-ps-library-repo-input');
+        const input = this.librarySettingsEl?.querySelector('.jakkanna-ps-library-repo-input');
         const repoId = input?.value.trim();
         if (!repoId) return;
         try {
@@ -6956,13 +6962,13 @@ class PoseStudioWidget {
 
     repositoryProgressMarkup() {
         return `
-            <div class="vnccs-ps-library-repo-progress">
-                <div class="vnccs-ps-library-repo-progress-head">
-                    <span class="vnccs-ps-library-repo-progress-message"></span>
-                    <span class="vnccs-ps-library-repo-progress-percent">0%</span>
+            <div class="jakkanna-ps-library-repo-progress">
+                <div class="jakkanna-ps-library-repo-progress-head">
+                    <span class="jakkanna-ps-library-repo-progress-message"></span>
+                    <span class="jakkanna-ps-library-repo-progress-percent">0%</span>
                 </div>
-                <div class="vnccs-ps-library-repo-progress-track">
-                    <div class="vnccs-ps-library-repo-progress-fill"></div>
+                <div class="jakkanna-ps-library-repo-progress-track">
+                    <div class="jakkanna-ps-library-repo-progress-fill"></div>
                 </div>
             </div>
         `;
@@ -6985,7 +6991,7 @@ class PoseStudioWidget {
         const card = this.findRepositoryProgressCard(key);
         if (!card) return;
         const state = this.repositoryProgressStates[key];
-        const progress = card.querySelector('.vnccs-ps-library-repo-progress');
+        const progress = card.querySelector('.jakkanna-ps-library-repo-progress');
         if (!progress || !state) {
             card.classList.remove('is-running');
             progress?.classList.remove('visible', 'error', 'success');
@@ -6996,9 +7002,9 @@ class PoseStudioWidget {
         progress.classList.toggle('error', state.status === 'error');
         progress.classList.toggle('success', state.status === 'success');
         card.classList.toggle('is-running', state.status === 'running');
-        const messageEl = progress.querySelector('.vnccs-ps-library-repo-progress-message');
-        const percentEl = progress.querySelector('.vnccs-ps-library-repo-progress-percent');
-        const fillEl = progress.querySelector('.vnccs-ps-library-repo-progress-fill');
+        const messageEl = progress.querySelector('.jakkanna-ps-library-repo-progress-message');
+        const percentEl = progress.querySelector('.jakkanna-ps-library-repo-progress-percent');
+        const fillEl = progress.querySelector('.jakkanna-ps-library-repo-progress-fill');
         if (messageEl) messageEl.textContent = state.message || "Working...";
         if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
         if (fillEl) fillEl.style.width = `${percent}%`;
@@ -7211,7 +7217,7 @@ class PoseStudioWidget {
         this.libraryCategoriesEl.innerHTML = '';
         for (const category of all) {
             const btn = document.createElement('button');
-            btn.className = 'vnccs-ps-library-category-chip';
+            btn.className = 'jakkanna-ps-library-category-chip';
             if (category === this.libraryActiveCategory) btn.classList.add('active');
             btn.textContent = category;
             btn.onclick = () => {
@@ -7224,7 +7230,7 @@ class PoseStudioWidget {
 
     renderLibrary() {
         if (!this.libraryGrid) {
-            this.libraryGrid = document.querySelector('.vnccs-ps-library-modal-grid');
+            this.libraryGrid = document.querySelector('.jakkanna-ps-library-modal-grid');
         }
         if (!this.libraryGrid) return;
 
@@ -7233,12 +7239,12 @@ class PoseStudioWidget {
         const filtered = this.getFilteredLibraryPoses();
 
         if ((this.libraryPoses || []).length === 0) {
-            this.libraryGrid.innerHTML = '<div class="vnccs-ps-library-empty">No saved poses.<br>Use Save Current Pose to add one.</div>';
+            this.libraryGrid.innerHTML = '<div class="jakkanna-ps-library-empty">No saved poses.<br>Use Save Current Pose to add one.</div>';
             this.renderLibraryInspector(null);
             return;
         }
         if (filtered.length === 0) {
-            this.libraryGrid.innerHTML = '<div class="vnccs-ps-library-empty">No poses match this search.</div>';
+            this.libraryGrid.innerHTML = '<div class="jakkanna-ps-library-empty">No poses match this search.</div>';
             this.renderLibraryInspector(null);
             return;
         }
@@ -7249,12 +7255,12 @@ class PoseStudioWidget {
 
         for (const pose of filtered) {
             const item = document.createElement('div');
-            item.className = 'vnccs-ps-library-item';
+            item.className = 'jakkanna-ps-library-item';
             item.dataset.poseId = this.getLibraryPoseId(pose);
             if (this.getLibraryPoseId(pose) === this.librarySelectedName) item.classList.add('selected');
 
             const preview = document.createElement('div');
-            preview.className = 'vnccs-ps-library-item-preview';
+            preview.className = 'jakkanna-ps-library-item-preview';
             if (pose.has_preview) {
                 preview.innerHTML = `<img src="${this.getLibraryPreviewUrl(pose)}" alt="${pose.name}">`;
             } else {
@@ -7262,7 +7268,7 @@ class PoseStudioWidget {
             }
 
             const name = document.createElement('div');
-            name.className = 'vnccs-ps-library-item-name';
+            name.className = 'jakkanna-ps-library-item-name';
             name.innerText = pose.name;
 
             item.onclick = () => this.selectLibraryPose(pose);
@@ -7278,7 +7284,7 @@ class PoseStudioWidget {
 
     selectLibraryPose(pose) {
         this.librarySelectedName = this.getLibraryPoseId(pose);
-        this.libraryGrid?.querySelectorAll('.vnccs-ps-library-item').forEach((item) => {
+        this.libraryGrid?.querySelectorAll('.jakkanna-ps-library-item').forEach((item) => {
             item.classList.toggle('selected', item.dataset.poseId === this.librarySelectedName);
         });
         this.renderLibraryInspector(pose);
@@ -7289,7 +7295,7 @@ class PoseStudioWidget {
         if (!pose) {
             this.libraryInspector.classList.remove('visible');
             if (this.libraryWorkspace) this.libraryWorkspace.classList.remove('has-inspector');
-            this.libraryInspector.innerHTML = '<div class="vnccs-ps-library-inspector-empty">Select a pose to preview and edit it.</div>';
+            this.libraryInspector.innerHTML = '<div class="jakkanna-ps-library-inspector-empty">Select a pose to preview and edit it.</div>';
             this.updateLibraryInspectorScale();
             return;
         }
@@ -7298,60 +7304,60 @@ class PoseStudioWidget {
         const meta = this.getLibraryPoseMeta(pose);
         const previewSrc = this.getLibraryPreviewUrl(pose);
         this.libraryInspector.innerHTML = `
-            <div class="vnccs-ps-library-inspector-inner">
-                <div class="vnccs-ps-library-inspector-preview">
+            <div class="jakkanna-ps-library-inspector-inner">
+                <div class="jakkanna-ps-library-inspector-preview">
                     ${previewSrc ? `<img src="${previewSrc}" alt="${pose.name}">` : '<span>🦴</span>'}
                 </div>
-                <div class="vnccs-ps-library-inspector-actions">
-                    <button class="vnccs-ps-btn primary vnccs-ps-library-apply">Apply Pose</button>
-                    <button class="vnccs-ps-btn danger vnccs-ps-library-delete">Delete</button>
+                <div class="jakkanna-ps-library-inspector-actions">
+                    <button class="jakkanna-ps-btn primary jakkanna-ps-library-apply">Apply Pose</button>
+                    <button class="jakkanna-ps-btn danger jakkanna-ps-library-delete">Delete</button>
                 </div>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Name</span>
-                    <input class="vnccs-ps-input vnccs-ps-library-edit-name" type="text" value="${this.escapeHtml(pose.name)}">
+                    <input class="jakkanna-ps-input jakkanna-ps-library-edit-name" type="text" value="${this.escapeHtml(pose.name)}">
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Category</span>
-                    <input class="vnccs-ps-input vnccs-ps-library-edit-category" type="text" value="${this.escapeHtml(meta.category)}">
+                    <input class="jakkanna-ps-input jakkanna-ps-library-edit-category" type="text" value="${this.escapeHtml(meta.category)}">
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Repository</span>
-                    <input class="vnccs-ps-input" type="text" value="${this.escapeHtml(meta.repository)}" disabled>
+                    <input class="jakkanna-ps-input" type="text" value="${this.escapeHtml(meta.repository)}" disabled>
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Tags</span>
-                    <input class="vnccs-ps-input vnccs-ps-library-edit-tags" type="text" value="${this.escapeHtml(meta.tags.join(', '))}" placeholder="standing, hands, portrait">
+                    <input class="jakkanna-ps-input jakkanna-ps-library-edit-tags" type="text" value="${this.escapeHtml(meta.tags.join(', '))}" placeholder="standing, hands, portrait">
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Prompt</span>
-                    <textarea class="vnccs-ps-textarea vnccs-ps-library-edit-prompt" placeholder="Pose prompt..." style="width:100%;min-height:60px;resize:vertical;">${this.escapeHtml(pose.data?.prompt ?? "")}</textarea>
+                    <textarea class="jakkanna-ps-textarea jakkanna-ps-library-edit-prompt" placeholder="Pose prompt..." style="width:100%;min-height:60px;resize:vertical;">${this.escapeHtml(pose.data?.prompt ?? "")}</textarea>
                 </label>
-                <label class="vnccs-ps-library-field">
+                <label class="jakkanna-ps-library-field">
                     <span>Custom Image</span>
-                    <input class="vnccs-ps-library-image-input" type="file" accept="image/*">
+                    <input class="jakkanna-ps-library-image-input" type="file" accept="image/*">
                 </label>
-                <button class="vnccs-ps-btn primary vnccs-ps-library-save-edit">Save Changes</button>
+                <button class="jakkanna-ps-btn primary jakkanna-ps-library-save-edit">Save Changes</button>
             </div>
         `;
         requestAnimationFrame(() => this.updateLibraryInspectorScale());
 
         let pendingPreview = null;
-        const previewBox = this.libraryInspector.querySelector('.vnccs-ps-library-inspector-preview');
-        this.libraryInspector.querySelector('.vnccs-ps-library-apply').onclick = async () => {
+        const previewBox = this.libraryInspector.querySelector('.jakkanna-ps-library-inspector-preview');
+        this.libraryInspector.querySelector('.jakkanna-ps-library-apply').onclick = async () => {
             await this.loadFromLibrary(pose);
-            this.libraryInspector.closest('.vnccs-ps-modal-overlay')?.remove();
+            this.libraryInspector.closest('.jakkanna-ps-modal-overlay')?.remove();
         };
-        this.libraryInspector.querySelector('.vnccs-ps-library-delete').onclick = () => this.showDeleteConfirmModal(pose);
-        this.libraryInspector.querySelector('.vnccs-ps-library-image-input').onchange = async (event) => {
+        this.libraryInspector.querySelector('.jakkanna-ps-library-delete').onclick = () => this.showDeleteConfirmModal(pose);
+        this.libraryInspector.querySelector('.jakkanna-ps-library-image-input').onchange = async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
             pendingPreview = await this.compressLibraryImage(file);
             previewBox.innerHTML = `<img src="${pendingPreview}" alt="${pose.name}">`;
         };
-        this.libraryInspector.querySelector('.vnccs-ps-library-save-edit').onclick = async () => {
-            const newName = this.libraryInspector.querySelector('.vnccs-ps-library-edit-name').value.trim();
-            const category = this.libraryInspector.querySelector('.vnccs-ps-library-edit-category').value.trim() || "Uncategorized";
-            const tags = this.libraryInspector.querySelector('.vnccs-ps-library-edit-tags').value
+        this.libraryInspector.querySelector('.jakkanna-ps-library-save-edit').onclick = async () => {
+            const newName = this.libraryInspector.querySelector('.jakkanna-ps-library-edit-name').value.trim();
+            const category = this.libraryInspector.querySelector('.jakkanna-ps-library-edit-category').value.trim() || "Uncategorized";
+            const tags = this.libraryInspector.querySelector('.jakkanna-ps-library-edit-tags').value
                 .split(',')
                 .map(tag => tag.trim())
                 .filter(Boolean);
@@ -7359,7 +7365,7 @@ class PoseStudioWidget {
                 this.showMessage("Pose name is required.", true);
                 return;
             }
-            const posePromptValue = this.libraryInspector.querySelector('.vnccs-ps-library-edit-prompt').value;
+            const posePromptValue = this.libraryInspector.querySelector('.jakkanna-ps-library-edit-prompt').value;
             const updatedPoseData = Object.assign({}, pose.data || {}, { prompt: posePromptValue });
             const result = await this.saveLibraryPoseRecord({
                 oldName: pose.name,
@@ -7419,36 +7425,36 @@ class PoseStudioWidget {
 
     showSaveToLibraryModal() {
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay';
 
         const currentPrompt = this.getPosePrompt(this.activeTab);
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-modal vnccs-ps-save-library-modal';
+        modal.className = 'jakkanna-ps-modal jakkanna-ps-save-library-modal';
         modal.innerHTML = `
-            <div class="vnccs-ps-modal-title">Save to Library</div>
-            <div class="vnccs-ps-modal-content">
-                <input type="text" placeholder="Pose name..." class="vnccs-ps-input">
-                <input type="text" placeholder="Category..." class="vnccs-ps-input" value="Uncategorized">
-                <input type="text" placeholder="Tags, comma separated..." class="vnccs-ps-input">
-                <label class="vnccs-ps-save-library-label">Prompt</label>
-                <textarea class="vnccs-ps-textarea vnccs-ps-save-prompt" placeholder="Pose prompt...">${this.escapeHtml(currentPrompt)}</textarea>
-                <label class="vnccs-ps-save-library-check">
+            <div class="jakkanna-ps-modal-title">Save to Library</div>
+            <div class="jakkanna-ps-modal-content">
+                <input type="text" placeholder="Pose name..." class="jakkanna-ps-input">
+                <input type="text" placeholder="Category..." class="jakkanna-ps-input" value="Uncategorized">
+                <input type="text" placeholder="Tags, comma separated..." class="jakkanna-ps-input">
+                <label class="jakkanna-ps-save-library-label">Prompt</label>
+                <textarea class="jakkanna-ps-textarea jakkanna-ps-save-prompt" placeholder="Pose prompt...">${this.escapeHtml(currentPrompt)}</textarea>
+                <label class="jakkanna-ps-save-library-check">
                     <input type="checkbox" checked> Include preview image
                 </label>
             </div>
-            <button class="vnccs-ps-modal-btn primary">💾 Save</button>
-            <button class="vnccs-ps-modal-btn cancel">Cancel</button>
+            <button class="jakkanna-ps-modal-btn primary">💾 Save</button>
+            <button class="jakkanna-ps-modal-btn cancel">Cancel</button>
         `;
 
         const textInputs = modal.querySelectorAll('input[type="text"]');
         const nameInput = textInputs[0];
         const categoryInput = textInputs[1];
         const tagsInput = textInputs[2];
-        const promptInput = modal.querySelector('.vnccs-ps-save-prompt');
+        const promptInput = modal.querySelector('.jakkanna-ps-save-prompt');
         const previewCheck = modal.querySelector('input[type="checkbox"]');
 
-        modal.querySelector('.vnccs-ps-modal-btn.primary').onclick = async () => {
+        modal.querySelector('.jakkanna-ps-modal-btn.primary').onclick = async () => {
             const name = nameInput.value.trim();
             if (name) {
                 await this.saveToLibrary(name, previewCheck.checked, {
@@ -7460,7 +7466,7 @@ class PoseStudioWidget {
             }
         };
 
-        modal.querySelector('.vnccs-ps-modal-btn.cancel').onclick = () => overlay.remove();
+        modal.querySelector('.jakkanna-ps-modal-btn.cancel').onclick = () => overlay.remove();
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
         overlay.appendChild(modal);
@@ -7572,49 +7578,49 @@ class PoseStudioWidget {
 
     showSettingsModal() {
         // Toggle behavior: check if already exists
-        const existing = this.canvasContainer.querySelector('.vnccs-ps-settings-panel');
+        const existing = this.canvasContainer.querySelector('.jakkanna-ps-settings-panel');
         if (existing) {
             existing.remove();
             return;
         }
 
         const panel = document.createElement('div');
-        panel.className = 'vnccs-ps-settings-panel';
+        panel.className = 'jakkanna-ps-settings-panel';
 
         // Header
         const header = document.createElement('div');
-        header.className = 'vnccs-ps-settings-header';
+        header.className = 'jakkanna-ps-settings-header';
         header.innerHTML = `
-            <span class="vnccs-ps-settings-title">⚙️ Settings</span>
-            <button class="vnccs-ps-settings-close" title="Close">✕</button>
+            <span class="jakkanna-ps-settings-title">⚙️ Settings</span>
+            <button class="jakkanna-ps-settings-close" title="Close">✕</button>
         `;
-        header.querySelector('.vnccs-ps-settings-close').onclick = () => panel.remove();
+        header.querySelector('.jakkanna-ps-settings-close').onclick = () => panel.remove();
 
         const content = document.createElement('div');
-        content.className = 'vnccs-ps-settings-content';
+        content.className = 'jakkanna-ps-settings-content';
 
         const interfaceHeader = document.createElement("div");
-        interfaceHeader.className = "vnccs-ps-settings-title";
+        interfaceHeader.className = "jakkanna-ps-settings-title";
         interfaceHeader.style.padding = "4px 0 10px";
         interfaceHeader.innerText = "Interface";
         content.appendChild(interfaceHeader);
 
         const interfaceRow = document.createElement("div");
-        interfaceRow.className = "vnccs-ps-field";
+        interfaceRow.className = "jakkanna-ps-field";
         interfaceRow.style.marginBottom = "14px";
 
         const interfaceToggle = document.createElement("div");
-        interfaceToggle.className = "vnccs-ps-toggle";
+        interfaceToggle.className = "jakkanna-ps-toggle";
         interfaceToggle.style.width = "100%";
 
         const studioBtn = document.createElement("button");
-        studioBtn.className = "vnccs-ps-toggle-btn";
+        studioBtn.className = "jakkanna-ps-toggle-btn";
         studioBtn.type = "button";
         studioBtn.innerText = "PoseStudio";
         studioBtn.style.flex = "1";
 
         const managerBtn = document.createElement("button");
-        managerBtn.className = "vnccs-ps-toggle-btn";
+        managerBtn.className = "jakkanna-ps-toggle-btn";
         managerBtn.type = "button";
         managerBtn.innerText = "Pose Manager";
         managerBtn.style.flex = "1";
@@ -7643,7 +7649,7 @@ class PoseStudioWidget {
         content.appendChild(interfaceRow);
 
         const handControlsRow = document.createElement("div");
-        handControlsRow.className = "vnccs-ps-field";
+        handControlsRow.className = "jakkanna-ps-field";
         handControlsRow.style.marginBottom = "14px";
 
         const handControlsLabel = document.createElement("label");
@@ -7677,7 +7683,7 @@ class PoseStudioWidget {
 
         // SAM Camera Override Toggle
         const samCamRow = document.createElement("div");
-        samCamRow.className = "vnccs-ps-field";
+        samCamRow.className = "jakkanna-ps-field";
 
         const samCamLabel = document.createElement("label");
         samCamLabel.style.display = "flex";
@@ -7704,7 +7710,7 @@ class PoseStudioWidget {
 
         // Debug Toggle
         const debugRow = document.createElement("div");
-        debugRow.className = "vnccs-ps-field";
+        debugRow.className = "jakkanna-ps-field";
 
         const debugLabel = document.createElement("label");
         debugLabel.style.display = "flex";
@@ -7737,7 +7743,7 @@ class PoseStudioWidget {
 
         // Portrait Mode Toggle
         const portraitRow = document.createElement("div");
-        portraitRow.className = "vnccs-ps-field";
+        portraitRow.className = "jakkanna-ps-field";
         portraitRow.style.marginTop = "10px";
 
         const portraitLabel = document.createElement("label");
@@ -7764,7 +7770,7 @@ class PoseStudioWidget {
 
         // Keep Lighting Toggle
         const keepLightRow = document.createElement("div");
-        keepLightRow.className = "vnccs-ps-field";
+        keepLightRow.className = "jakkanna-ps-field";
         keepLightRow.style.marginTop = "10px";
 
         const keepLightLabel = document.createElement("label");
@@ -7791,7 +7797,7 @@ class PoseStudioWidget {
 
         // SAM Helper Skeleton Toggle
         const samHelperRow = document.createElement("div");
-        samHelperRow.className = "vnccs-ps-field";
+        samHelperRow.className = "jakkanna-ps-field";
         samHelperRow.style.marginTop = "10px";
 
         const samHelperLabel = document.createElement("label");
@@ -7823,7 +7829,7 @@ class PoseStudioWidget {
         debugSection.content.appendChild(samHelperRow);
 
         const samMeshRow = document.createElement("div");
-        samMeshRow.className = "vnccs-ps-field";
+        samMeshRow.className = "jakkanna-ps-field";
         samMeshRow.style.marginTop = "10px";
 
         const samMeshLabel = document.createElement("label");
@@ -7857,7 +7863,7 @@ class PoseStudioWidget {
 
         // Skin Texture Section
         const skinHeader = document.createElement("div");
-        skinHeader.className = "vnccs-ps-settings-title";
+        skinHeader.className = "jakkanna-ps-settings-title";
         skinHeader.style.marginTop = "20px";
         skinHeader.style.padding = "10px 0";
         skinHeader.style.borderTop = "1px solid var(--ps-border)";
@@ -7865,11 +7871,11 @@ class PoseStudioWidget {
         content.appendChild(skinHeader);
 
         const skinRow = document.createElement("div");
-        skinRow.className = "vnccs-ps-field";
+        skinRow.className = "jakkanna-ps-field";
         skinRow.style.marginTop = "5px";
 
         const skinToggle = document.createElement("div");
-        skinToggle.className = "vnccs-ps-toggle";
+        skinToggle.className = "jakkanna-ps-toggle";
         skinToggle.style.width = "100%";
 
         const skinOptions = [
@@ -7888,7 +7894,7 @@ class PoseStudioWidget {
 
         for (const opt of skinOptions) {
             const btn = document.createElement("button");
-            btn.className = "vnccs-ps-toggle-btn";
+            btn.className = "jakkanna-ps-toggle-btn";
             btn.innerText = opt.label;
             btn.style.flex = "1";
             btn.onclick = () => {
@@ -7909,7 +7915,7 @@ class PoseStudioWidget {
 
         // Prompt Templates Section
         const templateHeader = document.createElement("div");
-        templateHeader.className = "vnccs-ps-settings-title";
+        templateHeader.className = "jakkanna-ps-settings-title";
         templateHeader.style.marginTop = "20px";
         templateHeader.style.padding = "10px 0";
         templateHeader.style.borderTop = "1px solid var(--ps-border)";
@@ -7918,12 +7924,12 @@ class PoseStudioWidget {
 
         const createTemplateField = (label, key) => {
             const field = document.createElement("div");
-            field.className = "vnccs-ps-field";
+            field.className = "jakkanna-ps-field";
             field.style.flexDirection = "column";
             field.style.alignItems = "stretch";
 
             const l = document.createElement("div");
-            l.className = "vnccs-ps-label";
+            l.className = "jakkanna-ps-label";
             l.innerText = label;
             l.style.marginBottom = "5px";
 
@@ -7938,7 +7944,7 @@ class PoseStudioWidget {
             area.style.fontSize = "12px";
             area.style.resize = "vertical";
             area.style.fontFamily = "monospace";
-            area.maxLength = VNCCS_LIGHTING_PROMPT_MAX_LENGTH;
+            area.maxLength = JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH;
             area.value = this.exportParams[key] || "";
 
             area.onchange = () => {
@@ -7978,23 +7984,23 @@ class PoseStudioWidget {
 
     showMessage(text, isError = false) {
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-modal';
+        modal.className = 'jakkanna-ps-modal';
         modal.style.maxWidth = "300px";
 
         const title = document.createElement('div');
-        title.className = 'vnccs-ps-modal-title';
+        title.className = 'jakkanna-ps-modal-title';
         title.textContent = isError ? '⚠️ Error' : 'ℹ️ Information';
 
         const content = document.createElement('div');
-        content.className = 'vnccs-ps-modal-content';
+        content.className = 'jakkanna-ps-modal-content';
         content.style.textAlign = 'center';
         content.textContent = text;
 
         const okBtn = document.createElement('button');
-        okBtn.className = 'vnccs-ps-modal-btn';
+        okBtn.className = 'jakkanna-ps-modal-btn';
         okBtn.style.justifyContent = 'center';
         okBtn.textContent = 'OK';
         okBtn.onclick = () => overlay.remove();
@@ -8010,17 +8016,17 @@ class PoseStudioWidget {
     showDeleteConfirmModal(poseOrName) {
         const poseName = this.getLibraryPoseName(poseOrName);
         const overlay = document.createElement('div');
-        overlay.className = 'vnccs-ps-modal-overlay';
+        overlay.className = 'jakkanna-ps-modal-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'vnccs-ps-modal';
+        modal.className = 'jakkanna-ps-modal';
 
         const title = document.createElement('div');
-        title.className = 'vnccs-ps-modal-title';
+        title.className = 'jakkanna-ps-modal-title';
         title.textContent = '⚠️ Delete Pose';
 
         const content = document.createElement('div');
-        content.className = 'vnccs-ps-modal-content';
+        content.className = 'jakkanna-ps-modal-content';
         content.style.textAlign = 'center';
 
         const message = document.createElement('div');
@@ -8028,12 +8034,12 @@ class PoseStudioWidget {
         content.appendChild(message);
 
         const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'vnccs-ps-modal-btn danger';
+        deleteBtn.className = 'jakkanna-ps-modal-btn danger';
         deleteBtn.style.justifyContent = 'center';
         deleteBtn.textContent = '🗑️ Delete';
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.className = 'vnccs-ps-modal-btn cancel';
+        cancelBtn.className = 'jakkanna-ps-modal-btn cancel';
         cancelBtn.textContent = 'Cancel';
 
         modal.appendChild(title);
@@ -8126,16 +8132,16 @@ class PoseStudioWidget {
 
     ensureMorphWorker() {
         if (this._morphWorker || this._morphWorkerFailed) return this._morphWorker;
-        const worker = getVNCCSSharedMorphWorker();
+        const worker = getJakkannaSharedMorphWorker();
         if (!worker) {
             this._morphWorkerFailed = true;
             return null;
         }
 
-        if (!this._morphClientId) this._morphClientId = VNCCS_SHARED_MORPH_CLIENT_ID++;
-        VNCCS_SHARED_MORPH_CLIENTS.set(this._morphClientId, (message) => this.handleMorphWorkerMessage(message));
-        if (!VNCCS_SHARED_MORPH_WORKER_WARMED) {
-            VNCCS_SHARED_MORPH_WORKER_WARMED = true;
+        if (!this._morphClientId) this._morphClientId = JAKKANNA_SHARED_MORPH_CLIENT_ID++;
+        JAKKANNA_SHARED_MORPH_CLIENTS.set(this._morphClientId, (message) => this.handleMorphWorkerMessage(message));
+        if (!JAKKANNA_SHARED_MORPH_WORKER_WARMED) {
+            JAKKANNA_SHARED_MORPH_WORKER_WARMED = true;
             worker.postMessage({ type: "warmup", clientId: this._morphClientId });
         }
         this._morphWorker = worker;
@@ -8144,7 +8150,7 @@ class PoseStudioWidget {
 
     handleMorphWorkerMessage(message) {
         if (message.type === "error") {
-            console.warn("[Jakkanna PoseStudio] Live morph worker failed:", message.message);
+            console.warn("[Jakkanna Pose Studio] Live morph worker failed:", message.message);
             this._morphWorkerFailed = true;
             return;
         }
@@ -8224,24 +8230,24 @@ class PoseStudioWidget {
 
         this.lightParams.forEach((light, index) => {
             const item = document.createElement('div');
-            item.className = 'vnccs-ps-light-card';
+            item.className = 'jakkanna-ps-light-card';
 
             // --- Header ---
             const header = document.createElement('div');
-            header.className = 'vnccs-ps-light-header';
+            header.className = 'jakkanna-ps-light-header';
 
             const title = document.createElement('span');
-            title.className = 'vnccs-ps-light-title';
+            title.className = 'jakkanna-ps-light-title';
 
             // Icon
             let iconChar = '💡';
             if (light.type === 'directional') iconChar = '☀️';
             else if (light.type === 'ambient') iconChar = '☁️';
 
-            title.innerHTML = `<span class="vnccs-ps-light-icon">${iconChar}</span> Light ${index + 1}`;
+            title.innerHTML = `<span class="jakkanna-ps-light-icon">${iconChar}</span> Light ${index + 1}`;
 
             const removeBtn = document.createElement('button');
-            removeBtn.className = 'vnccs-ps-light-remove';
+            removeBtn.className = 'jakkanna-ps-light-remove';
             removeBtn.innerHTML = '×';
             removeBtn.title = "Remove Light";
             removeBtn.onclick = (e) => {
@@ -8257,15 +8263,15 @@ class PoseStudioWidget {
 
             // --- Body ---
             const body = document.createElement('div');
-            body.className = 'vnccs-ps-light-body';
+            body.className = 'jakkanna-ps-light-body';
 
             // Grid 1: Type & Color
             const grid1 = document.createElement('div');
-            grid1.className = 'vnccs-ps-light-grid';
+            grid1.className = 'jakkanna-ps-light-grid';
 
             // Type
             const typeSelect = document.createElement('select');
-            typeSelect.className = 'vnccs-ps-light-select';
+            typeSelect.className = 'jakkanna-ps-light-select';
             ['ambient', 'directional', 'point'].forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t;
@@ -8283,7 +8289,7 @@ class PoseStudioWidget {
             // Color
             const colorInput = document.createElement('input');
             colorInput.type = 'color';
-            colorInput.className = 'vnccs-ps-light-color';
+            colorInput.className = 'jakkanna-ps-light-color';
             colorInput.value = light.color || '#ffffff';
             colorInput.oninput = (e) => {
                 light.color = colorInput.value;
@@ -8295,23 +8301,23 @@ class PoseStudioWidget {
 
             // Intensity
             const intensityRow = document.createElement('div');
-            intensityRow.className = 'vnccs-ps-light-slider-row';
+            intensityRow.className = 'jakkanna-ps-light-slider-row';
 
             const intLabel = document.createElement('span');
-            intLabel.className = 'vnccs-ps-light-pos-label';
+            intLabel.className = 'jakkanna-ps-light-pos-label';
             intLabel.innerText = "Int";
 
             const isAmbient = light.type === 'ambient';
             const intSlider = document.createElement('input');
             intSlider.type = 'range';
-            intSlider.className = 'vnccs-ps-light-slider';
+            intSlider.className = 'jakkanna-ps-light-slider';
             intSlider.min = 0;
             intSlider.max = isAmbient ? 2 : 5;
             intSlider.step = isAmbient ? 0.01 : 0.1;
             intSlider.value = light.intensity ?? (isAmbient ? 0.5 : 1);
 
             const intValue = document.createElement('span');
-            intValue.className = 'vnccs-ps-light-value';
+            intValue.className = 'jakkanna-ps-light-value';
             intValue.innerText = parseFloat(intSlider.value).toFixed(2);
 
             intSlider.oninput = () => {
@@ -8328,20 +8334,20 @@ class PoseStudioWidget {
             // Radius Slider (Point Light Only)
             if (light.type === 'point') {
                 const radiusRow = document.createElement('div');
-                radiusRow.className = 'vnccs-ps-light-slider-row';
+                radiusRow.className = 'jakkanna-ps-light-slider-row';
 
                 const radLabel = document.createElement('span');
-                radLabel.className = 'vnccs-ps-light-pos-label';
+                radLabel.className = 'jakkanna-ps-light-pos-label';
                 radLabel.innerText = "Rad";
 
                 const radSlider = document.createElement('input');
                 radSlider.type = 'range';
-                radSlider.className = 'vnccs-ps-light-slider';
+                radSlider.className = 'jakkanna-ps-light-slider';
                 radSlider.min = 5; radSlider.max = 300; radSlider.step = 1;
                 radSlider.value = light.radius ?? 100;
 
                 const radValue = document.createElement('span');
-                radValue.className = 'vnccs-ps-light-value';
+                radValue.className = 'jakkanna-ps-light-value';
                 radValue.innerText = radSlider.value;
 
                 radSlider.oninput = () => {
@@ -8359,10 +8365,10 @@ class PoseStudioWidget {
             // Position Controls (if not Ambient)
             if (light.type !== 'ambient') {
                 const radarWrap = document.createElement('div');
-                radarWrap.className = 'vnccs-ps-light-radar-wrap';
+                radarWrap.className = 'jakkanna-ps-light-radar-wrap';
 
                 const radarMain = document.createElement('div');
-                radarMain.className = 'vnccs-ps-light-radar-main';
+                radarMain.className = 'jakkanna-ps-light-radar-main';
 
                 // Radar (X and Z - Top Down)
                 const radar = this.createLightRadar(light);
@@ -8370,19 +8376,19 @@ class PoseStudioWidget {
 
                 // Height Slider (Y) - Vertical
                 const hVertWrap = document.createElement('div');
-                hVertWrap.className = 'vnccs-ps-light-slider-vert-wrap';
+                hVertWrap.className = 'jakkanna-ps-light-slider-vert-wrap';
 
                 const hLabel = document.createElement('span');
-                hLabel.className = 'vnccs-ps-light-h-label';
+                hLabel.className = 'jakkanna-ps-light-h-label';
                 hLabel.innerText = "Y-HGT";
 
                 const hVal = document.createElement('span');
-                hVal.className = 'vnccs-ps-light-h-val';
+                hVal.className = 'jakkanna-ps-light-h-val';
                 hVal.innerText = light.y || 0;
 
                 const hSlider = document.createElement('input');
                 hSlider.type = 'range';
-                hSlider.className = 'vnccs-ps-light-slider-vert';
+                hSlider.className = 'jakkanna-ps-light-slider-vert';
                 hSlider.setAttribute('orient', 'vertical'); // Firefox support
                 const isPoint = light.type === 'point';
                 hSlider.min = isPoint ? -10 : -100;
@@ -8411,18 +8417,18 @@ class PoseStudioWidget {
 
         // Add Light Button (Big)
         const addBtn = document.createElement('button');
-        addBtn.className = 'vnccs-ps-btn-add-large';
+        addBtn.className = 'jakkanna-ps-btn-add-large';
         addBtn.innerHTML = '+ Add Light Source';
-        const lightLimitReached = this.lightParams.length >= VNCCS_LIGHT_MAX_COUNT;
+        const lightLimitReached = this.lightParams.length >= JAKKANNA_LIGHT_MAX_COUNT;
         addBtn.disabled = isOverridden || lightLimitReached;
         if (addBtn.disabled) {
             addBtn.style.opacity = "0.5";
             addBtn.style.cursor = "not-allowed";
         }
-        if (lightLimitReached) addBtn.title = `Pose Studio supports at most ${VNCCS_LIGHT_MAX_COUNT} lights.`;
+        if (lightLimitReached) addBtn.title = `Pose Studio supports at most ${JAKKANNA_LIGHT_MAX_COUNT} lights.`;
         addBtn.onclick = () => {
-            if (this.lightParams.length >= VNCCS_LIGHT_MAX_COUNT) {
-                this.showMessage(`Pose Studio supports at most ${VNCCS_LIGHT_MAX_COUNT} lights.`, true);
+            if (this.lightParams.length >= JAKKANNA_LIGHT_MAX_COUNT) {
+                this.showMessage(`Pose Studio supports at most ${JAKKANNA_LIGHT_MAX_COUNT} lights.`, true);
                 return;
             }
             this.lightParams.push({
@@ -8542,7 +8548,7 @@ class PoseStudioWidget {
         const width = this.container.clientWidth || this.node?.size?.[0] || 900;
         const height = this.container.clientHeight || this.node?.size?.[1] || 740;
         const scale = Math.max(0.85, Math.min(1.55, Math.min(width / 900, height / 740)));
-        this.container.style.setProperty("--vnccs-ps-ui-scale", scale.toFixed(3));
+        this.container.style.setProperty("--jakkanna-ps-ui-scale", scale.toFixed(3));
     }
 
     startResizeObserver() {
@@ -8930,10 +8936,10 @@ class PoseStudioWidget {
         const captureHeight = Number(this.exportParams.view_height) || 1024;
         if (
             !skipCapture
-            && captureWidth * captureHeight * this.poses.length > VNCCS_CAPTURE_MAX_TOTAL_PIXELS
+            && captureWidth * captureHeight * this.poses.length > JAKKANNA_CAPTURE_MAX_TOTAL_PIXELS
         ) {
             this.showMessage(
-                `The current pose count and capture resolution exceed the ${VNCCS_CAPTURE_MAX_TOTAL_PIXELS.toLocaleString()} pixel capture budget. Reduce the pose count or resolution.`,
+                `The current pose count and capture resolution exceed the ${JAKKANNA_CAPTURE_MAX_TOTAL_PIXELS.toLocaleString()} pixel capture budget. Reduce the pose count or resolution.`,
                 true
             );
             this._isSyncing = false;
@@ -9113,11 +9119,11 @@ class PoseStudioWidget {
         // Exclude background_url and captured_images from widget to avoid inflating workflow size.
         // Captures are uploaded to server-side LRU cache; only the capture_id is stored in widget.
         const oversizedPrompt = this.lightingPrompts.findIndex(
-            prompt => typeof prompt === "string" && prompt.length > VNCCS_LIGHTING_PROMPT_MAX_LENGTH
+            prompt => typeof prompt === "string" && prompt.length > JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH
         );
         if (oversizedPrompt >= 0) {
             this.showMessage(
-                `Lighting prompt ${oversizedPrompt + 1} exceeds ${VNCCS_LIGHTING_PROMPT_MAX_LENGTH} characters. Shorten the pose prompt or prompt template.`,
+                `Lighting prompt ${oversizedPrompt + 1} exceeds ${JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH} characters. Shorten the pose prompt or prompt template.`,
                 true
             );
             this._isSyncing = false;
@@ -9131,7 +9137,7 @@ class PoseStudioWidget {
         // (each 1024×1024 PNG is ~500KB base64; multiple poses exceed ComfyUI localStorage limit)
         // They are kept in this.poseCaptures (JS memory) and also uploaded to server-side LRU cache.
         // Only capture_id is stored in the widget so Python can fallback to the cache if needed.
-        const captureId = `vnccs_capture_${this.node.id}`;
+        const captureId = `jakkanna_capture_${this.node.id}`;
         const hasCaptures = this.poseCaptures && this.poseCaptures.some(capture => capture);
         if (hasCaptures) this._captureVersion += 1;
 
@@ -9161,7 +9167,7 @@ class PoseStudioWidget {
             })
                 .then(response => requireSuccessfulResponse(response, "Capture upload"))
                 .catch(e => {
-                    console.error("[Jakkanna PoseStudio] Capture upload failed:", e);
+                    console.error("[Jakkanna Pose Studio] Capture upload failed:", e);
                     this.showMessage(e?.message || "Capture upload failed.", true);
                 });
         }
@@ -9300,10 +9306,10 @@ class PoseStudioWidget {
                 if (!data.poses.length) {
                     this.showMessage("Workflow contained no poses; a default pose was restored.", true);
                     this.poses = [{}];
-                } else if (data.poses.length > VNCCS_POSE_MAX_COUNT) {
-                    console.error(`[Jakkanna PoseStudio] Workflow contains ${data.poses.length} poses; the limit is ${VNCCS_POSE_MAX_COUNT}.`);
-                    this.showMessage(`Workflow has too many poses; only the first ${VNCCS_POSE_MAX_COUNT} were loaded.`, true);
-                    this.poses = data.poses.slice(0, VNCCS_POSE_MAX_COUNT);
+                } else if (data.poses.length > JAKKANNA_POSE_MAX_COUNT) {
+                    console.error(`[Jakkanna Pose Studio] Workflow contains ${data.poses.length} poses; the limit is ${JAKKANNA_POSE_MAX_COUNT}.`);
+                    this.showMessage(`Workflow has too many poses; only the first ${JAKKANNA_POSE_MAX_COUNT} were loaded.`, true);
+                    this.poses = data.poses.slice(0, JAKKANNA_POSE_MAX_COUNT);
                 } else {
                     this.poses = data.poses;
                 }
@@ -9316,16 +9322,16 @@ class PoseStudioWidget {
                 this.exportParams.background_url = bgUrl;
                 this.viewer.loadReferenceImage(bgUrl);
                 if (this.refBtn) {
-                    this.refBtn.innerHTML = '<span class="vnccs-ps-btn-icon">🗑️</span> Remove Background';
+                    this.refBtn.innerHTML = '<span class="jakkanna-ps-btn-icon">🗑️</span> Remove Background';
                     this.refBtn.classList.add('danger');
                 }
             }
 
             if (data.lights && Array.isArray(data.lights)) {
-                if (data.lights.length > VNCCS_LIGHT_MAX_COUNT) {
-                    this.showMessage(`Workflow has too many lights; only the first ${VNCCS_LIGHT_MAX_COUNT} were loaded.`, true);
+                if (data.lights.length > JAKKANNA_LIGHT_MAX_COUNT) {
+                    this.showMessage(`Workflow has too many lights; only the first ${JAKKANNA_LIGHT_MAX_COUNT} were loaded.`, true);
                 }
-                this.lightParams = data.lights.slice(0, VNCCS_LIGHT_MAX_COUNT);
+                this.lightParams = data.lights.slice(0, JAKKANNA_LIGHT_MAX_COUNT);
                 this.refreshLightUI();
                 if (this.viewer) {
                     this.viewer.updateLights(this.lightParams);
@@ -9363,12 +9369,12 @@ class PoseStudioWidget {
 
 // === ComfyUI Extension Registration ===
 app.registerExtension({
-    name: "VNCCS.PoseStudio",
+    name: "Jakkanna.PoseStudio",
 
     setup() {
         (() => {
-            if (window.__vnccsPoseStudioCharacterCreatorSync) {
-                return window.__vnccsPoseStudioCharacterCreatorSync;
+            if (window.__jakkannaPoseStudioCharacterCreatorSync) {
+                return window.__jakkannaPoseStudioCharacterCreatorSync;
             }
 
             const parseSource = (node) => {
@@ -9440,7 +9446,7 @@ app.registerExtension({
                 hookNode(node) {
                     if (!node || node.type !== "CharacterCreatorV2") return;
                     const dataWidget = node.widgets?.find(w => w.name === "widget_data");
-                    if (dataWidget && !dataWidget._vnccsPoseStudioValueHooked) {
+                    if (dataWidget && !dataWidget._jakkannaPoseStudioValueHooked) {
                         let currentValue = dataWidget.value;
                         Object.defineProperty(dataWidget, "value", {
                             configurable: true,
@@ -9452,19 +9458,19 @@ app.registerExtension({
                                 queueMicrotask(() => this.applySource(node));
                             }
                         });
-                        dataWidget._vnccsPoseStudioValueHooked = true;
+                        dataWidget._jakkannaPoseStudioValueHooked = true;
                     }
 
                     for (const name of ["age", "sex", "gender"]) {
                         const widget = node.widgets?.find(w => w.name === name);
-                        if (!widget || widget._vnccsPoseStudioCallbackHooked) continue;
+                        if (!widget || widget._jakkannaPoseStudioCallbackHooked) continue;
                         const original = widget.callback;
                         widget.callback = (...args) => {
                             const result = original?.apply(widget, args);
                             queueMicrotask(() => this.applySource(node));
                             return result;
                         };
-                        widget._vnccsPoseStudioCallbackHooked = true;
+                        widget._jakkannaPoseStudioCallbackHooked = true;
                     }
 
                     this.applySource(node, { initial: true });
@@ -9475,7 +9481,7 @@ app.registerExtension({
                 }
             };
 
-            window.__vnccsPoseStudioCharacterCreatorSync = api;
+            window.__jakkannaPoseStudioCharacterCreatorSync = api;
             return api;
         })();
 
@@ -9579,21 +9585,21 @@ app.registerExtension({
                     if (typeof node.removeInput === "function") node.removeInput(inputIndex);
                     else node.inputs.splice(inputIndex, 1);
                 }
-                node._vnccsPoseImageInputDisabled = true;
+                node._jakkannaPoseImageInputDisabled = true;
                 return;
             }
 
             if (inputIndex < 0 && typeof node.addInput === "function") {
                 node.addInput("pose_image", "IMAGE");
             }
-            node._vnccsPoseImageInputDisabled = false;
+            node._jakkannaPoseImageInputDisabled = false;
         };
 
         const syncStudioDOMWidgetWidth = (node) => {
             const widget = node?.widgets?.find(w => w.name === "pose_studio_ui");
             const nodeWidth = Number(node?.size?.[0]);
             if (widget && Number.isFinite(nodeWidth) && nodeWidth > 0) {
-                if (!widget._vnccsWidthBound) {
+                if (!widget._jakkannaWidthBound) {
                     Object.defineProperty(widget, "width", {
                         configurable: true,
                         get() {
@@ -9605,7 +9611,7 @@ app.registerExtension({
                             // Keep this DOM widget tied to the node width instead.
                         }
                     });
-                    widget._vnccsWidthBound = true;
+                    widget._jakkannaWidthBound = true;
                 }
                 if (typeof widget.triggerDraw === "function") widget.triggerDraw();
             }
@@ -9619,7 +9625,7 @@ app.registerExtension({
 
             // Create widget
             this.studioWidget = new PoseStudioWidget(this);
-            this._vnccsSetPoseImageInputDisabled = (disabled) => setPoseImageInputDisabled(this, disabled);
+            this._jakkannaSetPoseImageInputDisabled = (disabled) => setPoseImageInputDisabled(this, disabled);
 
             const studioDOMWidget = this.addDOMWidget("pose_studio_ui", "ui", this.studioWidget.container, {
                 serialize: false,
@@ -9652,8 +9658,8 @@ app.registerExtension({
             // Load model after initialization
             setTimeout(() => {
                 this.studioWidget.loadFromNode();
-                this._vnccsSetPoseImageInputDisabled?.(this.studioWidget.exportParams.interface_mode === "manager");
-                window.__vnccsPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
+                this._jakkannaSetPoseImageInputDisabled?.(this.studioWidget.exportParams.interface_mode === "manager");
+                window.__jakkannaPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
                 this.studioWidget.loadModel().then(() => {
                     if (this.studioWidget.viewer) {
                         this.studioWidget.updateCaptureCameraPreview();
@@ -9689,8 +9695,8 @@ app.registerExtension({
                 setTimeout(() => {
                     syncStudioDOMWidgetWidth(this);
                     this.studioWidget.loadFromNode();
-                    this._vnccsSetPoseImageInputDisabled?.(this.studioWidget.exportParams.interface_mode === "manager");
-                    window.__vnccsPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
+                    this._jakkannaSetPoseImageInputDisabled?.(this.studioWidget.exportParams.interface_mode === "manager");
+                    window.__jakkannaPoseStudioCharacterCreatorSync?.registerStudio(this.studioWidget);
                     this.studioWidget.loadModel();
                     this.studioWidget.refreshLibrary(false); // Pre-load library meta only
                     this.onResize(this.size); // Force correct aspect ratio on config
@@ -9703,12 +9709,12 @@ app.registerExtension({
         nodeType.prototype.onExecutionStart = function () {
             if (onExecutionStart) onExecutionStart.apply(this, arguments);
 
-            // Removed redundant syncToNode(true) to avoid race conditions with vnccs_req_pose_sync
+            // Avoid redundant capture synchronization while the backend sync event is active.
         };
 
         const onRemoved = nodeType.prototype.onRemoved;
         nodeType.prototype.onRemoved = function () {
-            window.__vnccsPoseStudioCharacterCreatorSync?.unregisterStudio(this.studioWidget);
+            window.__jakkannaPoseStudioCharacterCreatorSync?.unregisterStudio(this.studioWidget);
             if (onRemoved) onRemoved.apply(this, arguments);
             if (this.studioWidget) {
                 if (this.studioWidget._containerResizeObserver) {
@@ -9732,12 +9738,12 @@ app.registerExtension({
                 }
                 if (this.studioWidget._morphWorker) {
                     if (this.studioWidget._morphClientId) {
-                        VNCCS_SHARED_MORPH_CLIENTS.delete(this.studioWidget._morphClientId);
+                        JAKKANNA_SHARED_MORPH_CLIENTS.delete(this.studioWidget._morphClientId);
                     }
-                    if (VNCCS_SHARED_MORPH_CLIENTS.size === 0 && VNCCS_SHARED_MORPH_WORKER) {
-                        try { VNCCS_SHARED_MORPH_WORKER.terminate(); } catch (_) {}
-                        VNCCS_SHARED_MORPH_WORKER = null;
-                        VNCCS_SHARED_MORPH_WORKER_WARMED = false;
+                    if (JAKKANNA_SHARED_MORPH_CLIENTS.size === 0 && JAKKANNA_SHARED_MORPH_WORKER) {
+                        try { JAKKANNA_SHARED_MORPH_WORKER.terminate(); } catch (_) {}
+                        JAKKANNA_SHARED_MORPH_WORKER = null;
+                        JAKKANNA_SHARED_MORPH_WORKER_WARMED = false;
                     }
                     this.studioWidget._morphWorker = null;
                 }
@@ -9749,18 +9755,18 @@ app.registerExtension({
     },
 
     nodeCreated(node) {
-        window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node);
+        window.__jakkannaPoseStudioCharacterCreatorSync?.hookNode(node);
         if (node?.type === "CharacterCreatorV2") {
-            setTimeout(() => window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node), 0);
-            setTimeout(() => window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node), 500);
+            setTimeout(() => window.__jakkannaPoseStudioCharacterCreatorSync?.hookNode(node), 0);
+            setTimeout(() => window.__jakkannaPoseStudioCharacterCreatorSync?.hookNode(node), 500);
         }
     },
 
     loadedGraphNode(node) {
-        window.__vnccsPoseStudioCharacterCreatorSync?.hookNode(node);
+        window.__jakkannaPoseStudioCharacterCreatorSync?.hookNode(node);
     },
 
     loadedGraph() {
-        window.__vnccsPoseStudioCharacterCreatorSync?.scan();
+        window.__jakkannaPoseStudioCharacterCreatorSync?.scan();
     }
 });

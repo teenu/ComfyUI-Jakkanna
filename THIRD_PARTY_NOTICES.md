@@ -25,7 +25,7 @@ Source: [makehumancommunity/makehuman](https://github.com/makehumancommunity/mak
 
 ## SAM 3D Body, DINOv3, and Momentum Human Rig
 
-The `vnccs_sam3d/` directory vendors the SAM 3D Body bridge and related MHR
+The `jakkanna_sam3d/` directory vendors the SAM 3D Body bridge and related MHR
 integration under multiple licenses:
 
 * wrapper and integration code under MIT;
@@ -34,9 +34,9 @@ integration under multiple licenses:
 * Momentum Human Rig components under Apache License 2.0.
 
 Redistributions must retain the applicable license and attribution files in
-`vnccs_sam3d/licenses/`, including `LICENSE-SAM`, `LICENSE-MHR`,
+`jakkanna_sam3d/licenses/`, including `LICENSE-SAM`, `LICENSE-MHR`,
 `NOTICE-MHR`, and `THIRD_PARTY_NOTICES`. The DINOv3 license is retained at
-`vnccs_sam3d/sam_3d_body/models/backbones/dinov3_repo/LICENSE.md`.
+`jakkanna_sam3d/sam_3d_body/models/backbones/dinov3_repo/LICENSE.md`.
 The vendored notice also identifies MIT-licensed UniRig-derived integration
 code. Blender is downloaded separately when explicitly requested and remains
 under the GNU GPL version 3.

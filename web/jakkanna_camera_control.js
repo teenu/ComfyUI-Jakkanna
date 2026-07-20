@@ -30,7 +30,7 @@ const DISTANCE_REVERSE_MAP = {
 };
 
 // --- Custom Widget Class ---
-class VNCCS_CameraWidget {
+class JakkannaCameraWidget {
     constructor(node, inputName, inputData, app) {
         this.node = node;
         this.inputName = inputName;
@@ -377,7 +377,7 @@ class VNCCS_CameraWidget {
 
 // --- Extension Registration ---
 app.registerExtension({
-    name: "VNCCS.VisualCameraControl",
+    name: "Jakkanna.VisualCameraControl",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "VNCCS_VisualPositionControl") {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -390,7 +390,7 @@ app.registerExtension({
                 // usually mapped to widgets[0] if defined in INPUT_TYPES as required string
 
                 // Add Custom Widget
-                const widget = new VNCCS_CameraWidget(this, "camera_camera", {}, app);
+                const widget = new JakkannaCameraWidget(this, "camera_camera", {}, app);
                 this.cameraWidget = widget;
 
                 // Add the canvas to the DOM of the node
@@ -418,7 +418,7 @@ app.registerExtension({
                         this.cameraWidget.state = { ...this.cameraWidget.state, ...loaded };
                         this.cameraWidget.draw();
                     } catch (e) {
-                        console.error("VNCCS_VisualPositionControl failed to parse widget state on load", e);
+                        console.error("[Jakkanna Visual Camera Control] Failed to parse widget state on load", e);
                     }
                 }
             };

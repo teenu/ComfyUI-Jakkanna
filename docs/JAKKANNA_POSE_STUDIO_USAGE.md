@@ -297,7 +297,7 @@ Notes:
 
 ## SAM 3D Body Backend
 
-Pose Studio uses the vendored `vnccs_sam3d` backend for image-to-pose import.
+Pose Studio uses the vendored `jakkanna_sam3d` backend for image-to-pose import.
 
 Model files:
 
@@ -338,7 +338,7 @@ in environments that load them directly.
 
 ## Standalone SAM3D Node Reference
 
-This section documents the SAM3D classes included under `vnccs_sam3d` for users
+This section documents the SAM3D classes included under `jakkanna_sam3d` for users
 who expose or call them directly.
 
 ### Load SAM 3D Body Model

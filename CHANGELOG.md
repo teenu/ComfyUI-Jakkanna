@@ -1,3 +1,17 @@
+# Version 1.0.1
+## Jakkanna Identity Cleanup
+
+*   Renamed implementation modules, frontend files, classes, style namespaces,
+    extension registrations, and the internal SAM3D package for Jakkanna.
+*   Removed obsolete upstream promotional graphics and the upstream donation
+    banner embedded in Canvas while retaining clearly separated upstream
+    community and support links in the README.
+*   Migrated new browser state and capture identifiers to Jakkanna names while
+    continuing to read existing stored preferences and canvas backups.
+*   Documented the exact legacy compatibility boundary. Node identifiers,
+    routes, serialized inputs, persisted configuration names, and external
+    model/repository identifiers remain unchanged.
+
 # Version 1.0.0
 ## Jakkanna Independent Release
 
@@ -368,7 +382,7 @@ Studio execution, capture, geometry, and OpenPose paths.
 *   **Contextual Hand Editing UI**: Hand editing was reworked from a permanent sidebar tool into an in-canvas interaction flow.
     *   Hands can now be targeted directly from the model viewport.
     *   The hand editor opens as a floating popover near the active hand instead of occupying the right sidebar.
-    *   Built-in hand presets were added in [web/vnccs_hand_presets.js](web/vnccs_hand_presets.js) to drive the hand shaping workflow without requiring an external hand-pose library.
+    *   Built-in hand presets were added in [web/jakkanna_hand_presets.js](web/jakkanna_hand_presets.js) to drive the hand shaping workflow without requiring an external hand-pose library.
 
 *   **Improved Hand Pose Controls**: The hand slider system was expanded and stabilized.
     *   Added calibrated hand preset blending for `Spread`, `Grasp`, and per-finger controls.
@@ -403,7 +417,7 @@ Studio execution, capture, geometry, and OpenPose paths.
     *   Both work client-side (no server roundtrip), persist in the workflow, and are re-applied automatically after mesh rebuilds (age/weight/etc. changes).
 
 *   **Sakura Design System**: Redesigned the entire Pose Studio node UI with the Sakura Archive premium dark-anime aesthetic.
-    *   All CSS variables are now scoped to `.vnccs-pose-studio` instead of `:root` — no style leakage to other ComfyUI tabs or extensions.
+    *   All CSS variables are now scoped to `.jakkanna-pose-studio` instead of `:root` — no style leakage to other ComfyUI tabs or extensions.
     *   Deep dark backgrounds (`#0a0a0f`) with glassmorphic panels and translucent surfaces.
     *   Sakura pink (`#ff8fa3`) accent with glow effects replacing the previous blue accent.
     *   Section headers feature a luminous top highlight gradient and a left accent bar.
@@ -448,9 +462,9 @@ Studio execution, capture, geometry, and OpenPose paths.
 
 # Version 0.4.13
 ## Architecture: Pose Studio Core Extraction
-*   **Decoupled Viewer Logic**: Extracted the core Three.js 3D viewer, IK solvers, and rendering logic from the ComfyUI widget into a standalone, UI-agnostic module (`vnccs_pose_studio_core.js`).
+*   **Decoupled Viewer Logic**: Extracted the core Three.js 3D viewer, IK solvers, and rendering logic from the ComfyUI widget into a standalone, UI-agnostic module (`jakkanna_pose_studio_core.js`).
 *   **External UI Integration**: Established a strict, configurable public API for the new core module, enabling secure embedding and full pose control in external applications without relying on internal variable hacks or ComfyUI dependencies.
-*   **Strict API Contract**: Refactored the internal ComfyUI Node shell (`vnccs_pose_studio.js`) to exclusively consume the new core module via its public API getters/setters (e.g., `setSkinMode`, `setCameraParams`, `isInitialized`), completely isolating the internal rendering state from the UI application.
+*   **Strict API Contract**: Refactored the internal ComfyUI Node shell (`jakkanna_pose_studio.js`) to exclusively consume the new core module via its public API getters/setters (e.g., `setSkinMode`, `setCameraParams`, `isInitialized`), completely isolating the internal rendering state from the UI application.
 
 # Version 0.4.11
 ## Improvements: True Screen-Space Limb Dragging (IK)

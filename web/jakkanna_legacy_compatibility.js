@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 
 app.registerExtension({
-	name: "vnccs.legacy_compatibility",
+	name: "Jakkanna.LegacyCompatibility",
 	nodeCreated(node) {
 		if (node.comfyClass === "VNCCS_QWEN_Detailer") {
 			const onConfigure = node.onConfigure;

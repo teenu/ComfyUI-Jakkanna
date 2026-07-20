@@ -1,4 +1,4 @@
-import { IK_CHAINS } from "./vnccs_pose_studio_core.js";
+import { IK_CHAINS } from "./jakkanna_pose_studio_core.js";
 
 const THREE_VERSION = "0.160.0";
 
@@ -242,7 +242,7 @@ function buildFrameRotationMap(sourceBones, targetTHREE) {
         }
         if (!sourceBone) {
             // debug: log which candidates were tried for this bone name
-            // console.debug(`[vnccs_mixamo_import] no source bone for ${mixamoName}, tried:`, candidates);
+            // console.debug(`[jakkanna_mixamo_import] no source bone for ${mixamoName}, tried:`, candidates);
         }
         if (!sourceBone) continue;
 
@@ -634,8 +634,8 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         const sourceBones = collectSourceBones(root);
         // Debug logging: print discovered bone names to browser console to aid mapping
         try {
-            console.info('[vnccs_mixamo_import] discovered bones:', Object.keys(sourceBones.bones || {}).slice(0,200));
-            console.info('[vnccs_mixamo_import] discovered normalized bones:', Object.keys(sourceBones.normalizedBones || {}).slice(0,200));
+            console.info('[jakkanna_mixamo_import] discovered bones:', Object.keys(sourceBones.bones || {}).slice(0,200));
+            console.info('[jakkanna_mixamo_import] discovered normalized bones:', Object.keys(sourceBones.normalizedBones || {}).slice(0,200));
         } catch (e) {
             // ignore logging failures
         }
@@ -704,7 +704,7 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
             const sourceWorldRotations = buildFrameRotationMap(sourceBones, viewer.THREE);
             const legTargets = buildMixamoLegTargets(sourceBones, viewer);
             try {
-                console.info('[vnccs_mixamo_import] sourceWorldRotations keys:', Object.keys(sourceWorldRotations || {}));
+                console.info('[jakkanna_mixamo_import] sourceWorldRotations keys:', Object.keys(sourceWorldRotations || {}));
             } catch (e) {}
             const debugCollector = debugFrames.length < 3 ? {} : null;
             const applied = viewer.applyWorldRotationImport(
@@ -776,13 +776,13 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         }
 
         try {
-            globalThis.__vnccsMixamoDebug = {
+            globalThis.__jakkannaMixamoDebug = {
                 clipName: clip.name || file.name,
                 sampleTimes: sampleTimes.slice(0, debugFrames.length),
                 frames: debugFrames,
             };
-            console.info('[vnccs_mixamo_import] exact debug saved to globalThis.__vnccsMixamoDebug');
-            console.info('[vnccs_mixamo_import] exact debug frames:', debugFrames);
+            console.info('[jakkanna_mixamo_import] exact debug saved to globalThis.__jakkannaMixamoDebug');
+            console.info('[jakkanna_mixamo_import] exact debug frames:', debugFrames);
         } catch (e) {
             // ignore debug publishing failures
         }

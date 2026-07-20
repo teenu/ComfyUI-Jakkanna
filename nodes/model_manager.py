@@ -111,7 +111,7 @@ def get_cached_config_path(repo_id, force_refresh=False):
     needs_remote = force_refresh or not cached or (now - cached.get("remote_timestamp", 0) > UPDATE_CHECK_TTL)
     
     # Load user config for tokens
-    user_config = get_vnccs_config()
+    user_config = get_jakkanna_config()
     hf_token = user_config.get("hf_token")
 
     if needs_remote:
@@ -206,7 +206,7 @@ def worker_loop():
                 # Civitai specific: Add API key
                 if "civitai.com" in url:
                     # Load token from user config
-                    user_config = get_vnccs_config()
+                    user_config = get_jakkanna_config()
                     civitai_token = user_config.get("civitai_token", "")
                     
                     if civitai_token:
@@ -220,7 +220,7 @@ def worker_loop():
 
                 # Resolve URL and Token
                 url = hf_hub_url(download_repo_id, filename)
-                user_config = get_vnccs_config()
+                user_config = get_jakkanna_config()
                 token = user_config.get("hf_token")
                 headers = {"Authorization": f"Bearer {token}"} if token else {}
 
@@ -240,7 +240,7 @@ def worker_loop():
 
                 # Generate shorter temp name
                 sanitized_name = "".join(x for x in model_name if x.isalnum()) or "model"
-                fd, temp_path = tempfile.mkstemp(prefix=f"vnccs_{sanitized_name}_", suffix=".tmp", dir=temp_dir)
+                fd, temp_path = tempfile.mkstemp(prefix=f"jakkanna_{sanitized_name}_", suffix=".tmp", dir=temp_dir)
                 os.close(fd)
 
                 with open(temp_path, 'wb') as f:
@@ -313,7 +313,7 @@ def worker_loop():
 # Start background worker daemon
 threading.Thread(target=worker_loop, daemon=True).start()
 
-class VNCCS_ModelManager:
+class JakkannaModelManager:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -368,7 +368,7 @@ def update_installed_version(model_name, version):
         json.dump(data, f, indent=4)
 
 # --- Configuration Management (User Settings) ---
-def get_vnccs_config():
+def get_jakkanna_config():
     config_path = resolve_path("vnccs_user_config.json")
     if os.path.exists(config_path):
         try:
@@ -393,9 +393,9 @@ def write_private_json(path, data):
             pass
         raise
 
-def save_vnccs_config(new_data):
+def save_jakkanna_config(new_data):
     config_path = resolve_path("vnccs_user_config.json")
-    data = get_vnccs_config()
+    data = get_jakkanna_config()
     data.update(new_data)
     write_private_json(config_path, data)
 
@@ -411,7 +411,7 @@ async def save_api_token(request):
         if "hf_token" in data:
             tokens["hf_token"] = data["hf_token"]
             
-        save_vnccs_config(tokens)
+        save_jakkanna_config(tokens)
         return web.json_response({"status": "saved"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
@@ -608,7 +608,7 @@ async def download_model(request):
         return web.json_response({"error": str(e)}, status=500)
         
 
-class VNCCS_ModelSelector:
+class JakkannaModelSelector:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -677,7 +677,7 @@ class VNCCS_ModelSelector:
                         break
                 
                 if found:
-                    print(f"[Jakkanna] ModelSelector: Found exact match for '{target_name}' v{found['version']} -> {found['local_path']}")
+                    print(f"[Jakkanna Model Selector] Found exact match for '{target_name}' v{found['version']} -> {found['local_path']}")
             
             # 3. Fallback to default (pick the latest version based on sorting) if active not found or not set
             if found is None:
@@ -693,16 +693,16 @@ class VNCCS_ModelSelector:
                     
                     found = matching_names[0]
                     if active_ver:
-                        print(f"[Jakkanna] ModelSelector: Requested version '{active_ver}' not found for '{target_name}'. Using latest: v{found['version']}")
+                        print(f"[Jakkanna Model Selector] Requested version '{active_ver}' not found for '{target_name}'. Using latest: v{found['version']}")
                     else:
-                        print(f"[Jakkanna] ModelSelector: no preference. Using latest: v{found['version']} -> {found['local_path']}")
+                        print(f"[Jakkanna Model Selector] No preference. Using latest: v{found['version']} -> {found['local_path']}")
 
             if found:
                 local_path = found["local_path"]
                 try:
                     resolve_model_local_path(local_path)
                 except ValueError as exc:
-                    print(f"[Jakkanna] ModelSelector: invalid local_path for '{model_name}': {exc}")
+                    print(f"[Jakkanna Model Selector] Invalid local_path for '{model_name}': {exc}")
                     return ("",)
                 # Normalize slashes to forward slash for processing
                 norm_path = local_path.replace("\\", "/")
@@ -734,15 +734,15 @@ class VNCCS_ModelSelector:
                 # Ensure relative path uses forward slashes (standard for ComfyUI keys)
                 relative_path = relative_path.replace("\\", "/")
                 
-                print(f"[Jakkanna] ModelSelector Result: {relative_path}")
+                print(f"[Jakkanna Model Selector] Result: {relative_path}")
                 return (relative_path,)
             
             # Fallback
-            print(f"[Jakkanna] ModelSelector: Model '{model_name}' not found.")
+            print(f"[Jakkanna Model Selector] Model '{model_name}' not found.")
             return ("",)
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[Jakkanna] ModelSelector Error: {e}")
+            print(f"[Jakkanna Model Selector] Error: {e}")
             return ("",)

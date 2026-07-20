@@ -2,10 +2,10 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 // Global Registry Cache to prevent API storms (multiple nodes requesting same data)
-window.VNCCS_REGISTRY = window.VNCCS_REGISTRY || {};
-window.VNCCS_FETCH_PROMISES = window.VNCCS_FETCH_PROMISES || {};
+window.JAKKANNA_REGISTRY = window.JAKKANNA_REGISTRY || {};
+window.JAKKANNA_FETCH_PROMISES = window.JAKKANNA_FETCH_PROMISES || {};
 
-class VNCCS_ModelListWidget {
+class JakkannaModelListWidget {
     constructor(node, container) {
         this.node = node;
         this.container = container;
@@ -89,7 +89,7 @@ class VNCCS_ModelListWidget {
 
         const downloadAllBtn = document.createElement("button");
         downloadAllBtn.textContent = "Download All Missing/Updates";
-        downloadAllBtn.className = "vnccs-btn-all";
+        downloadAllBtn.className = "jakkanna-btn-all";
         downloadAllBtn.style.cssText = `
             background: #44a; 
             color: white; 
@@ -215,13 +215,11 @@ class VNCCS_ModelListWidget {
 
         if (force) {
             // Clear cache for this repo to ensure no stale data survives
-            delete window.VNCCS_REGISTRY[repoId];
-            const cacheKey = `vnccs_cache_${repoId}`;
-            localStorage.removeItem(cacheKey);
+            delete window.JAKKANNA_REGISTRY[repoId];
         }
 
-        if (!force && window.VNCCS_REGISTRY[repoId]) {
-            this.models = window.VNCCS_REGISTRY[repoId];
+        if (!force && window.JAKKANNA_REGISTRY[repoId]) {
+            this.models = window.JAKKANNA_REGISTRY[repoId];
             this.renderList();
         } else if (force || this.models.length === 0) {
             this.renderLoading();
@@ -229,9 +227,9 @@ class VNCCS_ModelListWidget {
 
         // Debounce: if a fetch for this repo is already in flight, reuse it
         // UNLESS force is true, then we want a fresh network call
-        if (!force && window.VNCCS_FETCH_PROMISES[repoId]) {
+        if (!force && window.JAKKANNA_FETCH_PROMISES[repoId]) {
             try {
-                const data = await window.VNCCS_FETCH_PROMISES[repoId];
+                const data = await window.JAKKANNA_FETCH_PROMISES[repoId];
                 this.models = Array.isArray(data) ? data : (data.models || []);
                 this.renderList();
                 return;
@@ -249,29 +247,27 @@ class VNCCS_ModelListWidget {
 
                 if (!data.error) {
                     const models = Array.isArray(data) ? data : (data.models || []);
-                    window.VNCCS_REGISTRY[repoId] = models;
+                    window.JAKKANNA_REGISTRY[repoId] = models;
                     return models;
                 }
                 throw new Error(data.error);
             } finally {
-                delete window.VNCCS_FETCH_PROMISES[repoId];
+                delete window.JAKKANNA_FETCH_PROMISES[repoId];
             }
         })();
 
-        window.VNCCS_FETCH_PROMISES[repoId] = fetchPromise;
+        window.JAKKANNA_FETCH_PROMISES[repoId] = fetchPromise;
 
         try {
             const models = await fetchPromise;
             this.models = models;
-            const cacheKey = `vnccs_cache_${repoId}`;
-            localStorage.setItem(cacheKey, JSON.stringify(this.models));
 
             await this.updateStatuses();
             this.renderList();
 
             // Notify others (Selectors) that fresh data with active versions is here
             // Pass data in detail to avoid extra fetches
-            window.dispatchEvent(new CustomEvent("vnccs-registry-updated", {
+            window.dispatchEvent(new CustomEvent("jakkanna-registry-updated", {
                 detail: { repo_id: repoId, models: this.models }
             }));
         } catch (e) {
@@ -304,7 +300,7 @@ class VNCCS_ModelListWidget {
         `;
 
         dialog.innerHTML = `
-            <h3 style="margin:0 0 5px 0; color: #fff;">VNCCS Settings</h3>
+            <h3 style="margin:0 0 5px 0; color: #fff;">Jakkanna Settings</h3>
             <p style="margin:0; font-size: 11px; color: #ccc; line-height: 1.4;">
                 Provide tokens to enable faster downloads and higher rate limits.
             </p>
@@ -497,7 +493,7 @@ class VNCCS_ModelListWidget {
                 }
 
                 this.pollDownloadStatusNow(modelName);
-                window.dispatchEvent(new CustomEvent("vnccs-registry-updated"));
+                window.dispatchEvent(new CustomEvent("jakkanna-registry-updated"));
             } else {
                 this.downloadStatuses[modelName] = { status: "error", message: "Request failed" };
                 this.renderList();
@@ -634,7 +630,7 @@ class VNCCS_ModelListWidget {
                 controlsRow.appendChild(versionSelect);
 
                 btn = document.createElement("button");
-                btn.className = "vnccs-btn";
+                btn.className = "jakkanna-btn";
                 // Explicit width: auto and no flex grow
                 btn.style.cssText = "border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px; font-weight: bold; color: white; flex: 0 0 auto; width: auto;";
                 controlsRow.appendChild(btn);
@@ -824,7 +820,7 @@ class VNCCS_ModelListWidget {
                                 body: JSON.stringify({ model_name: model.name, version: selVer })
                             });
                             await this.fetchModels(repoId);
-                            window.dispatchEvent(new CustomEvent("vnccs-registry-updated"));
+                            window.dispatchEvent(new CustomEvent("jakkanna-registry-updated"));
                         } catch (e) {
                             console.error(e);
                             btn.textContent = "Error";
@@ -929,13 +925,13 @@ class VNCCS_ModelListWidget {
 }
 
 app.registerExtension({
-    name: "VNCCS.ModelManager",
+    name: "Jakkanna.ModelManager",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         const syncDOMWidgetWidth = (node, widgetName) => {
             const widget = node?.widgets?.find(w => w.name === widgetName);
             const nodeWidth = Number(node?.size?.[0]);
             if (widget && Number.isFinite(nodeWidth) && nodeWidth > 0) {
-                if (!widget._vnccsWidthBound) {
+                if (!widget._jakkannaWidthBound) {
                     Object.defineProperty(widget, "width", {
                         configurable: true,
                         get() {
@@ -947,7 +943,7 @@ app.registerExtension({
                             // Keep this DOM widget tied to the node width instead.
                         }
                     });
-                    widget._vnccsWidthBound = true;
+                    widget._jakkannaWidthBound = true;
                 }
                 if (typeof widget.triggerDraw === "function") widget.triggerDraw();
             }
@@ -980,7 +976,7 @@ app.registerExtension({
                 requestAnimationFrame(() => syncDOMWidgetWidth(this, "ModelList"));
 
                 // Initialize logic
-                this.listWidget = new VNCCS_ModelListWidget(this, container);
+                this.listWidget = new JakkannaModelListWidget(this, container);
 
                 // Increase default size to fit list
                 this.setSize([400, 500]);
@@ -1056,7 +1052,7 @@ app.registerExtension({
                 requestAnimationFrame(() => syncDOMWidgetWidth(this, "SelectorWidget"));
 
                 // 4. Initialize Logic Class
-                this.selectorWidget = new VNCCS_SelectorWidget(this, container);
+                this.selectorWidget = new JakkannaSelectorWidget(this, container);
 
                 // 5. Initial Data Update (Delayed)
                 setTimeout(() => {
@@ -1095,7 +1091,7 @@ app.registerExtension({
     }
 });
 
-class VNCCS_SelectorWidget {
+class JakkannaSelectorWidget {
     constructor(node, container) {
         this.node = node;
         this.container = container;
@@ -1113,7 +1109,7 @@ class VNCCS_SelectorWidget {
         this._onRegistryUpdate = (e) => {
             // Avoid refreshing if node is gone or collapsed
             if (!this.container || !this.container.isConnected) {
-                window.removeEventListener("vnccs-registry-updated", this._onRegistryUpdate);
+                window.removeEventListener("jakkanna-registry-updated", this._onRegistryUpdate);
                 return;
             }
 
@@ -1128,7 +1124,7 @@ class VNCCS_SelectorWidget {
                 this.refresh();
             }
         };
-        window.addEventListener("vnccs-registry-updated", this._onRegistryUpdate);
+        window.addEventListener("jakkanna-registry-updated", this._onRegistryUpdate);
 
         // Styles
         this.styleContainer();
@@ -1143,8 +1139,8 @@ class VNCCS_SelectorWidget {
         // Initial Data Check: pick up from cache immediately if already there
         const repoWidget = this.node.widgets.find(w => w.name === "repo_id");
         const initRepoId = repoWidget ? repoWidget.value : "MIUProject/VNCCS";
-        if (window.VNCCS_REGISTRY[initRepoId]) {
-            this.models = window.VNCCS_REGISTRY[initRepoId];
+        if (window.JAKKANNA_REGISTRY[initRepoId]) {
+            this.models = window.JAKKANNA_REGISTRY[initRepoId];
         }
 
         this.render();
@@ -1181,11 +1177,11 @@ class VNCCS_SelectorWidget {
         if (this.refreshBtn) this.refreshBtn.textContent = "⌛";
 
         if (force) {
-            delete window.VNCCS_REGISTRY[repo_id];
+            delete window.JAKKANNA_REGISTRY[repo_id];
         }
 
-        if (!force && window.VNCCS_REGISTRY[repo_id]) {
-            this.models = window.VNCCS_REGISTRY[repo_id];
+        if (!force && window.JAKKANNA_REGISTRY[repo_id]) {
+            this.models = window.JAKKANNA_REGISTRY[repo_id];
             this.render();
             if (this.refreshBtn) this.refreshBtn.textContent = "↻";
             return;
@@ -1193,9 +1189,9 @@ class VNCCS_SelectorWidget {
 
         if (this.models.length === 0) this.render();
 
-        if (!force && window.VNCCS_FETCH_PROMISES[repo_id]) {
+        if (!force && window.JAKKANNA_FETCH_PROMISES[repo_id]) {
             try {
-                this.models = await window.VNCCS_FETCH_PROMISES[repo_id];
+                this.models = await window.JAKKANNA_FETCH_PROMISES[repo_id];
                 this.render();
                 return;
             } catch (e) { } finally {
@@ -1209,20 +1205,20 @@ class VNCCS_SelectorWidget {
                 const response = await api.fetchApi(url);
                 const data = await response.json();
                 if (data.models) {
-                    window.VNCCS_REGISTRY[repo_id] = data.models;
+                    window.JAKKANNA_REGISTRY[repo_id] = data.models;
                     return data.models;
                 }
                 throw new Error(data.error || "Unknown error");
             })();
 
-            window.VNCCS_FETCH_PROMISES[repo_id] = fetchPromise;
+            window.JAKKANNA_FETCH_PROMISES[repo_id] = fetchPromise;
             this.models = await fetchPromise;
             this.render();
         } catch (e) {
-            console.error("Jakkanna Selector Fetch Error", e);
+            console.error("[Jakkanna Model Selector] Fetch error", e);
         } finally {
             if (this.refreshBtn) this.refreshBtn.textContent = "↻";
-            delete window.VNCCS_FETCH_PROMISES[repo_id];
+            delete window.JAKKANNA_FETCH_PROMISES[repo_id];
         }
     }
 

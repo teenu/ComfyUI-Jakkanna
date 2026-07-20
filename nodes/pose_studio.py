@@ -308,7 +308,7 @@ def _ensure_data_loaded():
 
 # === Main Node Class ===
 
-class VNCCS_PoseStudio:
+class JakkannaPoseStudio:
     """Pose Studio with mesh editing and multiple pose generation."""
     
     RETURN_TYPES = ("IMAGE", "STRING")
@@ -357,7 +357,7 @@ class VNCCS_PoseStudio:
     def _discard_frontend_sync(self, unique_id):
         import folder_paths
 
-        filepath = os.path.join(folder_paths.get_temp_directory(), f"vnccs_debug_{unique_id}.json")
+        filepath = os.path.join(folder_paths.get_temp_directory(), f"jakkanna_debug_{unique_id}.json")
         try:
             os.remove(filepath)
         except FileNotFoundError:
@@ -368,7 +368,7 @@ class VNCCS_PoseStudio:
         import folder_paths
 
         temp_dir = folder_paths.get_temp_directory()
-        filepath = os.path.join(temp_dir, f"vnccs_debug_{unique_id}.json")
+        filepath = os.path.join(temp_dir, f"jakkanna_debug_{unique_id}.json")
 
         while time.time() - start_time < timeout:
             if os.path.exists(filepath) and os.path.getmtime(filepath) >= start_time:
@@ -391,7 +391,7 @@ class VNCCS_PoseStudio:
         try:
             from server import PromptServer
             import time
-            from ..vnccs_sam3d import process_image_to_pose_json, progress
+            from ..jakkanna_sam3d import process_image_to_pose_json, progress
 
             task_id = f"node-{unique_id}-pose-image"
             progress.start_task(task_id)
@@ -457,9 +457,9 @@ class VNCCS_PoseStudio:
             capture_id = data.get("capture_id")
             if capture_id:
                 try:
-                    from .. import _vnccs_get_capture_cache
+                    from .. import _jakkanna_get_capture_cache
 
-                    cached = _vnccs_get_capture_cache(capture_id, data.get("capture_version", 0))
+                    cached = _jakkanna_get_capture_cache(capture_id, data.get("capture_version", 0))
                     if cached:
                         data["captured_images"] = cached.get("captured_images", [])
                         data["lighting_prompts"] = cached.get("lighting_prompts", [])
@@ -540,7 +540,7 @@ class VNCCS_PoseStudio:
 
 # Node mappings
 NODE_CLASS_MAPPINGS = {
-    "VNCCS_PoseStudio": VNCCS_PoseStudio
+    "VNCCS_PoseStudio": JakkannaPoseStudio
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {

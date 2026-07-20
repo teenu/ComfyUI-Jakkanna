@@ -17,7 +17,7 @@ Registered nodes:
 | Jakkanna Replace OpenPose Hands | `VNCCSReplaceOpenPoseHands` | `Jakkanna/pose` | Replace another OpenPose result's hand and wrist data with Pose Studio data. |
 | Jakkanna Canvas | `VNCCS_UniCanvas` | `Jakkanna/canvas` | Host the integrated infinite-canvas generation and editing workspace. |
 
-The bundled `vnccs_sam3d` package is used by Pose Studio for image-to-pose import
+The bundled `jakkanna_sam3d` package is used by Pose Studio for image-to-pose import
 and also contains standalone SAM 3D Body node classes. Those classes are not
 registered by the top-level `__init__.py` in this repository version, but their
 behavior is documented in `JAKKANNA_POSE_STUDIO_USAGE.md` because Pose Studio calls
@@ -341,7 +341,7 @@ See `UNICANVAS_MODEL_MODULES.md` for the supported generation backends.
 - Check that `model_name` is selected in the selector UI.
 - Check that `repo_id` points to a repository containing `model_updater.json`.
 - Check that the manifest entry has a valid `local_path` under `models/`.
-- Check the ComfyUI console for `Jakkanna ModelSelector` messages.
+- Check the ComfyUI console for `Jakkanna Model Selector` messages.
 
 ### A download is rejected
 

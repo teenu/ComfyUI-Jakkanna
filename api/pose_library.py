@@ -85,7 +85,7 @@ def get_default_repositories_path():
 def get_user_repositories_path():
     return os.path.join(get_library_path(), "repositories.user.json")
 
-def get_vnccs_user_config_path():
+def get_jakkanna_user_config_path():
     try:
         import folder_paths
         base_path = getattr(folder_paths, "base_path", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -93,8 +93,8 @@ def get_vnccs_user_config_path():
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, "vnccs_user_config.json")
 
-def get_vnccs_user_config():
-    path = get_vnccs_user_config_path()
+def get_jakkanna_user_config():
+    path = get_jakkanna_user_config_path()
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -118,9 +118,9 @@ def write_private_json(path, data):
             pass
         raise
 
-def save_vnccs_user_config(new_data):
-    path = get_vnccs_user_config_path()
-    data = get_vnccs_user_config()
+def save_jakkanna_user_config(new_data):
+    path = get_jakkanna_user_config_path()
+    data = get_jakkanna_user_config()
     data.update(new_data)
     write_private_json(path, data)
 
@@ -211,7 +211,7 @@ def load_pose_repositories():
 def get_hf_token():
     token = None
     try:
-        user_config = get_vnccs_user_config()
+        user_config = get_jakkanna_user_config()
         token = user_config.get("hf_token") or token
     except Exception:
         pass
@@ -325,7 +325,7 @@ def download_hf_file_with_progress(repo_id, path_in_repo, token=None, task_id=No
 
     url = hf_hub_url(repo_id=repo_id, filename=path_in_repo, repo_type="model")
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    fd, tmp_path = tempfile.mkstemp(prefix="vnccs_pose_repo_", suffix=os.path.splitext(path_in_repo)[1] or ".tmp")
+    fd, tmp_path = tempfile.mkstemp(prefix="jakkanna_pose_repo_", suffix=os.path.splitext(path_in_repo)[1] or ".tmp")
     os.close(fd)
     bytes_done = 0
     total_bytes = 0
@@ -382,7 +382,7 @@ def download_hf_file(repo_id, path_in_repo, token=None):
 
     url = hf_hub_url(repo_id=repo_id, filename=path_in_repo, repo_type="model")
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    fd, tmp_path = tempfile.mkstemp(prefix="vnccs_pose_repo_", suffix=os.path.splitext(path_in_repo)[1] or ".tmp")
+    fd, tmp_path = tempfile.mkstemp(prefix="jakkanna_pose_repo_", suffix=os.path.splitext(path_in_repo)[1] or ".tmp")
     os.close(fd)
     try:
         with getattr(requests, "request")("GET", url, headers=headers, stream=True, allow_redirects=True, timeout=60) as response:
@@ -446,7 +446,7 @@ def collect_local_pose_files():
     return sorted(poses, key=lambda item: (item["category"], item["name"]))
 
 def get_local_repository_info():
-    config = get_vnccs_user_config()
+    config = get_jakkanna_user_config()
     poses = collect_local_pose_files()
     return {
         "repo_id": LOCAL_USER_REPOSITORY,
@@ -982,7 +982,7 @@ def publish_local_repository_to_hf(repo_id, token=None, create=False, private=Fa
                     repo_id=repo_id,
                     repo_type="model",
                     token=token,
-                    commit_message="Update VNCCS pose library manifest",
+                    commit_message="Update Jakkanna pose library manifest",
                 )
                 uploaded.append("pose_library.json")
         finally:
@@ -1006,7 +1006,7 @@ def publish_local_repository_to_hf(repo_id, token=None, create=False, private=Fa
         "changed": sorted(changed_paths),
         "manifest_pose_count": len(manifest.get("poses") or []),
     }
-    save_vnccs_user_config({
+    save_jakkanna_user_config({
         "hf_token": token,
         "pose_library_publish_repo_id": repo_id,
         "pose_library_last_publish": time.time(),
@@ -1133,7 +1133,7 @@ async def publish_local_pose_repository(request):
     except Exception:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
-    repo_id = normalize_repo_id(data.get("repo_id") or get_vnccs_user_config().get("pose_library_publish_repo_id"))
+    repo_id = normalize_repo_id(data.get("repo_id") or get_jakkanna_user_config().get("pose_library_publish_repo_id"))
     token = data.get("hf_token") or get_hf_token()
     create = bool(data.get("create"))
     private = bool(data.get("private", False))
@@ -1267,12 +1267,12 @@ def prepare_preview_file(folder_path, preview_b64):
         image = Image.open(io.BytesIO(raw)).convert("RGB")
         resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
         image.thumbnail((768, 768), resample)
-        fd, output_path = tempfile.mkstemp(prefix="vnccs_preview_", suffix=".webp", dir=folder_path)
+        fd, output_path = tempfile.mkstemp(prefix="jakkanna_preview_", suffix=".webp", dir=folder_path)
         os.close(fd)
         image.save(output_path, "WEBP", quality=76, method=6)
         return output_path, ".webp"
     except Exception:
-        fd, output_path = tempfile.mkstemp(prefix="vnccs_preview_", suffix=".jpg", dir=folder_path)
+        fd, output_path = tempfile.mkstemp(prefix="jakkanna_preview_", suffix=".jpg", dir=folder_path)
         os.close(fd)
         with open(output_path, "wb") as f:
             f.write(raw)
@@ -1493,7 +1493,7 @@ async def save_pose(request):
         if preview_b64:
             prepared_preview = prepare_preview_file(pose_dir, preview_b64)
 
-        fd, pose_tmp_path = tempfile.mkstemp(prefix="vnccs_pose_", suffix=".json", dir=pose_dir)
+        fd, pose_tmp_path = tempfile.mkstemp(prefix="jakkanna_pose_", suffix=".json", dir=pose_dir)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(pose, f, indent=2)
 
@@ -1633,7 +1633,7 @@ async def upload_pose_sync(request):
         import folder_paths
         temp_dir = folder_paths.get_temp_directory()
         # Note: we use 'debug' in the filename for backwards compatibility with the backend check
-        filepath = os.path.join(temp_dir, f"vnccs_debug_{node_id}.json")
+        filepath = os.path.join(temp_dir, f"jakkanna_debug_{node_id}.json")
         temp_abs = os.path.abspath(temp_dir)
         file_abs = os.path.abspath(filepath)
         if file_abs != temp_abs and not file_abs.startswith(temp_abs + os.sep):
