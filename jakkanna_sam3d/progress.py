@@ -9,9 +9,9 @@ from contextvars import ContextVar
 
 _TASKS: dict[str, dict] = {}
 _LOCK = threading.Lock()
-_CURRENT_TASK_ID: ContextVar[str | None] = ContextVar("vnccs_sam3d_task_id", default=None)
+_CURRENT_TASK_ID: ContextVar[str | None] = ContextVar("jakkanna_sam3d_task_id", default=None)
 _DOWNLOAD_PHASE: ContextVar[tuple[str, int, int]] = ContextVar(
-    "vnccs_sam3d_download_phase",
+    "jakkanna_sam3d_download_phase",
     default=("Downloading model files...", 8, 28),
 )
 _MAX_TASK_AGE_SECONDS = 60 * 60
@@ -112,8 +112,8 @@ class SnapshotDownloadTqdm(_TqdmBase):
     """Best-effort tqdm-compatible hook for HuggingFace downloads."""
 
     def __init__(self, *args, **kwargs):
-        self.phase_base = kwargs.pop("vnccs_phase_base", None)
-        self.phase_weight = kwargs.pop("vnccs_phase_weight", None)
+        self.phase_base = kwargs.pop("jakkanna_phase_base", None)
+        self.phase_weight = kwargs.pop("jakkanna_phase_weight", None)
         if _TqdmBase is object:
             self.iterable = args[0] if args else None
             self.total = kwargs.get("total")

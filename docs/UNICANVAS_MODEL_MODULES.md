@@ -123,7 +123,7 @@ conditioning so non-turbo Z-image models can use negative prompts normally.
 
 ## Frontend Registration
 
-The frontend registry in `web/vnccs_unicanvas.js` must include the mode label,
+The frontend registry in `web/jakkanna_unicanvas.js` must include the mode label,
 defaults, aliases, and `detect` keywords. `detect` is used to switch Mode
 automatically when the selected model filename matches a known family.
 

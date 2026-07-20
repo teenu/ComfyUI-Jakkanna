@@ -1,7 +1,7 @@
 [project]
 name = "jakkanna"
 description = "Visual control and creative tools for ComfyUI: 3D posing, OpenPose, canvas editing, detailing, and model workflows."
-version = "1.0.0"
+version = "1.0.1"
 license = {file = "LICENSE"} 
 
 dependencies = [

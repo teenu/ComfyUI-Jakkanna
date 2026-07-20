@@ -1493,13 +1493,13 @@ def _get_unicanvas_model_loader(loader_type: str | None) -> UniCanvasModelLoader
 
 def _uc_log(draw_id: str, message: str, data: dict[str, Any] | None = None) -> None:
     if data is None:
-        print(f"[Jakkanna UniCanvas][draw:{draw_id}] {message}", flush=True)
+        print(f"[Jakkanna Canvas][draw:{draw_id}] {message}", flush=True)
         return
     try:
         payload = json.dumps(data, ensure_ascii=False, default=str, sort_keys=True)
     except Exception:
         payload = str(data)
-    print(f"[Jakkanna UniCanvas][draw:{draw_id}] {message}: {payload}", flush=True)
+    print(f"[Jakkanna Canvas][draw:{draw_id}] {message}: {payload}", flush=True)
 
 
 def _set_draw_progress(draw_id: str, stage: str, progress: float, step: int = 0, steps: int = 0, message: str | None = None) -> None:
@@ -1600,7 +1600,7 @@ def _conditioning_debug(conditioning: Any) -> dict[str, Any]:
     return {"type": type(conditioning).__name__, "is_list": True, "count": len(conditioning), "entries": entries}
 
 
-class VNCCS_UniCanvas:
+class JakkannaCanvas:
     """A ComfyUI node that hosts the Jakkanna Canvas editor.
 
     The node's visible work happens in the frontend widget. Its DRAW button calls
@@ -2933,7 +2933,7 @@ def _install_direct_sampling_progress_suppressor() -> None:
             if not callable(original_send_sync):
                 _COMFY_PROGRESS_PATCHED = True
                 return
-            if getattr(original_send_sync, "_vnccs_unicanvas_progress_guard", False):
+            if getattr(original_send_sync, "_jakkanna_unicanvas_progress_guard", False):
                 _COMFY_PROGRESS_PATCHED = True
                 return
 
@@ -2943,7 +2943,7 @@ def _install_direct_sampling_progress_suppressor() -> None:
                     return None
                 return original_send_sync(*args, **kwargs)
 
-            guarded_send_sync._vnccs_unicanvas_progress_guard = True  # type: ignore[attr-defined]
+            guarded_send_sync._jakkanna_unicanvas_progress_guard = True  # type: ignore[attr-defined]
             setattr(instance, "send_sync", guarded_send_sync)
         except Exception:
             pass
@@ -3200,7 +3200,7 @@ def _release_generation_sampling_refs(gen_settings: dict[str, Any], draw_id: str
         _uc_log(draw_id, "released sampling-only references before VAE decode", {"keys": released_keys})
 
 
-def _save_temp_image(image: Image.Image, prefix: str = "VNCCS_UniCanvas") -> dict[str, str]:
+def _save_temp_image(image: Image.Image, prefix: str = "Jakkanna_Canvas") -> dict[str, str]:
     import folder_paths
 
     output_dir = folder_paths.get_temp_directory()
@@ -3432,7 +3432,7 @@ def _unicanvas_download_worker_loop() -> None:
             total_size, max_bytes = _unicanvas_validate_download_response(response, expected_name)
             temp_dir = _unicanvas_temp_dir()
             os.makedirs(temp_dir, exist_ok=True)
-            temp_path = os.path.join(temp_dir, f"vnccs_unicanvas_{re.sub(r'[^A-Za-z0-9]+', '_', download_key)}.tmp")
+            temp_path = os.path.join(temp_dir, f"jakkanna_canvas_{re.sub(r'[^A-Za-z0-9]+', '_', download_key)}.tmp")
             downloaded = 0
             with open(temp_path, "wb") as handle:
                 for chunk in response.iter_content(chunk_size=1024 * 1024):
@@ -3699,9 +3699,9 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
                         "tensor": _tensor_debug(mask),
                     },
                 )
-                source_debug = _save_temp_image(source, f"VNCCS_UniCanvas_{draw_id}_source")
-                mask_debug = _save_temp_image(mask_for_debug, f"VNCCS_UniCanvas_{draw_id}_mask")
-                paste_mask_debug = _save_temp_image(paste_mask_image, f"VNCCS_UniCanvas_{draw_id}_paste_mask") if paste_mask_image is not None else None
+                source_debug = _save_temp_image(source, f"Jakkanna_Canvas_{draw_id}_source")
+                mask_debug = _save_temp_image(mask_for_debug, f"Jakkanna_Canvas_{draw_id}_mask")
+                paste_mask_debug = _save_temp_image(paste_mask_image, f"Jakkanna_Canvas_{draw_id}_paste_mask") if paste_mask_image is not None else None
                 _uc_log(
                     draw_id,
                     "debug input images saved",
@@ -3858,7 +3858,7 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
 
     _set_draw_progress(draw_id, "saving", 0.96, steps, steps, "Saving result")
     saved_images = [
-        _save_temp_image(result_image, f"VNCCS_UniCanvas_{draw_id}_{index + 1:02d}")
+        _save_temp_image(result_image, f"Jakkanna_Canvas_{draw_id}_{index + 1:02d}")
         for index, result_image in enumerate(result_images)
     ]
     if not saved_images:
@@ -3869,7 +3869,7 @@ def _run_unicanvas_draw(payload: dict[str, Any]) -> dict[str, Any]:
         mask_to_save = paste_mask_image
         if mask_to_save.size != output_size:
             mask_to_save = mask_to_save.resize(output_size, Image.Resampling.BILINEAR)
-        saved_mask = _save_temp_image(mask_to_save, f"VNCCS_UniCanvas_{draw_id}_result_mask")
+        saved_mask = _save_temp_image(mask_to_save, f"Jakkanna_Canvas_{draw_id}_result_mask")
     _uc_log(draw_id, "result saved", {"image": saved, "images": saved_images, "mask": saved_mask, "count": len(saved_images), "size": output_size})
     _set_draw_progress(draw_id, "complete", 1.0, steps, steps, "Complete")
     return {
@@ -4051,32 +4051,32 @@ def register_unicanvas_routes() -> None:
         return
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas/checkpoints")
-    async def vnccs_unicanvas_checkpoints(_request):
+    async def jakkanna_unicanvas_checkpoints(_request):
         try:
             return web.json_response({"checkpoints": _get_checkpoint_names()})
         except Exception as exc:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas/assets")
-    async def vnccs_unicanvas_assets(_request):
+    async def jakkanna_unicanvas_assets(_request):
         try:
             return web.json_response(_get_unicanvas_assets())
         except Exception as exc:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas/presets")
-    async def vnccs_unicanvas_presets(_request):
+    async def jakkanna_unicanvas_presets(_request):
         try:
             return web.json_response(_get_unicanvas_presets())
         except Exception as exc:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas/presets/status")
-    async def vnccs_unicanvas_presets_status(_request):
+    async def jakkanna_unicanvas_presets_status(_request):
         return web.json_response(dict(_PRESET_DOWNLOAD_STATUS))
 
     @PromptServer.instance.routes.post("/vnccs/unicanvas/presets/download")
-    async def vnccs_unicanvas_presets_download(request):
+    async def jakkanna_unicanvas_presets_download(request):
         try:
             payload = await request.json()
             preset_id = str(payload.get("preset_id") or "")
@@ -4110,7 +4110,7 @@ def register_unicanvas_routes() -> None:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.post("/vnccs/unicanvas/draw")
-    async def vnccs_unicanvas_draw(request):
+    async def jakkanna_unicanvas_draw(request):
         if not _content_length_ok(request, _MAX_UPLOAD_BYTES * 2 + 1024 * 1024):
             return web.json_response({"error": "UniCanvas draw payload is too large"}, status=413)
         payload: dict[str, Any] = {}
@@ -4128,7 +4128,7 @@ def register_unicanvas_routes() -> None:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.post("/vnccs/unicanvas/segment")
-    async def vnccs_unicanvas_segment(request):
+    async def jakkanna_unicanvas_segment(request):
         if not _content_length_ok(request, _MAX_UPLOAD_BYTES + 1024 * 1024):
             return web.json_response({"error": "UniCanvas SAM payload is too large"}, status=413)
         try:
@@ -4142,12 +4142,12 @@ def register_unicanvas_routes() -> None:
             return web.json_response({"error": str(exc)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas/progress/{draw_id}")
-    async def vnccs_unicanvas_progress(request):
+    async def jakkanna_unicanvas_progress(request):
         return web.json_response(_get_draw_progress(str(request.match_info.get("draw_id") or "")))
 
 
 NODE_CLASS_MAPPINGS = {
-    "VNCCS_UniCanvas": VNCCS_UniCanvas,
+    "VNCCS_UniCanvas": JakkannaCanvas,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {

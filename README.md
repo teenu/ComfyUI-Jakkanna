@@ -64,7 +64,7 @@ workflows, a dedicated OpenPose editor may be a smaller fit.
 <td width="33%" align="center">
 <strong>Upstream VNCCS Community</strong><br>
 Share results, ask questions, and follow VNCCS updates.<br><br>
-<a href="https://discord.com/invite/9Dacp4wvQw" target="_blank"><img src="images/VNCCS_Discord_Button.png" alt="Join our Discord"></a>
+<a href="https://discord.com/invite/9Dacp4wvQw" target="_blank">Join the upstream Discord</a>
 </td>
 <td width="33%" align="center">
 <strong>Support Jakkanna</strong><br>
@@ -74,7 +74,7 @@ Support ongoing compatibility work, testing, fixes, and releases.<br><br>
 <td width="33%" align="center">
 <strong>Support Original VNCCS</strong><br>
 Support MiuProject's original VNCCS development separately.<br><br>
-<a href="https://www.buymeacoffee.com/MIUProject" target="_blank"><img src="images/VNCCS_Donate_Button.png" alt="Support VNCCS"></a>
+<a href="https://www.buymeacoffee.com/MIUProject" target="_blank">Support the original project</a>
 </td>
 </tr>
 </table>

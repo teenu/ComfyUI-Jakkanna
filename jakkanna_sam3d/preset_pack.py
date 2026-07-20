@@ -1,7 +1,7 @@
 """Fallback preset-pack paths for the vendored SAM3D bridge.
 
 The upstream SAM3DBody project can be configured with external preset packs.
-VNCCS vendors only the inference bridge, so these helpers provide stable local
+Jakkanna vendors only the inference bridge, so these helpers provide stable local
 paths and let blendshape features no-op when optional preset assets are absent.
 """
 

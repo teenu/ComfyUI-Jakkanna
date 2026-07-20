@@ -21,7 +21,7 @@
           "hf_repo": "MIUProject/VNCCS_v3.0",
           "hf_path": "models/checkpoints/Illustrious/ILFlatMix.safetensors",
           "local_path": "models/checkpoints/Illustrious/ILFlatMix.safetensors",
-          "description": "VNCCS Illustrious checkpoint."
+          "description": "Illustrious checkpoint preset."
         }
       ],
       "turbo": {

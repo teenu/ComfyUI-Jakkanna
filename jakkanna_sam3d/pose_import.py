@@ -16,7 +16,7 @@ from . import progress
 
 def _dependency_error(exc: Exception) -> RuntimeError:
     return RuntimeError(
-        "[VNCCS] Internal SAM3D import dependencies are missing or incompatible. "
+        "[Jakkanna] Internal SAM3D import dependencies are missing or incompatible. "
         "Install the optional SAM3D runtime packages in the active ComfyUI "
         "environment, then restart ComfyUI. Original error: "
         f"{type(exc).__name__}: {exc}"
@@ -166,7 +166,7 @@ def process_image_to_pose_json(image_tensor):
         progress.finish("Step 6/6: SAM 3D Body import complete.")
         return json.dumps(pose_data, ensure_ascii=False, indent=2)
     except Exception as exc:
-        print(f"[VNCCS] SAM3D rest skeleton export failed: {exc}")
+        print(f"[Jakkanna] SAM3D rest skeleton export failed: {exc}")
         progress.finish("Step 6/6: SAM 3D Body pose reconstructed.")
         return pose_json
 
@@ -417,7 +417,7 @@ def process_pose_json_to_overlay_mesh(pose_data, body_preset=None, pose_adjust=0
                 },
             }
     except Exception as exc:
-        print(f"[VNCCS] SAM3D overlay render frame export failed: {exc}")
+        print(f"[Jakkanna] SAM3D overlay render frame export failed: {exc}")
 
     return {
         "vertices": vertices.astype(np.float32).reshape(-1, 3).tolist(),

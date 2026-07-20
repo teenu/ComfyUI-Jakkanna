@@ -21,7 +21,7 @@ from CharacterData.obj_loader import load_obj
 
 
 def load_pose_studio_module():
-    package_name = "ComfyUI_VNCCS_Utils"
+    package_name = "ComfyUI_Jakkanna"
     package = sys.modules.get(package_name)
     if package is None:
         package = types.ModuleType(package_name)
@@ -40,7 +40,7 @@ def load_pose_studio_module():
 
 def load_openpose_module():
     load_pose_studio_module()
-    return importlib.import_module("ComfyUI_VNCCS_Utils.nodes.vnccs_openpose_export")
+    return importlib.import_module("ComfyUI_Jakkanna.nodes.openpose_export")
 
 
 def image_data_url(color=(12, 34, 56), size=(2, 2)):
@@ -145,7 +145,7 @@ class CapturedImageTests(unittest.TestCase):
             "export": {"output_mode": "LIST"},
         }
 
-        images, prompts = self.pose_studio.VNCCS_PoseStudio().generate(json.dumps(data))
+        images, prompts = self.pose_studio.JakkannaPoseStudio().generate(json.dumps(data))
 
         self.assertEqual(len(images), 81)
         self.assertEqual(prompts, data["lighting_prompts"])
@@ -159,7 +159,7 @@ class CapturedImageTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(RuntimeError, "1 of 2 required frontend captures"):
-            self.pose_studio.VNCCS_PoseStudio().generate(json.dumps(data))
+            self.pose_studio.JakkannaPoseStudio().generate(json.dumps(data))
 
 
 class PoseDataValidationTests(unittest.TestCase):
@@ -207,7 +207,7 @@ class PoseDataValidationTests(unittest.TestCase):
             })
 
     def test_complete_payload_does_not_request_frontend_sync(self):
-        class NoSyncPoseStudio(self.pose_studio.VNCCS_PoseStudio):
+        class NoSyncPoseStudio(self.pose_studio.JakkannaPoseStudio):
             def _discard_frontend_sync(self, unique_id):
                 raise AssertionError("complete captures must not request frontend sync")
 
@@ -221,7 +221,7 @@ class PoseDataValidationTests(unittest.TestCase):
         self.assertEqual(len(images), 1)
 
     def test_pose_image_failure_is_not_silently_ignored(self):
-        class FailedPoseImage(self.pose_studio.VNCCS_PoseStudio):
+        class FailedPoseImage(self.pose_studio.JakkannaPoseStudio):
             def _apply_pose_image_via_frontend(self, pose_image, unique_id):
                 raise RuntimeError("synchronization failed")
 
@@ -238,8 +238,8 @@ class PoseDataValidationTests(unittest.TestCase):
         second = first.clone()
         second.reshape(-1)[1] = 1.0
 
-        first_hash = self.pose_studio.VNCCS_PoseStudio.IS_CHANGED("{}", first)
-        second_hash = self.pose_studio.VNCCS_PoseStudio.IS_CHANGED("{}", second)
+        first_hash = self.pose_studio.JakkannaPoseStudio.IS_CHANGED("{}", first)
+        second_hash = self.pose_studio.JakkannaPoseStudio.IS_CHANGED("{}", second)
 
         self.assertNotEqual(first_hash, second_hash)
 
@@ -270,7 +270,7 @@ class MorphFactorTests(unittest.TestCase):
         self.assertAlmostEqual(factors["caucasian"], 1.0 / 3.0)
 
     def test_live_worker_defines_python_morph_factors(self):
-        worker_path = os.path.join(ROOT, "web", "vnccs_pose_morph_worker.js")
+        worker_path = os.path.join(ROOT, "web", "jakkanna_pose_morph_worker.js")
         with open(worker_path, "r", encoding="utf-8") as handle:
             worker = handle.read()
 
@@ -295,7 +295,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
             "openpose_keypoints": [openpose_frame(2.0)],
         }
 
-        class SynchronizedOpenPose(self.openpose.VNCCS_PoseStudioOpenPose):
+        class SynchronizedOpenPose(self.openpose.JakkannaPoseStudioOpenPose):
             def _apply_pose_image_via_frontend(self, pose_image, unique_id):
                 return synchronized
 
@@ -309,7 +309,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
         self.assertEqual(keypoints[0]["people"][0]["pose_keypoints_2d"][0], 2.0)
 
     def test_complete_openpose_payload_does_not_request_frontend_sync(self):
-        class NoSyncOpenPose(self.openpose.VNCCS_PoseStudioOpenPose):
+        class NoSyncOpenPose(self.openpose.JakkannaPoseStudioOpenPose):
             def _discard_frontend_sync(self, unique_id):
                 raise AssertionError("complete captures must not request frontend sync")
 
@@ -333,7 +333,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
             "captured_images": [image_data_url(size=(8, 6))],
         }
 
-        images, _prompts, keypoints = self.openpose.VNCCS_PoseStudioOpenPose().generate_with_openpose(
+        images, _prompts, keypoints = self.openpose.JakkannaPoseStudioOpenPose().generate_with_openpose(
             json.dumps(data)
         )
 
@@ -348,7 +348,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(ValueError, "must be an object"):
-            self.openpose.VNCCS_PoseStudioOpenPose().generate_with_openpose(json.dumps(data))
+            self.openpose.JakkannaPoseStudioOpenPose().generate_with_openpose(json.dumps(data))
 
     def test_openpose_frame_count_must_match_pose_count(self):
         data = {
@@ -358,7 +358,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(ValueError, "exactly 2 frames"):
-            self.openpose.VNCCS_PoseStudioOpenPose().generate_with_openpose(json.dumps(data))
+            self.openpose.JakkannaPoseStudioOpenPose().generate_with_openpose(json.dumps(data))
 
     def test_openpose_canvas_must_match_captured_image(self):
         data = {
@@ -368,7 +368,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(ValueError, "dimensions do not match"):
-            self.openpose.VNCCS_PoseStudioOpenPose().generate_with_openpose(json.dumps(data))
+            self.openpose.JakkannaPoseStudioOpenPose().generate_with_openpose(json.dumps(data))
 
     def test_grid_openpose_combines_pose_frames_into_grid_coordinates(self):
         data = {
@@ -380,7 +380,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
         data["openpose_keypoints"][0]["people"][0]["pose_keypoints_2d"][:3] = [1.0, 1.0, 1.0]
         data["openpose_keypoints"][1]["people"][0]["pose_keypoints_2d"][:3] = [1.0, 1.0, 1.0]
 
-        images, prompts, keypoints = self.openpose.VNCCS_PoseStudioOpenPose().generate_with_openpose(
+        images, prompts, keypoints = self.openpose.JakkannaPoseStudioOpenPose().generate_with_openpose(
             json.dumps(data)
         )
 
@@ -393,7 +393,7 @@ class OpenPoseExecutionTests(unittest.TestCase):
 
 class FrontendContractTests(unittest.TestCase):
     def test_automatic_repository_refresh_is_absent(self):
-        with open(os.path.join(ROOT, "web", "vnccs_pose_studio.js"), "r", encoding="utf-8") as handle:
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:
             studio = handle.read()
         with open(os.path.join(ROOT, "api", "pose_library.py"), "r", encoding="utf-8") as handle:
             library = handle.read()
@@ -404,19 +404,19 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("cdn.buymeacoffee.com", studio)
 
     def test_frontend_limits_match_python_limits(self):
-        with open(os.path.join(ROOT, "web", "vnccs_pose_studio.js"), "r", encoding="utf-8") as handle:
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:
             studio = handle.read()
 
-        self.assertIn("const VNCCS_POSE_MAX_COUNT = 128;", studio)
-        self.assertIn("const VNCCS_LIGHT_MAX_COUNT = 32;", studio)
-        self.assertIn("const VNCCS_LIGHTING_PROMPT_MAX_LENGTH = 4096;", studio)
-        self.assertIn("const VNCCS_CAPTURE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024;", studio)
-        self.assertIn("promptArea.maxLength = VNCCS_LIGHTING_PROMPT_MAX_LENGTH;", studio)
+        self.assertIn("const JAKKANNA_POSE_MAX_COUNT = 128;", studio)
+        self.assertIn("const JAKKANNA_LIGHT_MAX_COUNT = 32;", studio)
+        self.assertIn("const JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH = 4096;", studio)
+        self.assertIn("const JAKKANNA_CAPTURE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024;", studio)
+        self.assertIn("promptArea.maxLength = JAKKANNA_LIGHTING_PROMPT_MAX_LENGTH;", studio)
         self.assertIn("capture_version: this._captureVersion", studio)
         self.assertIn("if (!node.studioWidget.syncToNode(true)) return;", studio)
 
     def test_mixamo_sampler_is_hard_capped(self):
-        with open(os.path.join(ROOT, "web", "vnccs_mixamo_import.js"), "r", encoding="utf-8") as handle:
+        with open(os.path.join(ROOT, "web", "jakkanna_mixamo_import.js"), "r", encoding="utf-8") as handle:
             mixamo = handle.read()
 
         self.assertIn("const frameCount = Math.min(frameLimit", mixamo)
@@ -424,7 +424,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("times.push(safeDuration)", mixamo)
 
     def test_frontend_openpose_uses_face_landmarks(self):
-        with open(os.path.join(ROOT, "web", "vnccs_pose_studio_core.js"), "r", encoding="utf-8") as handle:
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
             core = handle.read()
 
         self.assertIn("project(face?.nose || headCenter)", core)

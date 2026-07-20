@@ -4,227 +4,223 @@
 
 import { app } from "../../scripts/app.js";
 
-const VNCCS_DONATE_BANNER_URL = new URL("./assets/VNCCS_Donate_Button.png", import.meta.url).href;
-
 const STYLES = `
-.vnccs-unicanvas {
+.jakkanna-unicanvas {
   --uc-bg:#0a0a0f; --uc-panel:rgba(20,16,30,.82); --uc-surface:rgba(30,28,44,.9);
   --uc-hover:rgba(44,40,62,.95); --uc-border:rgba(255,255,255,.08);
   --uc-accent:#ff8fa3; --uc-accent-2:#b8a9e8; --uc-text:#e8e8f0; --uc-muted:#9898a8;
   --uc-danger:#ff4757; --uc-good:#00d68f; --uc-font:'Sora',-apple-system,BlinkMacSystemFont,sans-serif;
-  --vnccs-uc-ui-scale:1;
+  --jakkanna-uc-ui-scale:1;
   width:100%; height:100%; display:grid; grid-template-columns:auto minmax(0,1fr) auto;
   grid-template-rows:auto 34px minmax(0,1fr); background:var(--uc-bg); color:var(--uc-text);
   font:11px var(--uc-font); overflow:hidden; border-radius:12px; pointer-events:auto; position:relative; box-sizing:border-box;
 }
-.vnccs-uc-stage-wrap { grid-column:2; grid-row:3; position:relative; min-width:0; min-height:0; overflow:hidden; border-radius:8px; }
-.vnccs-uc-stage { width:100%; height:100%; display:block; background:#07070c; cursor:crosshair; }
-.vnccs-uc-preview-stage { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; z-index:4; }
-.vnccs-uc-hud { position:absolute; left:10px; top:10px; zoom:var(--vnccs-uc-ui-scale); display:flex; gap:6px; align-items:center; pointer-events:none; }
-.vnccs-uc-chip { background:rgba(10,10,15,.72); border:1px solid var(--uc-border); border-radius:8px; padding:5px 8px; color:var(--uc-muted); }
-.vnccs-uc-generation-progress { grid-column:2; grid-row:2; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:7px 12px; background:rgba(10,10,15,.9); border-bottom:1px solid rgba(255,143,163,.24); box-sizing:border-box; pointer-events:none; min-width:0; visibility:hidden; opacity:0; transition:opacity .16s ease; }
-.vnccs-uc-generation-progress.visible { visibility:visible; opacity:1; }
-.vnccs-uc-progress-label { color:var(--uc-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
-.vnccs-uc-progress-percent { color:var(--uc-muted); font-variant-numeric:tabular-nums; min-width:42px; text-align:right; }
-.vnccs-uc-progress-track { grid-column:1 / -1; height:6px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; }
-.vnccs-uc-progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--uc-accent),var(--uc-accent-2)); border-radius:inherit; transition:width .18s ease; }
-.vnccs-uc-left { width:320px; zoom:var(--vnccs-uc-ui-scale); display:flex; flex-direction:column; gap:8px; padding:8px; background:rgba(6,5,12,.72); min-height:0; max-height:100%; box-sizing:border-box; overflow:hidden; }
-.vnccs-uc-side { width:286px; zoom:var(--vnccs-uc-ui-scale); display:flex; flex-direction:column; gap:8px; padding:8px; background:rgba(6,5,12,.72); min-height:0; box-sizing:border-box; overflow:auto; }
-.vnccs-uc-left { grid-column:1; grid-row:1 / span 3; border-right:1px solid var(--uc-border); }
-.vnccs-uc-side { grid-column:3; grid-row:1 / span 3; border-left:1px solid var(--uc-border); overflow:hidden; }
-.vnccs-uc-section { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.35); }
-.vnccs-uc-parameters-section { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-.vnccs-uc-parameters-section > .vnccs-uc-stack { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding-bottom:14px; }
-.vnccs-uc-side-control { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; padding:8px; box-shadow:0 4px 16px rgba(0,0,0,.35); }
-.vnccs-uc-draw-control { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; padding:8px; box-shadow:0 4px 16px rgba(0,0,0,.35); display:grid; grid-template-columns:minmax(0,1fr) 46px; gap:7px; align-items:stretch; }
-.vnccs-uc-draw-control .vnccs-uc-btn { width:100%; height:34px; font-weight:800; }
-.vnccs-uc-draw-control .vnccs-uc-batch-input { width:46px; height:34px; box-sizing:border-box; text-align:center; font-weight:800; align-self:stretch; }
-.vnccs-uc-donate-link { flex:0 0 auto; display:block; width:100%; padding:0 4px 4px; box-sizing:border-box; z-index:3; background:rgba(6,5,12,.92); box-shadow:0 -8px 18px rgba(6,5,12,.82); }
-.vnccs-uc-donate-link img { display:block; width:100%; height:auto; border-radius:10px; }
-.vnccs-uc-denoise-control { display:grid; grid-template-columns:auto minmax(0,1fr) 58px; gap:8px; align-items:center; color:var(--uc-muted); font-weight:700; }
-.vnccs-uc-denoise-control .vnccs-uc-range { width:100%; }
-.vnccs-uc-denoise-control .vnccs-uc-input { width:58px; box-sizing:border-box; text-align:right; }
-.vnccs-uc-layers-section { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-.vnccs-uc-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; color:var(--uc-accent); font-weight:700; border-bottom:1px solid var(--uc-border); }
-.vnccs-uc-section-title { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.vnccs-uc-section-actions { flex:0 0 auto; display:flex; gap:4px; align-items:center; }
-.vnccs-uc-section-actions .vnccs-uc-icon { width:24px; height:24px; border-radius:7px; }
-.vnccs-uc-section-actions .vnccs-uc-icon svg { width:14px; height:14px; }
-.vnccs-uc-layers { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:6px; display:flex; flex-direction:column; gap:5px; }
-.vnccs-uc-layer-group { display:flex; flex-direction:column; gap:5px; }
-.vnccs-uc-layer-group + .vnccs-uc-layer-group { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,143,163,.24); }
-.vnccs-uc-layer-group-head { display:flex; align-items:center; justify-content:space-between; padding:2px 3px 4px; color:var(--uc-muted); font-weight:800; font-size:10px; letter-spacing:0; text-transform:uppercase; }
-.vnccs-uc-layer-group-head.mask { color:#ffd45c; }
-.vnccs-uc-layer-group-empty { padding:7px 8px; border:1px dashed rgba(255,255,255,.10); border-radius:8px; color:var(--uc-muted); background:rgba(255,255,255,.025); }
-.vnccs-uc-layer-subhead { padding:8px; border-bottom:1px solid var(--uc-border); display:grid; grid-template-columns:92px minmax(0,1fr); gap:8px; align-items:center; }
-.vnccs-uc-layer-subhead .vnccs-uc-select { width:100%; }
-.vnccs-uc-layer-opacity { display:grid; grid-template-columns:auto minmax(72px,1fr) 38px; gap:7px; align-items:center; color:var(--uc-muted); font-weight:700; }
-.vnccs-uc-layer-opacity .vnccs-uc-range { width:100%; }
-.vnccs-uc-layer-opacity-value { color:var(--uc-muted); text-align:right; font-variant-numeric:tabular-nums; }
-.vnccs-uc-layers-top-actions { padding:6px; border-bottom:1px solid var(--uc-border); display:flex; flex-direction:column; gap:6px; }
-.vnccs-uc-layers-top-actions .vnccs-uc-btn { width:100%; }
-.vnccs-uc-layer { display:grid; grid-template-columns:34px minmax(0,1fr) 28px 28px; gap:6px; align-items:center; padding:6px; border:1px solid var(--uc-border); border-radius:8px; background:rgba(255,255,255,.035); cursor:pointer; }
-.vnccs-uc-layer.active { border-color:rgba(255,143,163,.55); background:rgba(255,143,163,.12); }
-.vnccs-uc-layer.locked { border-color:rgba(255,193,7,.42); background:rgba(255,193,7,.08); }
-.vnccs-uc-layer.active.locked { border-color:rgba(255,193,7,.62); background:linear-gradient(90deg,rgba(255,193,7,.13),rgba(255,143,163,.10)); }
-.vnccs-uc-layer.dragging { opacity:.46; }
-.vnccs-uc-layer.drop-before { box-shadow:0 -2px 0 var(--uc-accent); }
-.vnccs-uc-layer.drop-after { box-shadow:0 2px 0 var(--uc-accent); }
-.vnccs-uc-thumb { width:34px; height:34px; border:1px solid var(--uc-border); border-radius:8px; background:rgba(255,255,255,.04); object-fit:cover; display:block; }
-.vnccs-uc-layer-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.vnccs-uc-layer-type { color:var(--uc-muted); font-size:10px; }
-.vnccs-uc-bottom { grid-column:2; grid-row:1; zoom:var(--vnccs-uc-ui-scale); display:flex; gap:8px; align-items:center; padding:8px; border-bottom:1px solid var(--uc-border); background:rgba(6,5,12,.75); box-sizing:border-box; min-width:0; }
-.vnccs-uc-tools { position:absolute; z-index:6; left:16px; top:50%; zoom:var(--vnccs-uc-ui-scale); transform:translateY(-50%); display:flex; flex-direction:column; align-items:stretch; gap:9px; padding:12px; border:1px solid var(--uc-border); border-radius:18px; background:rgba(10,10,15,.84); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; max-height:calc((100% - 16px) / var(--vnccs-uc-ui-scale)); overflow-y:auto; overflow-x:hidden; }
-.vnccs-uc-tool-settings { position:absolute; z-index:6; left:16px; top:52px; zoom:var(--vnccs-uc-ui-scale); display:none; flex-direction:column; gap:10px; width:248px; padding:14px; border:1px solid var(--uc-border); border-radius:14px; background:rgba(10,10,15,.86); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; }
-.vnccs-uc-tool-settings.visible { display:flex; }
-.vnccs-uc-tool-settings-title { color:var(--uc-accent); font-weight:800; font-size:14px; }
-.vnccs-uc-tool-setting { display:grid; grid-template-columns:72px minmax(0,1fr); align-items:center; gap:10px; color:var(--uc-muted); font-weight:700; }
-.vnccs-uc-tool-setting-label { color:var(--uc-muted); font-size:12px; line-height:1; white-space:nowrap; }
-.vnccs-uc-tool-settings .vnccs-uc-range { width:100%; accent-color:var(--uc-accent); }
-.vnccs-uc-tool-settings .vnccs-uc-input[type="color"] { width:42px; height:28px; padding:0; border-radius:7px; }
-.vnccs-uc-settings { display:flex; align-items:center; gap:6px; min-width:0; }
-.vnccs-uc-settings { overflow:auto; flex:1 1 auto; }
-.vnccs-uc-settings-spacer { flex:1 1 auto; min-width:16px; }
-.vnccs-uc-sam-panel { display:none; flex:0 0 auto; align-items:center; gap:7px; min-width:0; }
-.vnccs-uc-sam-panel.visible { display:flex; }
-.vnccs-uc-sam-points { min-width:78px; color:var(--uc-muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
-.vnccs-uc-sam-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:-1px; background:var(--uc-good); }
-.vnccs-uc-sam-dot.bg { background:var(--uc-danger); }
-.vnccs-uc-sam-status { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--uc-muted); }
-.vnccs-uc-sam-mode { min-width:42px; }
-.vnccs-uc-btn, .vnccs-uc-icon { border:1px solid var(--uc-border); background:var(--uc-surface); color:var(--uc-text); border-radius:8px; height:28px; padding:0 9px; cursor:pointer; font:inherit; white-space:nowrap; }
-.vnccs-uc-icon { width:30px; padding:0; display:grid; place-items:center; }
-.vnccs-uc-icon svg { width:16px; height:16px; display:block; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-.vnccs-uc-icon svg .fill { fill:currentColor; stroke:none; }
-.vnccs-uc-icon.danger { color:var(--uc-danger); border-color:rgba(255,71,87,.38); }
-.vnccs-uc-layer .vnccs-uc-icon { width:28px; height:28px; border-radius:7px; }
-.vnccs-uc-layer .vnccs-uc-icon.locked { color:#ffd45c; border-color:rgba(255,212,92,.55); background:rgba(255,212,92,.14); }
-.vnccs-uc-tools .vnccs-uc-icon { width:66px; height:66px; border-radius:12px; font-size:18px; font-weight:800; }
-.vnccs-uc-tools svg { width:36px; height:36px; display:block; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-.vnccs-uc-tools svg .fill { fill:currentColor; stroke:none; }
-.vnccs-uc-btn:hover, .vnccs-uc-icon:hover { background:var(--uc-hover); border-color:rgba(255,255,255,.16); }
-.vnccs-uc-btn:disabled, .vnccs-uc-icon:disabled { opacity:.38; cursor:not-allowed; }
-.vnccs-uc-btn:disabled:hover, .vnccs-uc-icon:disabled:hover { background:var(--uc-surface); border-color:var(--uc-border); }
-.vnccs-uc-btn.primary { background:linear-gradient(135deg,var(--uc-accent),var(--uc-accent-2)); color:#120b13; font-weight:800; border:0; }
-.vnccs-uc-btn.primary:disabled,
-.vnccs-uc-btn.primary:disabled:hover {
+.jakkanna-uc-stage-wrap { grid-column:2; grid-row:3; position:relative; min-width:0; min-height:0; overflow:hidden; border-radius:8px; }
+.jakkanna-uc-stage { width:100%; height:100%; display:block; background:#07070c; cursor:crosshair; }
+.jakkanna-uc-preview-stage { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; z-index:4; }
+.jakkanna-uc-hud { position:absolute; left:10px; top:10px; zoom:var(--jakkanna-uc-ui-scale); display:flex; gap:6px; align-items:center; pointer-events:none; }
+.jakkanna-uc-chip { background:rgba(10,10,15,.72); border:1px solid var(--uc-border); border-radius:8px; padding:5px 8px; color:var(--uc-muted); }
+.jakkanna-uc-generation-progress { grid-column:2; grid-row:2; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:7px 12px; background:rgba(10,10,15,.9); border-bottom:1px solid rgba(255,143,163,.24); box-sizing:border-box; pointer-events:none; min-width:0; visibility:hidden; opacity:0; transition:opacity .16s ease; }
+.jakkanna-uc-generation-progress.visible { visibility:visible; opacity:1; }
+.jakkanna-uc-progress-label { color:var(--uc-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+.jakkanna-uc-progress-percent { color:var(--uc-muted); font-variant-numeric:tabular-nums; min-width:42px; text-align:right; }
+.jakkanna-uc-progress-track { grid-column:1 / -1; height:6px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; }
+.jakkanna-uc-progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--uc-accent),var(--uc-accent-2)); border-radius:inherit; transition:width .18s ease; }
+.jakkanna-uc-left { width:320px; zoom:var(--jakkanna-uc-ui-scale); display:flex; flex-direction:column; gap:8px; padding:8px; background:rgba(6,5,12,.72); min-height:0; max-height:100%; box-sizing:border-box; overflow:hidden; }
+.jakkanna-uc-side { width:286px; zoom:var(--jakkanna-uc-ui-scale); display:flex; flex-direction:column; gap:8px; padding:8px; background:rgba(6,5,12,.72); min-height:0; box-sizing:border-box; overflow:auto; }
+.jakkanna-uc-left { grid-column:1; grid-row:1 / span 3; border-right:1px solid var(--uc-border); }
+.jakkanna-uc-side { grid-column:3; grid-row:1 / span 3; border-left:1px solid var(--uc-border); overflow:hidden; }
+.jakkanna-uc-section { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.35); }
+.jakkanna-uc-parameters-section { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+.jakkanna-uc-parameters-section > .jakkanna-uc-stack { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding-bottom:14px; }
+.jakkanna-uc-side-control { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; padding:8px; box-shadow:0 4px 16px rgba(0,0,0,.35); }
+.jakkanna-uc-draw-control { background:var(--uc-panel); border:1px solid rgba(255,143,163,.2); border-radius:12px; padding:8px; box-shadow:0 4px 16px rgba(0,0,0,.35); display:grid; grid-template-columns:minmax(0,1fr) 46px; gap:7px; align-items:stretch; }
+.jakkanna-uc-draw-control .jakkanna-uc-btn { width:100%; height:34px; font-weight:800; }
+.jakkanna-uc-draw-control .jakkanna-uc-batch-input { width:46px; height:34px; box-sizing:border-box; text-align:center; font-weight:800; align-self:stretch; }
+.jakkanna-uc-denoise-control { display:grid; grid-template-columns:auto minmax(0,1fr) 58px; gap:8px; align-items:center; color:var(--uc-muted); font-weight:700; }
+.jakkanna-uc-denoise-control .jakkanna-uc-range { width:100%; }
+.jakkanna-uc-denoise-control .jakkanna-uc-input { width:58px; box-sizing:border-box; text-align:right; }
+.jakkanna-uc-layers-section { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+.jakkanna-uc-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 9px; color:var(--uc-accent); font-weight:700; border-bottom:1px solid var(--uc-border); }
+.jakkanna-uc-section-title { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.jakkanna-uc-section-actions { flex:0 0 auto; display:flex; gap:4px; align-items:center; }
+.jakkanna-uc-section-actions .jakkanna-uc-icon { width:24px; height:24px; border-radius:7px; }
+.jakkanna-uc-section-actions .jakkanna-uc-icon svg { width:14px; height:14px; }
+.jakkanna-uc-layers { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; padding:6px; display:flex; flex-direction:column; gap:5px; }
+.jakkanna-uc-layer-group { display:flex; flex-direction:column; gap:5px; }
+.jakkanna-uc-layer-group + .jakkanna-uc-layer-group { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,143,163,.24); }
+.jakkanna-uc-layer-group-head { display:flex; align-items:center; justify-content:space-between; padding:2px 3px 4px; color:var(--uc-muted); font-weight:800; font-size:10px; letter-spacing:0; text-transform:uppercase; }
+.jakkanna-uc-layer-group-head.mask { color:#ffd45c; }
+.jakkanna-uc-layer-group-empty { padding:7px 8px; border:1px dashed rgba(255,255,255,.10); border-radius:8px; color:var(--uc-muted); background:rgba(255,255,255,.025); }
+.jakkanna-uc-layer-subhead { padding:8px; border-bottom:1px solid var(--uc-border); display:grid; grid-template-columns:92px minmax(0,1fr); gap:8px; align-items:center; }
+.jakkanna-uc-layer-subhead .jakkanna-uc-select { width:100%; }
+.jakkanna-uc-layer-opacity { display:grid; grid-template-columns:auto minmax(72px,1fr) 38px; gap:7px; align-items:center; color:var(--uc-muted); font-weight:700; }
+.jakkanna-uc-layer-opacity .jakkanna-uc-range { width:100%; }
+.jakkanna-uc-layer-opacity-value { color:var(--uc-muted); text-align:right; font-variant-numeric:tabular-nums; }
+.jakkanna-uc-layers-top-actions { padding:6px; border-bottom:1px solid var(--uc-border); display:flex; flex-direction:column; gap:6px; }
+.jakkanna-uc-layers-top-actions .jakkanna-uc-btn { width:100%; }
+.jakkanna-uc-layer { display:grid; grid-template-columns:34px minmax(0,1fr) 28px 28px; gap:6px; align-items:center; padding:6px; border:1px solid var(--uc-border); border-radius:8px; background:rgba(255,255,255,.035); cursor:pointer; }
+.jakkanna-uc-layer.active { border-color:rgba(255,143,163,.55); background:rgba(255,143,163,.12); }
+.jakkanna-uc-layer.locked { border-color:rgba(255,193,7,.42); background:rgba(255,193,7,.08); }
+.jakkanna-uc-layer.active.locked { border-color:rgba(255,193,7,.62); background:linear-gradient(90deg,rgba(255,193,7,.13),rgba(255,143,163,.10)); }
+.jakkanna-uc-layer.dragging { opacity:.46; }
+.jakkanna-uc-layer.drop-before { box-shadow:0 -2px 0 var(--uc-accent); }
+.jakkanna-uc-layer.drop-after { box-shadow:0 2px 0 var(--uc-accent); }
+.jakkanna-uc-thumb { width:34px; height:34px; border:1px solid var(--uc-border); border-radius:8px; background:rgba(255,255,255,.04); object-fit:cover; display:block; }
+.jakkanna-uc-layer-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.jakkanna-uc-layer-type { color:var(--uc-muted); font-size:10px; }
+.jakkanna-uc-bottom { grid-column:2; grid-row:1; zoom:var(--jakkanna-uc-ui-scale); display:flex; gap:8px; align-items:center; padding:8px; border-bottom:1px solid var(--uc-border); background:rgba(6,5,12,.75); box-sizing:border-box; min-width:0; }
+.jakkanna-uc-tools { position:absolute; z-index:6; left:16px; top:50%; zoom:var(--jakkanna-uc-ui-scale); transform:translateY(-50%); display:flex; flex-direction:column; align-items:stretch; gap:9px; padding:12px; border:1px solid var(--uc-border); border-radius:18px; background:rgba(10,10,15,.84); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; max-height:calc((100% - 16px) / var(--jakkanna-uc-ui-scale)); overflow-y:auto; overflow-x:hidden; }
+.jakkanna-uc-tool-settings { position:absolute; z-index:6; left:16px; top:52px; zoom:var(--jakkanna-uc-ui-scale); display:none; flex-direction:column; gap:10px; width:248px; padding:14px; border:1px solid var(--uc-border); border-radius:14px; background:rgba(10,10,15,.86); box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto; }
+.jakkanna-uc-tool-settings.visible { display:flex; }
+.jakkanna-uc-tool-settings-title { color:var(--uc-accent); font-weight:800; font-size:14px; }
+.jakkanna-uc-tool-setting { display:grid; grid-template-columns:72px minmax(0,1fr); align-items:center; gap:10px; color:var(--uc-muted); font-weight:700; }
+.jakkanna-uc-tool-setting-label { color:var(--uc-muted); font-size:12px; line-height:1; white-space:nowrap; }
+.jakkanna-uc-tool-settings .jakkanna-uc-range { width:100%; accent-color:var(--uc-accent); }
+.jakkanna-uc-tool-settings .jakkanna-uc-input[type="color"] { width:42px; height:28px; padding:0; border-radius:7px; }
+.jakkanna-uc-settings { display:flex; align-items:center; gap:6px; min-width:0; }
+.jakkanna-uc-settings { overflow:auto; flex:1 1 auto; }
+.jakkanna-uc-settings-spacer { flex:1 1 auto; min-width:16px; }
+.jakkanna-uc-sam-panel { display:none; flex:0 0 auto; align-items:center; gap:7px; min-width:0; }
+.jakkanna-uc-sam-panel.visible { display:flex; }
+.jakkanna-uc-sam-points { min-width:78px; color:var(--uc-muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.jakkanna-uc-sam-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:-1px; background:var(--uc-good); }
+.jakkanna-uc-sam-dot.bg { background:var(--uc-danger); }
+.jakkanna-uc-sam-status { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--uc-muted); }
+.jakkanna-uc-sam-mode { min-width:42px; }
+.jakkanna-uc-btn, .jakkanna-uc-icon { border:1px solid var(--uc-border); background:var(--uc-surface); color:var(--uc-text); border-radius:8px; height:28px; padding:0 9px; cursor:pointer; font:inherit; white-space:nowrap; }
+.jakkanna-uc-icon { width:30px; padding:0; display:grid; place-items:center; }
+.jakkanna-uc-icon svg { width:16px; height:16px; display:block; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+.jakkanna-uc-icon svg .fill { fill:currentColor; stroke:none; }
+.jakkanna-uc-icon.danger { color:var(--uc-danger); border-color:rgba(255,71,87,.38); }
+.jakkanna-uc-layer .jakkanna-uc-icon { width:28px; height:28px; border-radius:7px; }
+.jakkanna-uc-layer .jakkanna-uc-icon.locked { color:#ffd45c; border-color:rgba(255,212,92,.55); background:rgba(255,212,92,.14); }
+.jakkanna-uc-tools .jakkanna-uc-icon { width:66px; height:66px; border-radius:12px; font-size:18px; font-weight:800; }
+.jakkanna-uc-tools svg { width:36px; height:36px; display:block; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.jakkanna-uc-tools svg .fill { fill:currentColor; stroke:none; }
+.jakkanna-uc-btn:hover, .jakkanna-uc-icon:hover { background:var(--uc-hover); border-color:rgba(255,255,255,.16); }
+.jakkanna-uc-btn:disabled, .jakkanna-uc-icon:disabled { opacity:.38; cursor:not-allowed; }
+.jakkanna-uc-btn:disabled:hover, .jakkanna-uc-icon:disabled:hover { background:var(--uc-surface); border-color:var(--uc-border); }
+.jakkanna-uc-btn.primary { background:linear-gradient(135deg,var(--uc-accent),var(--uc-accent-2)); color:#120b13; font-weight:800; border:0; }
+.jakkanna-uc-btn.primary:disabled,
+.jakkanna-uc-btn.primary:disabled:hover {
   opacity:.72; color:#120b13; background:linear-gradient(135deg,var(--uc-accent),var(--uc-accent-2)); border:0;
 }
-.vnccs-uc-btn.danger { color:#ffdce1; border-color:rgba(255,71,87,.35); }
-.vnccs-uc-icon.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
-.vnccs-uc-btn.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
-.vnccs-uc-tool.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
-.vnccs-uc-input, .vnccs-uc-select, .vnccs-uc-textarea { background:rgba(255,255,255,.045); border:1px solid var(--uc-border); color:var(--uc-text); border-radius:8px; height:28px; padding:0 8px; font:inherit; min-width:0; color-scheme:dark; }
-.vnccs-uc-select option { background:#171320; color:#e8e8f0; font-size:14px; line-height:1.35; }
-.vnccs-uc-select option:checked,
-.vnccs-uc-select option:hover { background:#3a2a3d; color:#ffdce5; }
-.vnccs-uc-select-menu { position:fixed; z-index:999999; max-height:min(70vh, 520px); overflow:auto; overscroll-behavior:contain; padding:6px; border:1px solid rgba(255,143,163,.34); border-radius:12px; background:#171320; color:#e8e8f0; box-shadow:0 16px 44px rgba(0,0,0,.58); box-sizing:border-box; pointer-events:auto; }
-.vnccs-uc-select-menu-option { min-height:32px; display:flex; align-items:center; gap:8px; padding:6px 10px; border:0; border-radius:8px; background:transparent; color:inherit; font:inherit; text-align:left; width:100%; cursor:pointer; box-sizing:border-box; }
-.vnccs-uc-select-menu-option:hover,
-.vnccs-uc-select-menu-option.active { background:rgba(255,143,163,.18); color:#ffdce5; }
-.vnccs-uc-select-menu-check { width:18px; flex:0 0 18px; color:#ff8fa3; font-weight:900; }
-.vnccs-uc-select-menu-label { flex:1 1 auto; min-width:0; overflow:visible; text-overflow:clip; white-space:nowrap; }
-.vnccs-uc-textarea { min-height:54px; height:54px; padding:7px 8px; resize:none; width:100%; box-sizing:border-box; overflow:hidden; line-height:1.28; }
-.vnccs-uc-field { display:flex; flex-direction:column; gap:4px; min-width:62px; color:var(--uc-muted); }
-.vnccs-uc-field.inline { flex-direction:row; align-items:center; }
-.vnccs-uc-range { width:82px; accent-color:var(--uc-accent); }
-.vnccs-uc-mode-loader-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; }
-.vnccs-uc-generation-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 8px; padding-top:2px; }
-.vnccs-uc-generation-grid .wide { grid-column:1 / -1; }
-.vnccs-uc-stack { display:flex; flex-direction:column; gap:6px; padding:8px; }
-.vnccs-uc-model-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.vnccs-uc-model-tab { height:30px; border:1px solid var(--uc-border); border-radius:8px; background:var(--uc-surface); color:var(--uc-muted); font:inherit; font-weight:800; text-transform:uppercase; cursor:pointer; }
-.vnccs-uc-model-tab.active { border-color:rgba(255,143,163,.72); background:rgba(255,143,163,.18); color:#ffdce5; box-shadow:0 0 0 1px rgba(255,143,163,.12) inset; }
-.vnccs-uc-model-panel { display:flex; flex-direction:column; gap:6px; }
-.vnccs-uc-model-card-list { display:flex; flex-direction:column; gap:7px; }
-.vnccs-uc-model-picker { display:flex; flex-direction:column; gap:8px; }
-.vnccs-uc-model-picker-menu { display:none; flex-direction:column; gap:9px; padding:8px; border:1px solid rgba(255,143,163,.18); border-radius:10px; background:rgba(8,8,12,.48); }
-.vnccs-uc-model-picker.open .vnccs-uc-model-picker-menu { display:flex; }
-.vnccs-uc-model-picker-group { display:flex; flex-direction:column; gap:7px; }
-.vnccs-uc-model-picker-group-title { color:#ffdce5; font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
-.vnccs-uc-model-card { display:flex; flex-direction:column; gap:5px; padding:10px 11px 8px; border:1px solid rgba(0,214,143,.25); border-radius:10px; background:rgba(0,214,143,.05); cursor:pointer; min-width:0; }
-.vnccs-uc-model-card.head { min-height:58px; }
-.vnccs-uc-model-card.turbo { min-height:0; height:34px; padding:0 8px; justify-content:center; border-color:rgba(255,143,163,.76); background:rgba(255,143,163,.14); }
-.vnccs-uc-model-card:hover { border-color:rgba(0,214,143,.44); background:rgba(0,214,143,.08); }
-.vnccs-uc-model-card.turbo:hover { border-color:rgba(255,143,163,.82); background:rgba(255,143,163,.17); }
-.vnccs-uc-model-card.selected { border-color:rgba(255,143,163,.76); background:rgba(255,143,163,.14); box-shadow:0 0 0 1px rgba(255,143,163,.14) inset; }
-.vnccs-uc-model-card.missing { border-color:rgba(255,143,163,.32); background:rgba(255,143,163,.055); }
-.vnccs-uc-model-card.turbo.missing { border-color:rgba(255,143,163,.52); background:rgba(255,143,163,.08); }
-.vnccs-uc-model-card.progress { border-color:rgba(184,169,232,.46); background:rgba(184,169,232,.08); }
-.vnccs-uc-model-card-top { display:flex; align-items:center; gap:7px; min-width:0; }
-.vnccs-uc-model-card-badge { width:12px; height:12px; border-radius:50%; flex:0 0 auto; background:var(--uc-danger); }
-.vnccs-uc-model-card-badge.ok { background:var(--uc-good); }
-.vnccs-uc-model-card-badge.progress { background:var(--uc-accent-2); }
-.vnccs-uc-model-card-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--uc-text); font-size:13px; font-weight:800; line-height:1.2; }
-.vnccs-uc-model-card-status { flex:0 0 auto; color:var(--uc-danger); font-size:10px; font-weight:800; text-transform:uppercase; }
-.vnccs-uc-model-card-status.ok { color:var(--uc-good); }
-.vnccs-uc-model-card-status.progress { color:var(--uc-accent-2); }
-.vnccs-uc-model-card-desc { color:var(--uc-muted); font-size:11px; line-height:1.35; }
-.vnccs-uc-model-card-actions { display:flex; align-items:center; gap:7px; }
-.vnccs-uc-model-card-download { width:100%; height:27px; border:1px solid rgba(255,143,163,.36); border-radius:8px; background:rgba(255,143,163,.1); color:#ffdce5; font:inherit; font-size:10px; font-weight:800; text-transform:uppercase; cursor:pointer; }
-.vnccs-uc-model-card-download:disabled { opacity:.55; cursor:not-allowed; }
-.vnccs-uc-turbo-section { display:flex; flex-direction:column; gap:6px; padding-top:2px; }
-.vnccs-uc-turbo-title { color:var(--uc-accent); font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
-.vnccs-uc-toggle { position:relative; flex:0 0 auto; width:42px; height:22px; border:1px solid rgba(255,143,163,.5); border-radius:999px; background:rgba(255,143,163,.16); }
-.vnccs-uc-toggle::after { content:""; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:var(--uc-muted); transition:left .14s ease, background .14s ease; }
-.vnccs-uc-toggle.active::after { left:23px; background:var(--uc-accent); }
-.vnccs-uc-lora-stack { display:flex; flex-direction:column; gap:7px; padding-top:4px; }
-.vnccs-uc-lora-stack-title { color:var(--uc-accent); font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
-.vnccs-uc-lora-item { display:grid; grid-template-columns:minmax(0,2fr) minmax(64px,1fr); gap:7px; padding:8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); }
-.vnccs-uc-lora-item.empty { opacity:.62; }
-.vnccs-uc-lora-item .vnccs-uc-select,
-.vnccs-uc-lora-item .vnccs-uc-input { width:100%; box-sizing:border-box; }
-.vnccs-uc-seed-row { display:grid; grid-template-columns:minmax(0,1fr) 42px; gap:6px; align-items:stretch; }
-.vnccs-uc-seed-row .vnccs-uc-input { width:100%; box-sizing:border-box; }
-.vnccs-uc-seed-dice { height:28px; border-radius:8px; }
-.vnccs-uc-seed-dice svg { width:17px; height:17px; }
-.vnccs-uc-seed-dice.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; box-shadow:0 0 0 1px rgba(255,143,163,.14) inset; }
-.vnccs-uc-draw-footer { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding-top:2px; }
-.vnccs-uc-layers-footer { padding:6px; border-top:1px solid var(--uc-border); display:flex; flex-direction:column; gap:6px; }
-.vnccs-uc-layers-footer .vnccs-uc-btn { width:100%; }
-.vnccs-uc-file { display:none; }
-.vnccs-uc-row { display:flex; gap:6px; align-items:center; }
-.vnccs-uc-staging-popover {
-  position:absolute; zoom:var(--vnccs-uc-ui-scale); display:none; gap:8px; align-items:center; justify-content:center; z-index:5;
+.jakkanna-uc-btn.danger { color:#ffdce1; border-color:rgba(255,71,87,.35); }
+.jakkanna-uc-icon.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
+.jakkanna-uc-btn.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
+.jakkanna-uc-tool.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; }
+.jakkanna-uc-input, .jakkanna-uc-select, .jakkanna-uc-textarea { background:rgba(255,255,255,.045); border:1px solid var(--uc-border); color:var(--uc-text); border-radius:8px; height:28px; padding:0 8px; font:inherit; min-width:0; color-scheme:dark; }
+.jakkanna-uc-select option { background:#171320; color:#e8e8f0; font-size:14px; line-height:1.35; }
+.jakkanna-uc-select option:checked,
+.jakkanna-uc-select option:hover { background:#3a2a3d; color:#ffdce5; }
+.jakkanna-uc-select-menu { position:fixed; z-index:999999; max-height:min(70vh, 520px); overflow:auto; overscroll-behavior:contain; padding:6px; border:1px solid rgba(255,143,163,.34); border-radius:12px; background:#171320; color:#e8e8f0; box-shadow:0 16px 44px rgba(0,0,0,.58); box-sizing:border-box; pointer-events:auto; }
+.jakkanna-uc-select-menu-option { min-height:32px; display:flex; align-items:center; gap:8px; padding:6px 10px; border:0; border-radius:8px; background:transparent; color:inherit; font:inherit; text-align:left; width:100%; cursor:pointer; box-sizing:border-box; }
+.jakkanna-uc-select-menu-option:hover,
+.jakkanna-uc-select-menu-option.active { background:rgba(255,143,163,.18); color:#ffdce5; }
+.jakkanna-uc-select-menu-check { width:18px; flex:0 0 18px; color:#ff8fa3; font-weight:900; }
+.jakkanna-uc-select-menu-label { flex:1 1 auto; min-width:0; overflow:visible; text-overflow:clip; white-space:nowrap; }
+.jakkanna-uc-textarea { min-height:54px; height:54px; padding:7px 8px; resize:none; width:100%; box-sizing:border-box; overflow:hidden; line-height:1.28; }
+.jakkanna-uc-field { display:flex; flex-direction:column; gap:4px; min-width:62px; color:var(--uc-muted); }
+.jakkanna-uc-field.inline { flex-direction:row; align-items:center; }
+.jakkanna-uc-range { width:82px; accent-color:var(--uc-accent); }
+.jakkanna-uc-mode-loader-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; }
+.jakkanna-uc-generation-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 8px; padding-top:2px; }
+.jakkanna-uc-generation-grid .wide { grid-column:1 / -1; }
+.jakkanna-uc-stack { display:flex; flex-direction:column; gap:6px; padding:8px; }
+.jakkanna-uc-model-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.jakkanna-uc-model-tab { height:30px; border:1px solid var(--uc-border); border-radius:8px; background:var(--uc-surface); color:var(--uc-muted); font:inherit; font-weight:800; text-transform:uppercase; cursor:pointer; }
+.jakkanna-uc-model-tab.active { border-color:rgba(255,143,163,.72); background:rgba(255,143,163,.18); color:#ffdce5; box-shadow:0 0 0 1px rgba(255,143,163,.12) inset; }
+.jakkanna-uc-model-panel { display:flex; flex-direction:column; gap:6px; }
+.jakkanna-uc-model-card-list { display:flex; flex-direction:column; gap:7px; }
+.jakkanna-uc-model-picker { display:flex; flex-direction:column; gap:8px; }
+.jakkanna-uc-model-picker-menu { display:none; flex-direction:column; gap:9px; padding:8px; border:1px solid rgba(255,143,163,.18); border-radius:10px; background:rgba(8,8,12,.48); }
+.jakkanna-uc-model-picker.open .jakkanna-uc-model-picker-menu { display:flex; }
+.jakkanna-uc-model-picker-group { display:flex; flex-direction:column; gap:7px; }
+.jakkanna-uc-model-picker-group-title { color:#ffdce5; font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.jakkanna-uc-model-card { display:flex; flex-direction:column; gap:5px; padding:10px 11px 8px; border:1px solid rgba(0,214,143,.25); border-radius:10px; background:rgba(0,214,143,.05); cursor:pointer; min-width:0; }
+.jakkanna-uc-model-card.head { min-height:58px; }
+.jakkanna-uc-model-card.turbo { min-height:0; height:34px; padding:0 8px; justify-content:center; border-color:rgba(255,143,163,.76); background:rgba(255,143,163,.14); }
+.jakkanna-uc-model-card:hover { border-color:rgba(0,214,143,.44); background:rgba(0,214,143,.08); }
+.jakkanna-uc-model-card.turbo:hover { border-color:rgba(255,143,163,.82); background:rgba(255,143,163,.17); }
+.jakkanna-uc-model-card.selected { border-color:rgba(255,143,163,.76); background:rgba(255,143,163,.14); box-shadow:0 0 0 1px rgba(255,143,163,.14) inset; }
+.jakkanna-uc-model-card.missing { border-color:rgba(255,143,163,.32); background:rgba(255,143,163,.055); }
+.jakkanna-uc-model-card.turbo.missing { border-color:rgba(255,143,163,.52); background:rgba(255,143,163,.08); }
+.jakkanna-uc-model-card.progress { border-color:rgba(184,169,232,.46); background:rgba(184,169,232,.08); }
+.jakkanna-uc-model-card-top { display:flex; align-items:center; gap:7px; min-width:0; }
+.jakkanna-uc-model-card-badge { width:12px; height:12px; border-radius:50%; flex:0 0 auto; background:var(--uc-danger); }
+.jakkanna-uc-model-card-badge.ok { background:var(--uc-good); }
+.jakkanna-uc-model-card-badge.progress { background:var(--uc-accent-2); }
+.jakkanna-uc-model-card-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--uc-text); font-size:13px; font-weight:800; line-height:1.2; }
+.jakkanna-uc-model-card-status { flex:0 0 auto; color:var(--uc-danger); font-size:10px; font-weight:800; text-transform:uppercase; }
+.jakkanna-uc-model-card-status.ok { color:var(--uc-good); }
+.jakkanna-uc-model-card-status.progress { color:var(--uc-accent-2); }
+.jakkanna-uc-model-card-desc { color:var(--uc-muted); font-size:11px; line-height:1.35; }
+.jakkanna-uc-model-card-actions { display:flex; align-items:center; gap:7px; }
+.jakkanna-uc-model-card-download { width:100%; height:27px; border:1px solid rgba(255,143,163,.36); border-radius:8px; background:rgba(255,143,163,.1); color:#ffdce5; font:inherit; font-size:10px; font-weight:800; text-transform:uppercase; cursor:pointer; }
+.jakkanna-uc-model-card-download:disabled { opacity:.55; cursor:not-allowed; }
+.jakkanna-uc-turbo-section { display:flex; flex-direction:column; gap:6px; padding-top:2px; }
+.jakkanna-uc-turbo-title { color:var(--uc-accent); font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.jakkanna-uc-toggle { position:relative; flex:0 0 auto; width:42px; height:22px; border:1px solid rgba(255,143,163,.5); border-radius:999px; background:rgba(255,143,163,.16); }
+.jakkanna-uc-toggle::after { content:""; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:var(--uc-muted); transition:left .14s ease, background .14s ease; }
+.jakkanna-uc-toggle.active::after { left:23px; background:var(--uc-accent); }
+.jakkanna-uc-lora-stack { display:flex; flex-direction:column; gap:7px; padding-top:4px; }
+.jakkanna-uc-lora-stack-title { color:var(--uc-accent); font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.jakkanna-uc-lora-item { display:grid; grid-template-columns:minmax(0,2fr) minmax(64px,1fr); gap:7px; padding:8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); }
+.jakkanna-uc-lora-item.empty { opacity:.62; }
+.jakkanna-uc-lora-item .jakkanna-uc-select,
+.jakkanna-uc-lora-item .jakkanna-uc-input { width:100%; box-sizing:border-box; }
+.jakkanna-uc-seed-row { display:grid; grid-template-columns:minmax(0,1fr) 42px; gap:6px; align-items:stretch; }
+.jakkanna-uc-seed-row .jakkanna-uc-input { width:100%; box-sizing:border-box; }
+.jakkanna-uc-seed-dice { height:28px; border-radius:8px; }
+.jakkanna-uc-seed-dice svg { width:17px; height:17px; }
+.jakkanna-uc-seed-dice.active { border-color:rgba(255,143,163,.7); background:rgba(255,143,163,.18); color:#ffdce5; box-shadow:0 0 0 1px rgba(255,143,163,.14) inset; }
+.jakkanna-uc-draw-footer { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding-top:2px; }
+.jakkanna-uc-layers-footer { padding:6px; border-top:1px solid var(--uc-border); display:flex; flex-direction:column; gap:6px; }
+.jakkanna-uc-layers-footer .jakkanna-uc-btn { width:100%; }
+.jakkanna-uc-file { display:none; }
+.jakkanna-uc-row { display:flex; gap:6px; align-items:center; }
+.jakkanna-uc-staging-popover {
+  position:absolute; zoom:var(--jakkanna-uc-ui-scale); display:none; gap:8px; align-items:center; justify-content:center; z-index:5;
   padding:10px; background:rgba(10,10,15,.9); border:1px solid rgba(255,255,255,.16);
   border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.42); pointer-events:auto;
 }
-.vnccs-uc-staging-popover.visible { display:flex; }
-.vnccs-uc-staging-popover .vnccs-uc-icon { width:44px; height:44px; border-radius:10px; }
-.vnccs-uc-staging-popover .vnccs-uc-icon svg { width:22px; height:22px; }
-.vnccs-uc-staging-count { min-width:48px; text-align:center; color:var(--uc-text); font-weight:800; font-size:14px; }
-.vnccs-uc-transform-label { min-width:92px; }
-.vnccs-uc-modal-overlay {
+.jakkanna-uc-staging-popover.visible { display:flex; }
+.jakkanna-uc-staging-popover .jakkanna-uc-icon { width:44px; height:44px; border-radius:10px; }
+.jakkanna-uc-staging-popover .jakkanna-uc-icon svg { width:22px; height:22px; }
+.jakkanna-uc-staging-count { min-width:48px; text-align:center; color:var(--uc-text); font-weight:800; font-size:14px; }
+.jakkanna-uc-transform-label { min-width:92px; }
+.jakkanna-uc-modal-overlay {
   position:absolute; inset:0; z-index:20; display:grid; place-items:center;
   background:rgba(4,4,8,.58); pointer-events:auto;
 }
-.vnccs-uc-modal {
+.jakkanna-uc-modal {
   width:min(560px, calc(100% - 72px)); background:var(--uc-panel); color:var(--uc-text);
   border:1px solid rgba(255,143,163,.34); border-radius:12px; box-shadow:0 18px 48px rgba(0,0,0,.55);
   padding:22px; display:flex; flex-direction:column; gap:16px; font-size:16px; line-height:1.45;
 }
-.vnccs-uc-modal-title { color:var(--uc-accent); font-weight:800; font-size:18px; }
-.vnccs-uc-modal-message { color:var(--uc-text); line-height:1.5; }
-.vnccs-uc-modal-actions { display:flex; justify-content:flex-end; gap:8px; }
-.vnccs-uc-modal-actions .vnccs-uc-btn { height:34px; padding:0 14px; font-size:14px; }
+.jakkanna-uc-modal-title { color:var(--uc-accent); font-weight:800; font-size:18px; }
+.jakkanna-uc-modal-message { color:var(--uc-text); line-height:1.5; }
+.jakkanna-uc-modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+.jakkanna-uc-modal-actions .jakkanna-uc-btn { height:34px; padding:0 14px; font-size:14px; }
 `;
 
-if (!document.getElementById("vnccs-unicanvas-styles")) {
+if (!document.getElementById("jakkanna-unicanvas-styles")) {
   const style = document.createElement("style");
-  style.id = "vnccs-unicanvas-styles";
+  style.id = "jakkanna-unicanvas-styles";
   style.textContent = STYLES;
   document.head.appendChild(style);
 }
 
 function enableUniCanvasGraphNavigationForwarding(root) {
-  if (!root || root._vnccsUniCanvasGraphNavigationForwarding) return;
-  root._vnccsUniCanvasGraphNavigationForwarding = true;
+  if (!root || root._jakkannaUniCanvasGraphNavigationForwarding) return;
+  root._jakkannaUniCanvasGraphNavigationForwarding = true;
 
   const graphCanvas = () => app.canvasEl || app.canvas?.canvas || document.querySelector("canvas.litegraph");
   let panning = false;
 
   const markForwarded = (event) => {
-    Object.defineProperty(event, "_vnccsUniCanvasForwardedGraphInput", { value: true });
+    Object.defineProperty(event, "_jakkannaUniCanvasForwardedGraphInput", { value: true });
     return event;
   };
 
@@ -333,13 +329,13 @@ function enableUniCanvasGraphNavigationForwarding(root) {
       "canvas",
       "[contenteditable='true']",
       "[role='button']",
-      ".vnccs-uc-tools",
-      ".vnccs-uc-tool-settings",
-      ".vnccs-uc-select-menu",
-      ".vnccs-uc-staging-popover",
-      ".vnccs-uc-modal-overlay",
-      ".vnccs-uc-layers",
-      ".vnccs-uc-layer",
+      ".jakkanna-uc-tools",
+      ".jakkanna-uc-tool-settings",
+      ".jakkanna-uc-select-menu",
+      ".jakkanna-uc-staging-popover",
+      ".jakkanna-uc-modal-overlay",
+      ".jakkanna-uc-layers",
+      ".jakkanna-uc-layer",
     ].join(",")));
   };
 
@@ -351,7 +347,7 @@ function enableUniCanvasGraphNavigationForwarding(root) {
   };
 
   const finishPan = (event) => {
-    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (event._jakkannaUniCanvasForwardedGraphInput) return;
     if (!panning) return;
     panning = false;
     event.preventDefault();
@@ -362,7 +358,7 @@ function enableUniCanvasGraphNavigationForwarding(root) {
   };
 
   const movePan = (event) => {
-    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (event._jakkannaUniCanvasForwardedGraphInput) return;
     if (!panning) return;
     event.preventDefault();
     event.stopPropagation();
@@ -370,7 +366,7 @@ function enableUniCanvasGraphNavigationForwarding(root) {
   };
 
   root.addEventListener("mousedown", (event) => {
-    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (event._jakkannaUniCanvasForwardedGraphInput) return;
     if (event.button !== 1) return;
     if (!canForwardFrom(event.target)) return;
     if (!forwardMouse("mousedown", event, 4)) return;
@@ -389,7 +385,7 @@ function enableUniCanvasGraphNavigationForwarding(root) {
   }, true);
 
   root.addEventListener("wheel", (event) => {
-    if (event._vnccsUniCanvasForwardedGraphInput) return;
+    if (event._jakkannaUniCanvasForwardedGraphInput) return;
     if (!canForwardFrom(event.target)) return;
     if (!forwardWheel(event)) return;
     event.preventDefault();
@@ -666,7 +662,7 @@ class UniCanvasWidget {
   constructor(node) {
     this.node = node;
     this.container = document.createElement("div");
-    this.container.className = "vnccs-unicanvas";
+    this.container.className = "jakkanna-unicanvas";
     this.layers = [];
     this.activeLayerId = null;
     this.lastHudHTML = "";
@@ -763,54 +759,54 @@ class UniCanvasWidget {
 
   _buildDOM() {
     this.generationProgress = document.createElement("div");
-    this.generationProgress.className = "vnccs-uc-generation-progress";
+    this.generationProgress.className = "jakkanna-uc-generation-progress";
     this.generationProgress.innerHTML = `
-      <div class="vnccs-uc-progress-label">Ready</div>
-      <div class="vnccs-uc-progress-percent">0%</div>
-      <div class="vnccs-uc-progress-track"><div class="vnccs-uc-progress-fill"></div></div>`;
+      <div class="jakkanna-uc-progress-label">Ready</div>
+      <div class="jakkanna-uc-progress-percent">0%</div>
+      <div class="jakkanna-uc-progress-track"><div class="jakkanna-uc-progress-fill"></div></div>`;
     this.container.appendChild(this.generationProgress);
     this.stageWrap = document.createElement("div");
-    this.stageWrap.className = "vnccs-uc-stage-wrap";
+    this.stageWrap.className = "jakkanna-uc-stage-wrap";
     this.canvas = document.createElement("canvas");
-    this.canvas.className = "vnccs-uc-stage";
+    this.canvas.className = "jakkanna-uc-stage";
     this.stageWrap.appendChild(this.canvas);
     this.previewCanvas = document.createElement("canvas");
-    this.previewCanvas.className = "vnccs-uc-preview-stage";
+    this.previewCanvas.className = "jakkanna-uc-preview-stage";
     this.stageWrap.appendChild(this.previewCanvas);
     this.hud = document.createElement("div");
-    this.hud.className = "vnccs-uc-hud";
+    this.hud.className = "jakkanna-uc-hud";
     this.stageWrap.appendChild(this.hud);
     this.stagingControls = document.createElement("div");
-    this.stagingControls.className = "vnccs-uc-staging-popover";
-    this.stagingPrevBtn = this._button(STAGING_ICONS.prev, "vnccs-uc-icon", () => this.selectRelativeStaging(-1), "Previous result");
+    this.stagingControls.className = "jakkanna-uc-staging-popover";
+    this.stagingPrevBtn = this._button(STAGING_ICONS.prev, "jakkanna-uc-icon", () => this.selectRelativeStaging(-1), "Previous result");
     this.stagingCount = document.createElement("span");
-    this.stagingCount.className = "vnccs-uc-staging-count";
-    this.stagingNextBtn = this._button(STAGING_ICONS.next, "vnccs-uc-icon", () => this.selectRelativeStaging(1), "Next result");
-    this.stagingToggleBtn = this._button(STAGING_ICONS.show, "vnccs-uc-icon", () => this.toggleStagingVisibility(), "Hide result preview");
+    this.stagingCount.className = "jakkanna-uc-staging-count";
+    this.stagingNextBtn = this._button(STAGING_ICONS.next, "jakkanna-uc-icon", () => this.selectRelativeStaging(1), "Next result");
+    this.stagingToggleBtn = this._button(STAGING_ICONS.show, "jakkanna-uc-icon", () => this.toggleStagingVisibility(), "Hide result preview");
     this.stagingControls.append(
-      this._button(STAGING_ICONS.discard, "vnccs-uc-icon danger", () => this.discardStaging(), "Discard"),
+      this._button(STAGING_ICONS.discard, "jakkanna-uc-icon danger", () => this.discardStaging(), "Discard"),
       this.stagingPrevBtn,
       this.stagingCount,
       this.stagingNextBtn,
       this.stagingToggleBtn,
-      this._button(STAGING_ICONS.accept, "vnccs-uc-icon", () => this.acceptStaging(), "Accept as layer")
+      this._button(STAGING_ICONS.accept, "jakkanna-uc-icon", () => this.acceptStaging(), "Accept as layer")
     );
     this.stageWrap.appendChild(this.stagingControls);
     this.transformControls = document.createElement("div");
-    this.transformControls.className = "vnccs-uc-staging-popover";
+    this.transformControls.className = "jakkanna-uc-staging-popover";
     this.transformLabel = document.createElement("span");
-    this.transformLabel.className = "vnccs-uc-staging-count vnccs-uc-transform-label";
+    this.transformLabel.className = "jakkanna-uc-staging-count jakkanna-uc-transform-label";
     this.transformLabel.textContent = "Transform";
     this.transformControls.append(
-      this._button(STAGING_ICONS.discard, "vnccs-uc-icon danger", () => this.cancelTransformDraft(), "Cancel transform"),
+      this._button(STAGING_ICONS.discard, "jakkanna-uc-icon danger", () => this.cancelTransformDraft(), "Cancel transform"),
       this.transformLabel,
-      this._button(STAGING_ICONS.accept, "vnccs-uc-icon", () => this.applyTransformDraft(), "Apply transform")
+      this._button(STAGING_ICONS.accept, "jakkanna-uc-icon", () => this.applyTransformDraft(), "Apply transform")
     );
     this.stageWrap.appendChild(this.transformControls);
     this.samPanel = document.createElement("div");
-    this.samPanel.className = "vnccs-uc-staging-popover vnccs-uc-sam-panel";
+    this.samPanel.className = "jakkanna-uc-staging-popover jakkanna-uc-sam-panel";
     this.samModelSelect = document.createElement("select");
-    this.samModelSelect.className = "vnccs-uc-select";
+    this.samModelSelect.className = "jakkanna-uc-select";
     this.samModelSelect.innerHTML = `
       <option value="sam2_large">SAM2 Large</option>
       <option value="sam1_huge">SAM1 Huge</option>`;
@@ -820,41 +816,41 @@ class UniCanvasWidget {
       this.clearSamMask(false);
       this.renderSamPanel();
     });
-    this.samAddBtn = this._button("+", "vnccs-uc-btn vnccs-uc-sam-mode", () => this.setSamMode("add"), "Add foreground points");
-    this.samSubtractBtn = this._button("-", "vnccs-uc-btn vnccs-uc-sam-mode", () => this.setSamMode("subtract"), "Subtract background points");
-    this.samInvertBtn = this._button("Invert", "vnccs-uc-btn", () => this.toggleSamInvert(), "Invert mask");
+    this.samAddBtn = this._button("+", "jakkanna-uc-btn jakkanna-uc-sam-mode", () => this.setSamMode("add"), "Add foreground points");
+    this.samSubtractBtn = this._button("-", "jakkanna-uc-btn jakkanna-uc-sam-mode", () => this.setSamMode("subtract"), "Subtract background points");
+    this.samInvertBtn = this._button("Invert", "jakkanna-uc-btn", () => this.toggleSamInvert(), "Invert mask");
     this.samPointsLabel = document.createElement("span");
-    this.samPointsLabel.className = "vnccs-uc-sam-points";
-    this.samSegmentBtn = this._button("Segment", "vnccs-uc-btn primary", () => this.segmentSamMask(), "Build SAM mask");
-    this.samApplyBtn = this._button(STAGING_ICONS.accept, "vnccs-uc-icon", () => this.applySamMask(), "Apply mask to selected layer");
-    this.samClearBtn = this._button(STAGING_ICONS.discard, "vnccs-uc-icon danger", () => this.clearSamPrompt(), "Clear SAM points and mask");
+    this.samPointsLabel.className = "jakkanna-uc-sam-points";
+    this.samSegmentBtn = this._button("Segment", "jakkanna-uc-btn primary", () => this.segmentSamMask(), "Build SAM mask");
+    this.samApplyBtn = this._button(STAGING_ICONS.accept, "jakkanna-uc-icon", () => this.applySamMask(), "Apply mask to selected layer");
+    this.samClearBtn = this._button(STAGING_ICONS.discard, "jakkanna-uc-icon danger", () => this.clearSamPrompt(), "Clear SAM points and mask");
     this.samStatus = document.createElement("span");
-    this.samStatus.className = "vnccs-uc-sam-status";
+    this.samStatus.className = "jakkanna-uc-sam-status";
     this.samPanel.append(this.samClearBtn, this.samModelSelect, this.samAddBtn, this.samSubtractBtn, this.samInvertBtn, this.samPointsLabel, this.samSegmentBtn, this.samApplyBtn, this.samStatus);
     this.stageWrap.appendChild(this.samPanel);
 
     this.left = document.createElement("div");
-    this.left.className = "vnccs-uc-left";
+    this.left.className = "jakkanna-uc-left";
     this.side = document.createElement("div");
-    this.side.className = "vnccs-uc-side";
+    this.side.className = "jakkanna-uc-side";
     this.denoiseControl = document.createElement("div");
-    this.denoiseControl.className = "vnccs-uc-side-control";
+    this.denoiseControl.className = "jakkanna-uc-side-control";
     this.denoiseControl.innerHTML = `
-      <label class="vnccs-uc-denoise-control"><span data-denoise-label>Denoise</span>
-        <input class="vnccs-uc-range" data-setting="denoise" type="range" min="0" max="1" step="0.01" value="${this.settings.denoise}">
-        <input class="vnccs-uc-input" data-setting="denoise" type="number" lang="en-US" inputmode="decimal" min="0" max="1" step="0.01" value="${this.settings.denoise}">
+      <label class="jakkanna-uc-denoise-control"><span data-denoise-label>Denoise</span>
+        <input class="jakkanna-uc-range" data-setting="denoise" type="range" min="0" max="1" step="0.01" value="${this.settings.denoise}">
+        <input class="jakkanna-uc-input" data-setting="denoise" type="number" lang="en-US" inputmode="decimal" min="0" max="1" step="0.01" value="${this.settings.denoise}">
       </label>`;
     this.layerList = document.createElement("div");
-    this.layerList.className = "vnccs-uc-layers";
+    this.layerList.className = "jakkanna-uc-layers";
     this.maskLayerList = document.createElement("div");
-    this.maskLayerList.className = "vnccs-uc-layer-group";
+    this.maskLayerList.className = "jakkanna-uc-layer-group";
     this.rasterLayerList = document.createElement("div");
-    this.rasterLayerList.className = "vnccs-uc-layer-group";
+    this.rasterLayerList.className = "jakkanna-uc-layer-group";
     this.layerList.append(this.maskLayerList, this.rasterLayerList);
     this.layerSubhead = document.createElement("div");
-    this.layerSubhead.className = "vnccs-uc-layer-subhead";
+    this.layerSubhead.className = "jakkanna-uc-layer-subhead";
     this.layerSubhead.innerHTML = `
-      <select class="vnccs-uc-select" data-layer-control="blendMode">
+      <select class="jakkanna-uc-select" data-layer-control="blendMode">
         <option value="source-over">Normal</option>
         <option value="multiply">Multiply</option>
         <option value="screen">Screen</option>
@@ -872,20 +868,20 @@ class UniCanvasWidget {
         <option value="color">Color</option>
         <option value="luminosity">Luminosity</option>
       </select>
-      <label class="vnccs-uc-layer-opacity">Opacity <input class="vnccs-uc-range" type="range" min="0" max="1" step="0.01" data-layer-control="opacity"><span class="vnccs-uc-layer-opacity-value"></span></label>`;
+      <label class="jakkanna-uc-layer-opacity">Opacity <input class="jakkanna-uc-range" type="range" min="0" max="1" step="0.01" data-layer-control="opacity"><span class="jakkanna-uc-layer-opacity-value"></span></label>`;
     this.layersTopActions = document.createElement("div");
-    this.layersTopActions.className = "vnccs-uc-layers-top-actions";
+    this.layersTopActions.className = "jakkanna-uc-layers-top-actions";
     this.layersTopActions.append(
-      this._button("Import Image", "vnccs-uc-btn", () => this.fileInput.click(), "Import image")
+      this._button("Import Image", "jakkanna-uc-btn", () => this.fileInput.click(), "Import image")
     );
     this.flattenLayersFooter = document.createElement("div");
-    this.flattenLayersFooter.className = "vnccs-uc-layers-footer";
+    this.flattenLayersFooter.className = "jakkanna-uc-layers-footer";
     this.flattenLayersFooter.append(
-      this._button("Flatten layers", "vnccs-uc-btn danger", () => this.confirmFlattenLayers(), "Flatten all layers"),
-      this._button("Export Layers as PSD", "vnccs-uc-btn", () => this.exportPSD(), "Export visible raster layers to PSD")
+      this._button("Flatten layers", "jakkanna-uc-btn danger", () => this.confirmFlattenLayers(), "Flatten all layers"),
+      this._button("Export Layers as PSD", "jakkanna-uc-btn", () => this.exportPSD(), "Export visible raster layers to PSD")
     );
     const layersBody = document.createElement("div");
-    layersBody.className = "vnccs-uc-layers-section";
+    layersBody.className = "jakkanna-uc-layers-section";
     layersBody.append(this.layerSubhead, this.layersTopActions, this.layerList, this.flattenLayersFooter);
     const layersSection = this._section("Layers", layersBody, [
       [UI_ICONS.plus, "Add raster", () => this.addLayer("raster")],
@@ -894,10 +890,10 @@ class UniCanvasWidget {
       [UI_ICONS.up, "Move selected up", () => this.moveActiveLayer(-1)],
       [UI_ICONS.down, "Move selected down", () => this.moveActiveLayer(1)],
     ]);
-    layersSection.classList.add("vnccs-uc-layers-section");
+    layersSection.classList.add("jakkanna-uc-layers-section");
 
     this.promptBox = document.createElement("div");
-    this.promptBox.className = "vnccs-uc-stack";
+    this.promptBox.className = "jakkanna-uc-stack";
     const modelModeOptions = Object.values(UNICANVAS_MODEL_MODULES)
       .map((module) => `<option value="${this._escape(module.key)}">${this._escape(module.label)}</option>`)
       .join("");
@@ -906,46 +902,46 @@ class UniCanvasWidget {
       .join("");
     const loaderFields = Object.values(UNICANVAS_MODEL_LOADERS).flatMap((loader) =>
       (loader.fields || []).map((field) => `
-        <label class="vnccs-uc-field" data-loader-field="${this._escape(loader.key)}">
-          ${this._escape(field.label)}<select class="vnccs-uc-select" data-setting="${this._escape(field.setting)}"></select>
+        <label class="jakkanna-uc-field" data-loader-field="${this._escape(loader.key)}">
+          ${this._escape(field.label)}<select class="jakkanna-uc-select" data-setting="${this._escape(field.setting)}"></select>
         </label>`)
     ).join("");
     this.promptBox.innerHTML = `
-      <label class="vnccs-uc-field">Prompt<textarea class="vnccs-uc-textarea" data-setting="positive" placeholder="positive prompt"></textarea></label>
-      <label class="vnccs-uc-field">Negative<textarea class="vnccs-uc-textarea" data-setting="negative" placeholder="negative prompt"></textarea></label>
-      <div class="vnccs-uc-model-tabs">
-        <button class="vnccs-uc-model-tab" type="button" data-model-selection-mode="presets">Presets</button>
-        <button class="vnccs-uc-model-tab" type="button" data-model-selection-mode="custom">Custom</button>
+      <label class="jakkanna-uc-field">Prompt<textarea class="jakkanna-uc-textarea" data-setting="positive" placeholder="positive prompt"></textarea></label>
+      <label class="jakkanna-uc-field">Negative<textarea class="jakkanna-uc-textarea" data-setting="negative" placeholder="negative prompt"></textarea></label>
+      <div class="jakkanna-uc-model-tabs">
+        <button class="jakkanna-uc-model-tab" type="button" data-model-selection-mode="presets">Presets</button>
+        <button class="jakkanna-uc-model-tab" type="button" data-model-selection-mode="custom">Custom</button>
       </div>
-      <div class="vnccs-uc-model-panel" data-model-panel="presets">
+      <div class="jakkanna-uc-model-panel" data-model-panel="presets">
         <div data-preset-card-list></div>
-        <label class="vnccs-uc-field">Inference scale<input class="vnccs-uc-input" data-setting="inference_scale" type="number" lang="en-US" inputmode="decimal" min="0.125" step="0.125"></label>
+        <label class="jakkanna-uc-field">Inference scale<input class="jakkanna-uc-input" data-setting="inference_scale" type="number" lang="en-US" inputmode="decimal" min="0.125" step="0.125"></label>
       </div>
-      <div class="vnccs-uc-model-panel" data-model-panel="custom">
-        <div class="vnccs-uc-mode-loader-row">
-          <label class="vnccs-uc-field">Mode<select class="vnccs-uc-select" data-setting="generation_mode">${modelModeOptions}</select></label>
-          <label class="vnccs-uc-field">Loader<select class="vnccs-uc-select" data-setting="model_loader">${modelLoaderOptions}</select></label>
+      <div class="jakkanna-uc-model-panel" data-model-panel="custom">
+        <div class="jakkanna-uc-mode-loader-row">
+          <label class="jakkanna-uc-field">Mode<select class="jakkanna-uc-select" data-setting="generation_mode">${modelModeOptions}</select></label>
+          <label class="jakkanna-uc-field">Loader<select class="jakkanna-uc-select" data-setting="model_loader">${modelLoaderOptions}</select></label>
         </div>
-        <label class="vnccs-uc-field">Inference scale<input class="vnccs-uc-input" data-setting="inference_scale" type="number" lang="en-US" inputmode="decimal" min="0.125" step="0.125"></label>
+        <label class="jakkanna-uc-field">Inference scale<input class="jakkanna-uc-input" data-setting="inference_scale" type="number" lang="en-US" inputmode="decimal" min="0.125" step="0.125"></label>
         ${loaderFields}
       </div>
-      <div class="vnccs-uc-turbo-section" data-turbo-panel></div>
-      <div class="vnccs-uc-generation-grid">
-        <label class="vnccs-uc-field">Steps<input class="vnccs-uc-input" data-setting="steps" type="number"></label>
-        <label class="vnccs-uc-field">Sampler<select class="vnccs-uc-select" data-setting="sampler_name"></select></label>
-        <label class="vnccs-uc-field">CFG<input class="vnccs-uc-input" data-setting="cfg" type="number" lang="en-US" inputmode="decimal" step="0.1"></label>
-        <label class="vnccs-uc-field">Scheduler<select class="vnccs-uc-select" data-setting="scheduler"></select></label>
-        <label class="vnccs-uc-field wide">Seed
-          <span class="vnccs-uc-seed-row">
-            <input class="vnccs-uc-input" data-setting="seed" type="number" min="0">
-            <button class="vnccs-uc-icon vnccs-uc-seed-dice" type="button" data-action="seed-mode" title="Random seed">${UI_ICONS.dice}</button>
+      <div class="jakkanna-uc-turbo-section" data-turbo-panel></div>
+      <div class="jakkanna-uc-generation-grid">
+        <label class="jakkanna-uc-field">Steps<input class="jakkanna-uc-input" data-setting="steps" type="number"></label>
+        <label class="jakkanna-uc-field">Sampler<select class="jakkanna-uc-select" data-setting="sampler_name"></select></label>
+        <label class="jakkanna-uc-field">CFG<input class="jakkanna-uc-input" data-setting="cfg" type="number" lang="en-US" inputmode="decimal" step="0.1"></label>
+        <label class="jakkanna-uc-field">Scheduler<select class="jakkanna-uc-select" data-setting="scheduler"></select></label>
+        <label class="jakkanna-uc-field wide">Seed
+          <span class="jakkanna-uc-seed-row">
+            <input class="jakkanna-uc-input" data-setting="seed" type="number" min="0">
+            <button class="jakkanna-uc-icon jakkanna-uc-seed-dice" type="button" data-action="seed-mode" title="Random seed">${UI_ICONS.dice}</button>
           </span>
         </label>
       </div>
-      <div class="vnccs-uc-lora-stack" data-lora-stack></div>`;
-    this.drawBtn = this._button("GENERATE", "vnccs-uc-btn primary", () => this.draw(), "Generate");
+      <div class="jakkanna-uc-lora-stack" data-lora-stack></div>`;
+    this.drawBtn = this._button("GENERATE", "jakkanna-uc-btn primary", () => this.draw(), "Generate");
     this.batchInput = document.createElement("input");
-    this.batchInput.className = "vnccs-uc-input vnccs-uc-batch-input";
+    this.batchInput.className = "jakkanna-uc-input jakkanna-uc-batch-input";
     this.batchInput.type = "number";
     this.batchInput.min = "1";
     this.batchInput.max = "99";
@@ -954,27 +950,17 @@ class UniCanvasWidget {
     this.batchInput.dataset.setting = "batch_size";
     this.batchInput.title = "Images";
     this.drawControl = document.createElement("div");
-    this.drawControl.className = "vnccs-uc-draw-control";
+    this.drawControl.className = "jakkanna-uc-draw-control";
     this.drawControl.append(this.drawBtn, this.batchInput);
     const promptSection = this._section("Parameters", this.promptBox);
-    promptSection.classList.add("vnccs-uc-parameters-section");
-    this.donateLink = document.createElement("a");
-    this.donateLink.className = "vnccs-uc-donate-link";
-    this.donateLink.href = "https://www.buymeacoffee.com/MIUProject";
-    this.donateLink.target = "_blank";
-    this.donateLink.rel = "noopener noreferrer";
-    this.donateLink.title = "Support MIUProject";
-    this.donateLink.innerHTML = `<img src="${VNCCS_DONATE_BANNER_URL}" alt="Support MIUProject">`;
-    this.donateLink.addEventListener("pointerdown", (e) => e.stopPropagation());
-    this.donateLink.addEventListener("click", (e) => e.stopPropagation());
-
-    this.left.append(this.drawControl, promptSection, this.donateLink);
+    promptSection.classList.add("jakkanna-uc-parameters-section");
+    this.left.append(this.drawControl, promptSection);
     this.side.append(this.denoiseControl, layersSection);
 
     this.bottom = document.createElement("div");
-    this.bottom.className = "vnccs-uc-bottom";
+    this.bottom.className = "jakkanna-uc-bottom";
     this.tools = document.createElement("div");
-    this.tools.className = "vnccs-uc-tools";
+    this.tools.className = "jakkanna-uc-tools";
     [
       ["move", "Move layer"],
       ["brush", "Brush"],
@@ -989,22 +975,22 @@ class UniCanvasWidget {
     ].forEach(([tool, title]) => this.tools.appendChild(this._toolButton(tool, title)));
     this.stageWrap.appendChild(this.tools);
     this.toolSettings = document.createElement("div");
-    this.toolSettings.className = "vnccs-uc-tool-settings";
+    this.toolSettings.className = "jakkanna-uc-tool-settings";
     this.stageWrap.appendChild(this.toolSettings);
 
     this.settingsBar = document.createElement("div");
-    this.settingsBar.className = "vnccs-uc-settings";
-    this.undoBtn = this._button(UI_ICONS.undo, "vnccs-uc-icon", () => this.undo(), "Undo");
-    this.redoBtn = this._button(UI_ICONS.redo, "vnccs-uc-icon", () => this.redo(), "Redo");
-    this.fitBtn = this._button("Fit", "vnccs-uc-btn", () => this.fitView(), "Fit");
-    this.snapBtn = this._button(UI_ICONS.snap, "vnccs-uc-icon", () => this.toggleSnapToGrid(), "Snap to grid");
+    this.settingsBar.className = "jakkanna-uc-settings";
+    this.undoBtn = this._button(UI_ICONS.undo, "jakkanna-uc-icon", () => this.undo(), "Undo");
+    this.redoBtn = this._button(UI_ICONS.redo, "jakkanna-uc-icon", () => this.redo(), "Redo");
+    this.fitBtn = this._button("Fit", "jakkanna-uc-btn", () => this.fitView(), "Fit");
+    this.snapBtn = this._button(UI_ICONS.snap, "jakkanna-uc-icon", () => this.toggleSnapToGrid(), "Snap to grid");
     const settingsSpacer = document.createElement("div");
-    settingsSpacer.className = "vnccs-uc-settings-spacer";
+    settingsSpacer.className = "jakkanna-uc-settings-spacer";
     this.settingsBar.append(this.undoBtn, this.redoBtn, this.fitBtn, settingsSpacer, this.snapBtn);
     this.updateHistoryButtons();
     this.updateSnapButton();
     this.fileInput = document.createElement("input");
-    this.fileInput.className = "vnccs-uc-file";
+    this.fileInput.className = "jakkanna-uc-file";
     this.fileInput.type = "file";
     this.fileInput.accept = "image/*";
 
@@ -1015,15 +1001,15 @@ class UniCanvasWidget {
 
   _section(title, body, actions = []) {
     const section = document.createElement("div");
-    section.className = "vnccs-uc-section";
+    section.className = "jakkanna-uc-section";
     const head = document.createElement("div");
-    head.className = "vnccs-uc-section-head";
+    head.className = "jakkanna-uc-section-head";
     const text = document.createElement("span");
-    text.className = "vnccs-uc-section-title";
+    text.className = "jakkanna-uc-section-title";
     text.textContent = title;
     const actionBox = document.createElement("div");
-    actionBox.className = "vnccs-uc-section-actions";
-    for (const [label, hint, fn] of actions) actionBox.append(this._button(label, "vnccs-uc-icon", fn, hint));
+    actionBox.className = "jakkanna-uc-section-actions";
+    for (const [label, hint, fn] of actions) actionBox.append(this._button(label, "jakkanna-uc-icon", fn, hint));
     head.append(text, actionBox);
     section.append(head, body);
     return section;
@@ -1083,23 +1069,23 @@ class UniCanvasWidget {
   promptInWidget(title, label, value = "") {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
-      overlay.className = "vnccs-uc-modal-overlay";
+      overlay.className = "jakkanna-uc-modal-overlay";
       const modal = document.createElement("div");
-      modal.className = "vnccs-uc-modal";
+      modal.className = "jakkanna-uc-modal";
       const titleEl = document.createElement("div");
-      titleEl.className = "vnccs-uc-modal-title";
+      titleEl.className = "jakkanna-uc-modal-title";
       titleEl.textContent = title;
       const field = document.createElement("label");
-      field.className = "vnccs-uc-field";
+      field.className = "jakkanna-uc-field";
       field.textContent = label;
       const input = document.createElement("input");
-      input.className = "vnccs-uc-input";
+      input.className = "jakkanna-uc-input";
       input.type = "text";
       input.value = value;
       const actions = document.createElement("div");
-      actions.className = "vnccs-uc-modal-actions";
-      const cancel = this._button("Cancel", "vnccs-uc-btn", () => close(null), "Cancel");
-      const ok = this._button("OK", "vnccs-uc-btn primary", () => close(input.value), "OK");
+      actions.className = "jakkanna-uc-modal-actions";
+      const cancel = this._button("Cancel", "jakkanna-uc-btn", () => close(null), "Cancel");
+      const ok = this._button("OK", "jakkanna-uc-btn primary", () => close(input.value), "OK");
       const close = (result) => {
         overlay.remove();
         resolve(result);
@@ -1126,19 +1112,19 @@ class UniCanvasWidget {
   confirmInWidget(title, message, confirmLabel = "OK") {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
-      overlay.className = "vnccs-uc-modal-overlay";
+      overlay.className = "jakkanna-uc-modal-overlay";
       const modal = document.createElement("div");
-      modal.className = "vnccs-uc-modal";
+      modal.className = "jakkanna-uc-modal";
       const titleEl = document.createElement("div");
-      titleEl.className = "vnccs-uc-modal-title";
+      titleEl.className = "jakkanna-uc-modal-title";
       titleEl.textContent = title;
       const messageEl = document.createElement("div");
-      messageEl.className = "vnccs-uc-modal-message";
+      messageEl.className = "jakkanna-uc-modal-message";
       messageEl.textContent = message;
       const actions = document.createElement("div");
-      actions.className = "vnccs-uc-modal-actions";
-      const cancel = this._button("Cancel", "vnccs-uc-btn", () => close(false), "Cancel");
-      const ok = this._button(confirmLabel, "vnccs-uc-btn danger", () => close(true), confirmLabel);
+      actions.className = "jakkanna-uc-modal-actions";
+      const cancel = this._button("Cancel", "jakkanna-uc-btn", () => close(false), "Cancel");
+      const ok = this._button(confirmLabel, "jakkanna-uc-btn danger", () => close(true), confirmLabel);
       const close = (result) => {
         overlay.remove();
         resolve(result);
@@ -1161,7 +1147,7 @@ class UniCanvasWidget {
   }
 
   _toolButton(tool, title) {
-    const btn = this._button("", "vnccs-uc-icon vnccs-uc-tool", () => this.setTool(tool), title);
+    const btn = this._button("", "jakkanna-uc-icon jakkanna-uc-tool", () => this.setTool(tool), title);
     btn.innerHTML = TOOL_ICONS[tool] || "";
     btn.setAttribute("aria-label", title);
     btn.dataset.tool = tool;
@@ -1313,7 +1299,7 @@ class UniCanvasWidget {
     if (this.tool === tool && !force) return;
     const previousTool = this.tool;
     this.tool = tool;
-    this.container.querySelectorAll(".vnccs-uc-tool").forEach((btn) => btn.classList.toggle("active", btn.dataset.tool === tool));
+    this.container.querySelectorAll(".jakkanna-uc-tool").forEach((btn) => btn.classList.toggle("active", btn.dataset.tool === tool));
     this.syncCursorStyle();
     this.renderToolSettings();
     this.renderSamPanel();
@@ -1346,21 +1332,21 @@ class UniCanvasWidget {
     }
     const titleMap = { brush: "Brush", eraser: "Eraser", mask: "Mask Brush", rect: "Rectangle", lasso: "Lasso", resize: "Resize" };
     const title = titleMap[this.tool] || this.tool;
-    const html = [`<div class="vnccs-uc-tool-settings-title">${this._escape(title)} Settings</div>`];
+    const html = [`<div class="jakkanna-uc-tool-settings-title">${this._escape(title)} Settings</div>`];
     if (controls.includes("brushSize")) {
-      html.push(`<label class="vnccs-uc-tool-setting"><span class="vnccs-uc-tool-setting-label">Size</span><input class="vnccs-uc-range" type="range" min="1" max="220" value="${this.brushSize}" data-control="brushSize"></label>`);
+      html.push(`<label class="jakkanna-uc-tool-setting"><span class="jakkanna-uc-tool-setting-label">Size</span><input class="jakkanna-uc-range" type="range" min="1" max="220" value="${this.brushSize}" data-control="brushSize"></label>`);
     }
     if (controls.includes("fg")) {
-      html.push(`<label class="vnccs-uc-tool-setting"><span class="vnccs-uc-tool-setting-label">Color</span><input class="vnccs-uc-input" type="color" value="${this.fg}" data-control="fg"></label>`);
+      html.push(`<label class="jakkanna-uc-tool-setting"><span class="jakkanna-uc-tool-setting-label">Color</span><input class="jakkanna-uc-input" type="color" value="${this.fg}" data-control="fg"></label>`);
     }
     if (controls.includes("opacity")) {
-      html.push(`<label class="vnccs-uc-tool-setting"><span class="vnccs-uc-tool-setting-label">Opacity</span><input class="vnccs-uc-range" type="range" min="0" max="1" step="0.01" value="${this.opacity}" data-control="opacity"></label>`);
+      html.push(`<label class="jakkanna-uc-tool-setting"><span class="jakkanna-uc-tool-setting-label">Opacity</span><input class="jakkanna-uc-range" type="range" min="0" max="1" step="0.01" value="${this.opacity}" data-control="opacity"></label>`);
     }
     if (controls.includes("keepAspect")) {
-      html.push(`<label class="vnccs-uc-tool-setting"><span class="vnccs-uc-tool-setting-label">Keep ratio</span><input type="checkbox" ${this.resizeKeepAspect ? "checked" : ""} data-control="keepAspect"></label>`);
+      html.push(`<label class="jakkanna-uc-tool-setting"><span class="jakkanna-uc-tool-setting-label">Keep ratio</span><input type="checkbox" ${this.resizeKeepAspect ? "checked" : ""} data-control="keepAspect"></label>`);
     }
     if (controls.includes("resizeMode")) {
-      html.push(`<label class="vnccs-uc-tool-setting"><span class="vnccs-uc-tool-setting-label">Mode</span><select class="vnccs-uc-select" data-control="resizeMode"><option value="scale" ${this.resizeTransformMode === "scale" ? "selected" : ""}>Scale</option><option value="perspective" ${this.resizeTransformMode === "perspective" ? "selected" : ""}>Perspective</option></select></label>`);
+      html.push(`<label class="jakkanna-uc-tool-setting"><span class="jakkanna-uc-tool-setting-label">Mode</span><select class="jakkanna-uc-select" data-control="resizeMode"><option value="scale" ${this.resizeTransformMode === "scale" ? "selected" : ""}>Scale</option><option value="perspective" ${this.resizeTransformMode === "perspective" ? "selected" : ""}>Perspective</option></select></label>`);
     }
     this.toolSettings.innerHTML = html.join("");
     this.toolSettings.classList.add("visible");
@@ -1370,7 +1356,7 @@ class UniCanvasWidget {
     if (!this.samPanel) return;
     const fgCount = this.sam.points.filter((point) => point.label > 0).length;
     const bgCount = this.sam.points.length - fgCount;
-    this.samPointsLabel.innerHTML = `<span class="vnccs-uc-sam-dot"></span>${fgCount} <span class="vnccs-uc-sam-dot bg"></span>${bgCount}`;
+    this.samPointsLabel.innerHTML = `<span class="jakkanna-uc-sam-dot"></span>${fgCount} <span class="jakkanna-uc-sam-dot bg"></span>${bgCount}`;
     this.samModelSelect.value = this.sam.model;
     this.samAddBtn.classList.toggle("active", this.sam.mode === "add");
     this.samSubtractBtn.classList.toggle("active", this.sam.mode === "subtract");
@@ -1467,7 +1453,7 @@ class UniCanvasWidget {
       });
     }, 0));
     this.container.addEventListener("pointerdown", (e) => {
-      const select = e.target?.closest?.("select.vnccs-uc-select");
+      const select = e.target?.closest?.("select.jakkanna-uc-select");
       if (!(select instanceof HTMLSelectElement) || select.disabled) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1733,13 +1719,13 @@ class UniCanvasWidget {
       const label = name || "None";
       return `<option value="${this._escape(name)}">${this._escape(label)}</option>`;
     }).join("");
-    container.innerHTML = `<div class="vnccs-uc-lora-stack-title">LoRA Stack</div>`;
+    container.innerHTML = `<div class="jakkanna-uc-lora-stack-title">LoRA Stack</div>`;
     stack.forEach((item, index) => {
       const row = document.createElement("div");
-      row.className = `vnccs-uc-lora-item ${item.name ? "" : "empty"}`;
+      row.className = `jakkanna-uc-lora-item ${item.name ? "" : "empty"}`;
       row.innerHTML = `
-        <select class="vnccs-uc-select" data-lora-stack-index="${index}" data-lora-stack-field="name">${optionHTML}</select>
-        <input class="vnccs-uc-input" data-lora-stack-index="${index}" data-lora-stack-field="strength" type="number" lang="en-US" inputmode="decimal" step="0.05">`;
+        <select class="jakkanna-uc-select" data-lora-stack-index="${index}" data-lora-stack-field="name">${optionHTML}</select>
+        <input class="jakkanna-uc-input" data-lora-stack-index="${index}" data-lora-stack-field="strength" type="number" lang="en-US" inputmode="decimal" step="0.05">`;
       const select = row.querySelector("select");
       const strength = row.querySelector("input");
       if (select) select.value = item.name || "";
@@ -1805,7 +1791,7 @@ class UniCanvasWidget {
     const card = document.createElement("div");
     card.role = "button";
     card.tabIndex = 0;
-    card.className = `vnccs-uc-model-card ${turbo ? "turbo" : ""} ${head ? "head" : ""} ${selected ? "selected" : ""} ${status.progress ? "progress" : status.installed ? "installed" : "missing"}`;
+    card.className = `jakkanna-uc-model-card ${turbo ? "turbo" : ""} ${head ? "head" : ""} ${selected ? "selected" : ""} ${status.progress ? "progress" : status.installed ? "installed" : "missing"}`;
     if (turbo) {
       card.dataset.turboToggle = preset.id;
     } else if (head) {
@@ -1820,16 +1806,16 @@ class UniCanvasWidget {
     const downloadAttrs = turbo ? `data-turbo-download="${this._escape(preset.id)}"` : `data-preset-download="${this._escape(preset.id)}"`;
     const downloadButton = turbo || status.installed || status.progress
       ? ""
-      : `<div class="vnccs-uc-model-card-actions"><button type="button" class="vnccs-uc-model-card-download" ${downloadAttrs}>Download</button></div>`;
-    const toggle = turbo ? `<span class="vnccs-uc-toggle ${selected ? "active" : ""}" aria-hidden="true"></span>` : "";
-    const statusNode = `<span class="vnccs-uc-model-card-status ${statusClass}">${this._escape(statusText)}</span>`;
+      : `<div class="jakkanna-uc-model-card-actions"><button type="button" class="jakkanna-uc-model-card-download" ${downloadAttrs}>Download</button></div>`;
+    const toggle = turbo ? `<span class="jakkanna-uc-toggle ${selected ? "active" : ""}" aria-hidden="true"></span>` : "";
+    const statusNode = `<span class="jakkanna-uc-model-card-status ${statusClass}">${this._escape(statusText)}</span>`;
     card.innerHTML = `
-      <span class="vnccs-uc-model-card-top">
-        <span class="vnccs-uc-model-card-badge ${statusClass}"></span>
-        <span class="vnccs-uc-model-card-name">${this._escape(title || preset.label || preset.id)}</span>
+      <span class="jakkanna-uc-model-card-top">
+        <span class="jakkanna-uc-model-card-badge ${statusClass}"></span>
+        <span class="jakkanna-uc-model-card-name">${this._escape(title || preset.label || preset.id)}</span>
         ${turbo ? `${statusNode}${toggle}` : statusNode}
       </span>
-      ${turbo ? "" : `<span class="vnccs-uc-model-card-desc">${this._escape(desc || "")}</span>`}
+      ${turbo ? "" : `<span class="jakkanna-uc-model-card-desc">${this._escape(desc || "")}</span>`}
       ${downloadButton}`;
     return card;
   }
@@ -1872,19 +1858,19 @@ class UniCanvasWidget {
     if (presetPanel) {
       presetPanel.innerHTML = "";
       const picker = document.createElement("div");
-      picker.className = `vnccs-uc-model-picker ${this.presetPickerOpen ? "open" : ""}`;
+      picker.className = `jakkanna-uc-model-picker ${this.presetPickerOpen ? "open" : ""}`;
       const activePreset = this.getActivePreset() || (this.presets || [])[0];
       if (activePreset && this.settings.model_selection_mode === "presets") this.settings.selected_preset_id = activePreset.id;
       if (activePreset) {
         picker.appendChild(this.buildPresetCard(activePreset, false, true));
       }
       const menu = document.createElement("div");
-      menu.className = "vnccs-uc-model-picker-menu";
+      menu.className = "jakkanna-uc-model-picker-menu";
       for (const [groupLabel, groupPresets] of this.groupPresetsByType()) {
         const group = document.createElement("div");
-        group.className = "vnccs-uc-model-picker-group";
+        group.className = "jakkanna-uc-model-picker-group";
         const title = document.createElement("div");
-        title.className = "vnccs-uc-model-picker-group-title";
+        title.className = "jakkanna-uc-model-picker-group-title";
         title.textContent = groupLabel;
         group.appendChild(title);
         for (const preset of groupPresets) {
@@ -1901,7 +1887,7 @@ class UniCanvasWidget {
       const preset = this.getActivePreset();
       if (preset?.turbo?.asset) {
         const title = document.createElement("div");
-        title.className = "vnccs-uc-turbo-title";
+        title.className = "jakkanna-uc-turbo-title";
         title.textContent = "Turbo LoRA";
         turboPanel.append(title, this.buildPresetCard(preset, true));
         turboPanel.style.display = "";
@@ -2298,7 +2284,7 @@ class UniCanvasWidget {
         heightPctOfStage: pct(rect.height, stageRect.height),
       };
     };
-    const toolButtons = Array.from(this.tools?.querySelectorAll(".vnccs-uc-tool") || []);
+    const toolButtons = Array.from(this.tools?.querySelectorAll(".jakkanna-uc-tool") || []);
     const payload = {
       reason,
       nodeSize: { width: round(nodeWidth), height: round(nodeHeight) },
@@ -2313,7 +2299,7 @@ class UniCanvasWidget {
         x: nodeWidth ? round(containerRect.width / nodeWidth) : 0,
         y: nodeHeight ? round(containerRect.height / nodeHeight) : 0,
       },
-      cssUiScale: this.container.style.getPropertyValue("--vnccs-uc-ui-scale") || "unset",
+      cssUiScale: this.container.style.getPropertyValue("--jakkanna-uc-ui-scale") || "unset",
       parts: {
         left: localRect(this.left),
         stage: localRect(this.stageWrap),
@@ -2345,7 +2331,7 @@ class UniCanvasWidget {
     const rect = select.getBoundingClientRect();
     const selectFontSize = Number.parseFloat(getComputedStyle(select).fontSize) || 14;
     const menu = document.createElement("div");
-    menu.className = "vnccs-uc-select-menu";
+    menu.className = "jakkanna-uc-select-menu";
     const viewportGap = 8;
     const longestOptionChars = options.reduce((max, option) => Math.max(max, (option.textContent || option.value || "").length), 0);
     const desiredWidth = Math.max(rect.width, Math.min(520, 64 + longestOptionChars * Math.max(7, selectFontSize * 0.62)));
@@ -2366,11 +2352,11 @@ class UniCanvasWidget {
     for (const option of options) {
       const row = document.createElement("button");
       row.type = "button";
-      row.className = "vnccs-uc-select-menu-option";
+      row.className = "jakkanna-uc-select-menu-option";
       if (option.value === select.value) row.classList.add("active");
       row.dataset.value = option.value;
-      row.innerHTML = `<span class="vnccs-uc-select-menu-check">${option.value === select.value ? "✓" : ""}</span><span class="vnccs-uc-select-menu-label"></span>`;
-      row.querySelector(".vnccs-uc-select-menu-label").textContent = option.textContent || option.value;
+      row.innerHTML = `<span class="jakkanna-uc-select-menu-check">${option.value === select.value ? "✓" : ""}</span><span class="jakkanna-uc-select-menu-label"></span>`;
+      row.querySelector(".jakkanna-uc-select-menu-label").textContent = option.textContent || option.value;
       row.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -2386,7 +2372,7 @@ class UniCanvasWidget {
     document.body.appendChild(menu);
     this.customSelectMenu = menu;
     this.customSelectSource = select;
-    const active = menu.querySelector(".vnccs-uc-select-menu-option.active");
+    const active = menu.querySelector(".jakkanna-uc-select-menu-option.active");
     if (active) active.scrollIntoView({ block: "nearest" });
   }
 
@@ -2490,7 +2476,7 @@ class UniCanvasWidget {
   updateHud() {
     if (!this.hud) return;
     const inferenceSize = this.getInferenceSize();
-    const hudHTML = `<span class="vnccs-uc-chip">${this.tool}</span><span class="vnccs-uc-chip">${Math.round(this.view.scale * 100)}%</span><span class="vnccs-uc-chip">${this.bbox.width}×${this.bbox.height}</span><span class="vnccs-uc-chip">infer ${inferenceSize.width}×${inferenceSize.height}</span>`;
+    const hudHTML = `<span class="jakkanna-uc-chip">${this.tool}</span><span class="jakkanna-uc-chip">${Math.round(this.view.scale * 100)}%</span><span class="jakkanna-uc-chip">${this.bbox.width}×${this.bbox.height}</span><span class="jakkanna-uc-chip">infer ${inferenceSize.width}×${inferenceSize.height}</span>`;
     if (hudHTML !== this.lastHudHTML) {
       this.lastHudHTML = hudHTML;
       this.hud.innerHTML = hudHTML;
@@ -2522,8 +2508,8 @@ class UniCanvasWidget {
     const height = this.container.clientHeight || this.node?.size?.[1] || 720;
     const scale = Math.max(0.35, Math.min(2.5, Math.min(width / UNICANVAS_LAYOUT_BASE_WIDTH, height / UNICANVAS_LAYOUT_BASE_HEIGHT)));
     const next = scale.toFixed(3);
-    if (this.container.style.getPropertyValue("--vnccs-uc-ui-scale") !== next) {
-      this.container.style.setProperty("--vnccs-uc-ui-scale", next);
+    if (this.container.style.getPropertyValue("--jakkanna-uc-ui-scale") !== next) {
+      this.container.style.setProperty("--jakkanna-uc-ui-scale", next);
     }
   }
 
@@ -3387,13 +3373,13 @@ class UniCanvasWidget {
   }
 
   recordInputHistory(target) {
-    if (!target || target._vnccsHistoryRecorded) return;
+    if (!target || target._jakkannaHistoryRecorded) return;
     this.recordHistoryBefore();
-    target._vnccsHistoryRecorded = true;
+    target._jakkannaHistoryRecorded = true;
   }
 
   clearInputHistoryMarker(target) {
-    if (target) target._vnccsHistoryRecorded = false;
+    if (target) target._jakkannaHistoryRecorded = false;
   }
 
   getLayerWorldBounds(layer = this.activeLayer) {
@@ -4084,7 +4070,7 @@ class UniCanvasWidget {
         nextCanvases.push({ layer, canvas: next });
       }
     } catch (err) {
-      console.warn("[Jakkanna UniCanvas] Browser refused canvas backing expansion", { width: newW, height: newH, err });
+      console.warn("[Jakkanna Canvas] Browser refused canvas backing expansion", { width: newW, height: newH, err });
       this.setStatus(`Browser refused canvas expansion (${newW}×${newH})`, true);
       return false;
     }
@@ -4222,7 +4208,7 @@ class UniCanvasWidget {
     this.drawBbox(ctx);
     ctx.restore();
     const inferenceSize = this.getInferenceSize();
-    const hudHTML = `<span class="vnccs-uc-chip">${this.tool}</span><span class="vnccs-uc-chip">${Math.round(this.view.scale * 100)}%</span><span class="vnccs-uc-chip">${this.bbox.width}×${this.bbox.height}</span><span class="vnccs-uc-chip">infer ${inferenceSize.width}×${inferenceSize.height}</span>`;
+    const hudHTML = `<span class="jakkanna-uc-chip">${this.tool}</span><span class="jakkanna-uc-chip">${Math.round(this.view.scale * 100)}%</span><span class="jakkanna-uc-chip">${this.bbox.width}×${this.bbox.height}</span><span class="jakkanna-uc-chip">infer ${inferenceSize.width}×${inferenceSize.height}</span>`;
     if (hudHTML !== this.lastHudHTML) {
       this.lastHudHTML = hudHTML;
       this.hud.innerHTML = hudHTML;
@@ -4848,9 +4834,9 @@ class UniCanvasWidget {
     if (!this.maskLayerList || !this.rasterLayerList) {
       this.layerList.innerHTML = "";
       this.maskLayerList = document.createElement("div");
-      this.maskLayerList.className = "vnccs-uc-layer-group";
+      this.maskLayerList.className = "jakkanna-uc-layer-group";
       this.rasterLayerList = document.createElement("div");
-      this.rasterLayerList.className = "vnccs-uc-layer-group";
+      this.rasterLayerList.className = "jakkanna-uc-layer-group";
       this.layerList.append(this.maskLayerList, this.rasterLayerList);
     }
     this.maskLayerList.innerHTML = "";
@@ -4870,14 +4856,14 @@ class UniCanvasWidget {
 
   createLayerGroupHead(label, count, type) {
     const head = document.createElement("div");
-    head.className = `vnccs-uc-layer-group-head ${type === "mask" ? "mask" : ""}`;
+    head.className = `jakkanna-uc-layer-group-head ${type === "mask" ? "mask" : ""}`;
     head.innerHTML = `<span>${this._escape(label)}</span><span>${count}</span>`;
     return head;
   }
 
   createLayerGroupEmpty(label) {
     const empty = document.createElement("div");
-    empty.className = "vnccs-uc-layer-group-empty";
+    empty.className = "jakkanna-uc-layer-group-empty";
     empty.textContent = label;
     return empty;
   }
@@ -4893,7 +4879,7 @@ class UniCanvasWidget {
       const sourceId = this.dragLayerId || e.dataTransfer.getData("text/plain");
       const source = this.layers.find((layer) => layer.id === sourceId);
       if (!source || source.type !== type) return;
-      if (e.target !== group && e.target.closest?.(".vnccs-uc-layer")) return;
+      if (e.target !== group && e.target.closest?.(".jakkanna-uc-layer")) return;
       e.preventDefault();
       const sameTypeLayers = this.layers.filter((layer) => layer.type === type);
       this.reorderLayer(sourceId, sameTypeLayers[sameTypeLayers.length - 1]?.id, "after");
@@ -4902,21 +4888,21 @@ class UniCanvasWidget {
 
   createLayerRow(layer) {
     const row = document.createElement("div");
-    row.className = `vnccs-uc-layer ${layer.id === this.activeLayerId ? "active" : ""} ${layer.locked ? "locked" : ""}`;
+    row.className = `jakkanna-uc-layer ${layer.id === this.activeLayerId ? "active" : ""} ${layer.locked ? "locked" : ""}`;
     row.draggable = true;
     row.dataset.layerId = layer.id;
     row.dataset.layerType = layer.type;
     const thumb = document.createElement("canvas");
-    thumb.className = "vnccs-uc-thumb";
+    thumb.className = "jakkanna-uc-thumb";
     thumb.title = layer.visible ? "Hide layer" : "Show layer";
     thumb.width = 68;
     thumb.height = 68;
     this.drawLayerThumbnailPlaceholder(thumb, layer);
     this.queueLayerThumbnailRender(thumb, layer);
     const label = document.createElement("div");
-    label.innerHTML = `<div class="vnccs-uc-layer-name">${this._escape(layer.name)}</div><div class="vnccs-uc-layer-type">${layer.type}${layer.visible ? "" : " hidden"}</div>`;
-    const lock = this._button(layer.locked ? UI_ICONS.lock : UI_ICONS.unlock, "vnccs-uc-icon", null, layer.locked ? "Unlock layer" : "Lock layer");
-    const del = this._button(UI_ICONS.trash, "vnccs-uc-icon danger", null, "Delete layer");
+    label.innerHTML = `<div class="jakkanna-uc-layer-name">${this._escape(layer.name)}</div><div class="jakkanna-uc-layer-type">${layer.type}${layer.visible ? "" : " hidden"}</div>`;
+    const lock = this._button(layer.locked ? UI_ICONS.lock : UI_ICONS.unlock, "jakkanna-uc-icon", null, layer.locked ? "Unlock layer" : "Lock layer");
+    const del = this._button(UI_ICONS.trash, "jakkanna-uc-icon danger", null, "Delete layer");
     row.append(thumb, label, lock, del);
     row.addEventListener("click", () => this.setActiveLayer(layer.id));
     row.addEventListener("dragstart", (e) => {
@@ -4990,17 +4976,17 @@ class UniCanvasWidget {
     if (!row || !layer) return;
     row.classList.toggle("active", layer.id === this.activeLayerId);
     row.classList.toggle("locked", !!layer.locked);
-    const thumb = row.querySelector(".vnccs-uc-thumb");
+    const thumb = row.querySelector(".jakkanna-uc-thumb");
     if (thumb instanceof HTMLCanvasElement) {
       thumb.title = layer.visible ? "Hide layer" : "Show layer";
       this.drawLayerThumbnailPlaceholder(thumb, layer);
       this.queueLayerThumbnailRender(thumb, layer);
     }
-    const name = row.querySelector(".vnccs-uc-layer-name");
+    const name = row.querySelector(".jakkanna-uc-layer-name");
     if (name) name.textContent = layer.name;
-    const type = row.querySelector(".vnccs-uc-layer-type");
+    const type = row.querySelector(".jakkanna-uc-layer-type");
     if (type) type.textContent = `${layer.type}${layer.visible ? "" : " hidden"}`;
-    const buttons = row.querySelectorAll(".vnccs-uc-icon");
+    const buttons = row.querySelectorAll(".jakkanna-uc-icon");
     const lock = buttons[0];
     if (lock) {
       lock.innerHTML = layer.locked ? UI_ICONS.lock : UI_ICONS.unlock;
@@ -5068,7 +5054,7 @@ class UniCanvasWidget {
   }
 
   updateLayerListActiveState() {
-    this.layerList.querySelectorAll(".vnccs-uc-layer").forEach((row) => {
+    this.layerList.querySelectorAll(".jakkanna-uc-layer").forEach((row) => {
       row.classList.toggle("active", row.dataset.layerId === this.activeLayerId);
       const layer = this.layers.find((item) => item.id === row.dataset.layerId);
       row.classList.toggle("locked", !!layer?.locked);
@@ -5191,7 +5177,7 @@ class UniCanvasWidget {
     if (!this.layerSubhead || !layer) return;
     const blend = this.layerSubhead.querySelector('[data-layer-control="blendMode"]');
     const opacity = this.layerSubhead.querySelector('[data-layer-control="opacity"]');
-    const opacityValue = this.layerSubhead.querySelector(".vnccs-uc-layer-opacity-value");
+    const opacityValue = this.layerSubhead.querySelector(".jakkanna-uc-layer-opacity-value");
     if (blend) blend.value = layer.blendMode || "source-over";
     if (opacity) opacity.value = layer.opacity;
     if (opacityValue) opacityValue.textContent = `${Math.round(layer.opacity * 100)}%`;
@@ -5738,7 +5724,7 @@ class UniCanvasWidget {
       maskInBbox: maskStats,
       exportedMask: this.getCanvasAlphaStats(maskCanvas),
     };
-    console.debug("[Jakkanna UniCanvas] GENERATE request", debug);
+    console.debug("[Jakkanna Canvas] GENERATE request", debug);
     const batchSize = Math.max(1, Math.min(99, Math.round(Number(this.settings.batch_size) || 1)));
     this.settings.batch_size = batchSize;
     this.setStatus(`Generating ${mode} ${inferenceSize.width}×${inferenceSize.height}${batchSize > 1 ? ` ×${batchSize}` : ""}...`);
@@ -5764,7 +5750,7 @@ class UniCanvasWidget {
         }),
       });
       const data = await res.json();
-      console.debug("[Jakkanna UniCanvas] GENERATE response", { debugId, data });
+      console.debug("[Jakkanna Canvas] GENERATE response", { debugId, data });
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       const resultImages = Array.isArray(data.images) && data.images.length ? data.images : [data.image].filter(Boolean);
       if (!resultImages.length) throw new Error("Generation returned no images");
@@ -5883,7 +5869,7 @@ class UniCanvasWidget {
       this.agPsd = await import("./vendor/ag-psd.bundle.mjs");
       return this.agPsd;
     } catch (localErr) {
-      console.warn("[Jakkanna UniCanvas] local ag-psd load failed, trying CDN", localErr);
+      console.warn("[Jakkanna Canvas] local ag-psd load failed, trying CDN", localErr);
     }
     try {
       this.agPsd = await import("https://esm.sh/ag-psd@28.2.2?bundle");
@@ -5987,9 +5973,9 @@ class UniCanvasWidget {
     const steps = Number(progress?.steps) || 0;
     const message = progress?.message || progress?.stage || "Working";
     const detail = steps > 0 ? `${message} (${step}/${steps})` : message;
-    this.generationProgress.querySelector(".vnccs-uc-progress-label").textContent = detail;
-    this.generationProgress.querySelector(".vnccs-uc-progress-percent").textContent = `${Math.round(value * 100)}%`;
-    this.generationProgress.querySelector(".vnccs-uc-progress-fill").style.width = `${value * 100}%`;
+    this.generationProgress.querySelector(".jakkanna-uc-progress-label").textContent = detail;
+    this.generationProgress.querySelector(".jakkanna-uc-progress-percent").textContent = `${Math.round(value * 100)}%`;
+    this.generationProgress.querySelector(".jakkanna-uc-progress-fill").style.width = `${value * 100}%`;
     this.generationProgress.classList.toggle("visible", Boolean(visible));
   }
 
@@ -6057,7 +6043,7 @@ class UniCanvasWidget {
   }
 
   autoResizePromptTextareas() {
-    this.container.querySelectorAll(".vnccs-uc-textarea").forEach((textarea) => this.resizeTextareaToContent(textarea));
+    this.container.querySelectorAll(".jakkanna-uc-textarea").forEach((textarea) => this.resizeTextareaToContent(textarea));
   }
 
   syncSeedModeControl() {
@@ -6199,7 +6185,7 @@ class UniCanvasWidget {
   }
 
   createStateCacheId() {
-    return `vnccs_unicanvas_${this.node?.id ?? "node"}_${uid()}`;
+    return `jakkanna_canvas_${this.node?.id ?? "node"}_${uid()}`;
   }
 
   isLegacyStateCacheId(id) {
@@ -6212,12 +6198,15 @@ class UniCanvasWidget {
   }
 
   getStateBackupKey() {
-    if (!this.stateBackupKey) this.stateBackupKey = `vnccs_unicanvas_backup_${this.getStateCacheId()}`;
+    if (!this.stateBackupKey) this.stateBackupKey = `jakkanna_canvas_backup_${this.getStateCacheId()}`;
     return this.stateBackupKey;
   }
 
-  getLegacyStateBackupKey() {
-    return `vnccs_unicanvas_backup_${this.node?.id ?? "node"}`;
+  getLegacyStateBackupKeys() {
+    return [
+      `vnccs_unicanvas_backup_${this.getStateCacheId()}`,
+      `vnccs_unicanvas_backup_${this.node?.id ?? "node"}`,
+    ];
   }
 
   stateHasLayerPixels(state) {
@@ -6232,7 +6221,7 @@ class UniCanvasWidget {
         this.localStateBackupDisabled = true;
         if (!this.localStateBackupWarned) {
           this.localStateBackupWarned = true;
-          console.info("[Jakkanna UniCanvas] Local backup skipped: state is too large for browser localStorage; server cache remains active.");
+          console.info("[Jakkanna Canvas] Local backup skipped: state is too large for browser localStorage; server cache remains active.");
         }
         return;
       }
@@ -6241,14 +6230,14 @@ class UniCanvasWidget {
       this.localStateBackupDisabled = true;
       if (!this.localStateBackupWarned) {
         this.localStateBackupWarned = true;
-        console.info("[Jakkanna UniCanvas] Local backup disabled: browser localStorage quota is not enough; server cache remains active.");
+        console.info("[Jakkanna Canvas] Local backup disabled: browser localStorage quota is not enough; server cache remains active.");
       }
     }
   }
 
   loadLocalStateBackup() {
     try {
-      for (const key of [this.getStateBackupKey(), this.getLegacyStateBackupKey()]) {
+      for (const key of [this.getStateBackupKey(), ...this.getLegacyStateBackupKeys()]) {
         const raw = window.localStorage?.getItem(key);
         if (!raw) continue;
         const payload = JSON.parse(raw);
@@ -6258,7 +6247,7 @@ class UniCanvasWidget {
       }
       return null;
     } catch (err) {
-      console.warn("[Jakkanna UniCanvas] Local state backup restore failed", err);
+      console.warn("[Jakkanna Canvas] Local state backup restore failed", err);
       return null;
     }
   }
@@ -6308,7 +6297,7 @@ class UniCanvasWidget {
       }
     } catch (err) {
       this.lastUploadedStateJSON = "";
-      console.warn("[Jakkanna UniCanvas] State cache upload failed", err);
+      console.warn("[Jakkanna Canvas] State cache upload failed", err);
       this.setStatus(`State cache failed: ${err.message || err}`, true);
     }
   }
@@ -6394,7 +6383,7 @@ class UniCanvasWidget {
           }
         } catch (err) {
           cacheRestoreFailed = true;
-          console.warn("[Jakkanna UniCanvas] State cache restore failed", err);
+          console.warn("[Jakkanna Canvas] State cache restore failed", err);
           this.setStatus("State cache missing; trying local backup", true);
         }
       }
@@ -6415,7 +6404,7 @@ class UniCanvasWidget {
       }
       await this.applySerializedState(state);
     } catch (err) {
-      console.warn("[Jakkanna UniCanvas] Failed to restore state", err);
+      console.warn("[Jakkanna Canvas] Failed to restore state", err);
     }
   }
 
@@ -6481,7 +6470,7 @@ class UniCanvasWidget {
       this.updateSnapButton();
       this.renderLayerList();
     } catch (err) {
-      console.warn("[Jakkanna UniCanvas] Failed to restore state", err);
+      console.warn("[Jakkanna Canvas] Failed to restore state", err);
     }
   }
 
@@ -6580,7 +6569,7 @@ class UniCanvasWidget {
 }
 
 app.registerExtension({
-  name: "VNCCS.UniCanvas",
+  name: "Jakkanna.UniCanvas",
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== "VNCCS_UniCanvas") return;
 
@@ -6588,7 +6577,7 @@ app.registerExtension({
       const widget = node?.widgets?.find((w) => w.name === "unicanvas_ui");
       const nodeWidth = Number(node?.size?.[0]);
       if (widget && Number.isFinite(nodeWidth) && nodeWidth > 0) {
-        if (!widget._vnccsWidthBound) {
+        if (!widget._jakkannaWidthBound) {
           Object.defineProperty(widget, "width", {
             configurable: true,
             get() {
@@ -6599,7 +6588,7 @@ app.registerExtension({
               // Keep this DOM widget tied to the node width, matching Pose Studio.
             },
           });
-          widget._vnccsWidthBound = true;
+          widget._jakkannaWidthBound = true;
         }
         if (typeof widget.triggerDraw === "function") widget.triggerDraw();
       }
@@ -6633,8 +6622,8 @@ app.registerExtension({
 
     nodeType.prototype.onResize = function () {
       syncUniCanvasDOMWidgetWidth(this);
-      clearTimeout(this._vnccsUniCanvasResizeTimer);
-      this._vnccsUniCanvasResizeTimer = setTimeout(() => {
+      clearTimeout(this._jakkannaUniCanvasResizeTimer);
+      this._jakkannaUniCanvasResizeTimer = setTimeout(() => {
         syncUniCanvasDOMWidgetWidth(this);
         this.uniCanvasWidget?.resize();
       }, 50);

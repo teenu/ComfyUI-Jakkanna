@@ -434,7 +434,7 @@ def _tensor_paste(image1, image2, crop_region, feather=0, mask=None, seam_fix=Fa
     return image1
 
 
-class VNCCS_QWEN_Detailer:
+class JakkannaQwenDetailer:
     upscale_methods = ["nearest-exact", "bilinear", "area", "bicubic", "lanczos"]
     crop_methods = ["disabled", "center"]
     target_sizes = [1024, 1344, 1536, 2048, 768, 512]
@@ -519,11 +519,11 @@ class VNCCS_QWEN_Detailer:
         # color_match_multithread = True 
 
         if len(image) > 1:
-            raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow image batches.')
+            raise Exception('[Jakkanna QWEN Detailer] Image batches are not supported.')
 
         if controlnet_image is not None:
             if len(controlnet_image) > 1:
-                raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow controlnet image batches.')
+                raise Exception('[Jakkanna QWEN Detailer] ControlNet image batches are not supported.')
 
             # Auto-resize controlnet_image to match main image dimensions if needed
             if controlnet_image.shape[1:3] != image.shape[1:3]:  # Check height and width
@@ -538,7 +538,7 @@ class VNCCS_QWEN_Detailer:
         
         if image2 is not None:
             if len(image2) > 1:
-                raise Exception('[Jakkanna] ERROR: VNCCS_QWEN_Detailer does not allow reference image (image2) batches.')
+                raise Exception('[Jakkanna QWEN Detailer] Reference image batches are not supported.')
 
         # Detect segments using bbox detector
         try:
@@ -914,7 +914,7 @@ class VNCCS_QWEN_Detailer:
         return common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=denoise)
 
 
-class VNCCS_BBox_Extractor:
+class JakkannaBBoxExtractor:
     """Extract regions detected by BBox detector from image"""
 
     @classmethod
@@ -938,7 +938,7 @@ class VNCCS_BBox_Extractor:
         """Extract regions detected by BBox detector"""
         
         if len(image) > 1:
-            raise Exception('[Jakkanna] ERROR: VNCCS_BBox_Extractor does not allow image batches.')
+            raise Exception('[Jakkanna BBox Extractor] Image batches are not supported.')
 
         # Fixed crop_factor for bbox detection
         crop_factor = 1.0
@@ -1034,8 +1034,8 @@ class VNCCS_BBox_Extractor:
 
 # Registration mapping so Comfy finds the node
 NODE_CLASS_MAPPINGS = {
-    "VNCCS_QWEN_Detailer": VNCCS_QWEN_Detailer,
-    "VNCCS_BBox_Extractor": VNCCS_BBox_Extractor,
+    "VNCCS_QWEN_Detailer": JakkannaQwenDetailer,
+    "VNCCS_BBox_Extractor": JakkannaBBoxExtractor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {

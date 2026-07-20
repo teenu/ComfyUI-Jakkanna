@@ -1,4 +1,4 @@
-"""CharacterData module - MakeHuman data and utilities for VNCCS Character Studio."""
+"""MakeHuman data and utilities used by Jakkanna Pose Studio."""
 
 from .mh_parser import TargetParser, HumanSolver
 from .obj_loader import Mesh, load_obj

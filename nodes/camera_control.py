@@ -1,6 +1,6 @@
 import json
 
-class VNCCS_PositionControl:
+class JakkannaPositionControl:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -67,7 +67,7 @@ class VNCCS_PositionControl:
         return (" ".join(parts),)
 
 
-class VNCCS_VisualPositionControl(VNCCS_PositionControl):
+class JakkannaVisualPositionControl(JakkannaPositionControl):
     @classmethod
     def INPUT_TYPES(cls):
         return {

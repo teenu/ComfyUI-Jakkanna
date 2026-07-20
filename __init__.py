@@ -1,21 +1,21 @@
-from .nodes.vnccs_nodes import VNCCS_PositionControl, VNCCS_VisualPositionControl
-from .nodes.vnccs_qwen_detailer import VNCCS_QWEN_Detailer, VNCCS_BBox_Extractor
-from .nodes.vnccs_model_manager import VNCCS_ModelManager, VNCCS_ModelSelector
-from .nodes.pose_studio import VNCCS_PoseStudio
-from .nodes.vnccs_openpose_export import VNCCS_PoseStudioOpenPose, VNCCSReplaceOpenPoseHands
-from .nodes.unicanvas import VNCCS_UniCanvas, register_unicanvas_routes
+from .nodes.camera_control import JakkannaPositionControl, JakkannaVisualPositionControl
+from .nodes.qwen_detailer import JakkannaQwenDetailer, JakkannaBBoxExtractor
+from .nodes.model_manager import JakkannaModelManager, JakkannaModelSelector
+from .nodes.pose_studio import JakkannaPoseStudio
+from .nodes.openpose_export import JakkannaPoseStudioOpenPose, JakkannaReplaceOpenPoseHands
+from .nodes.unicanvas import JakkannaCanvas, register_unicanvas_routes
 
 NODE_CLASS_MAPPINGS = {
-    "VNCCS_PositionControl": VNCCS_PositionControl,
-    "VNCCS_VisualPositionControl": VNCCS_VisualPositionControl,
-    "VNCCS_QWEN_Detailer": VNCCS_QWEN_Detailer,
-    "VNCCS_BBox_Extractor": VNCCS_BBox_Extractor,
-    "VNCCS_ModelManager": VNCCS_ModelManager,
-    "VNCCS_ModelSelector": VNCCS_ModelSelector,
-    "VNCCS_PoseStudio": VNCCS_PoseStudio,
-    "VNCCS_PoseStudioOpenPose": VNCCS_PoseStudioOpenPose,
-    "VNCCSReplaceOpenPoseHands": VNCCSReplaceOpenPoseHands,
-    "VNCCS_UniCanvas": VNCCS_UniCanvas,
+    "VNCCS_PositionControl": JakkannaPositionControl,
+    "VNCCS_VisualPositionControl": JakkannaVisualPositionControl,
+    "VNCCS_QWEN_Detailer": JakkannaQwenDetailer,
+    "VNCCS_BBox_Extractor": JakkannaBBoxExtractor,
+    "VNCCS_ModelManager": JakkannaModelManager,
+    "VNCCS_ModelSelector": JakkannaModelSelector,
+    "VNCCS_PoseStudio": JakkannaPoseStudio,
+    "VNCCS_PoseStudioOpenPose": JakkannaPoseStudioOpenPose,
+    "VNCCSReplaceOpenPoseHands": JakkannaReplaceOpenPoseHands,
+    "VNCCS_UniCanvas": JakkannaCanvas,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -55,15 +55,15 @@ _UNICANVAS_STATE_CACHE_MAX_TOTAL_CHARS = 96 * 1024 * 1024
 _UNICANVAS_STATE_CACHE_DIR = os.path.join(tempfile.gettempdir(), "vnccs_unicanvas_state_cache")
 _SAM3D_MAX_UPLOAD_BYTES = 32 * 1024 * 1024
 _SAM3D_MAX_PIXELS = 4096 * 4096
-_VNCCS_MORPH_DATA_BINARY = None
-_VNCCS_MORPH_DATA_LOCK = None
-_VNCCS_PREVIEW_LOCK = None
-_VNCCS_DATA_LOAD_LOCK = None
+_JAKKANNA_MORPH_DATA_BINARY = None
+_JAKKANNA_MORPH_DATA_LOCK = None
+_JAKKANNA_PREVIEW_LOCK = None
+_JAKKANNA_DATA_LOAD_LOCK = None
 
-async def _vnccs_async_checkpoint():
+async def _jakkanna_async_checkpoint():
     await asyncio.sleep(0)
 
-async def _vnccs_load_obj_async(file_path, checkpoint_lines=1500):
+async def _jakkanna_load_obj_async(file_path, checkpoint_lines=1500):
     from .CharacterData.obj_loader import Mesh
 
     vertices = []
@@ -103,7 +103,7 @@ async def _vnccs_load_obj_async(file_path, checkpoint_lines=1500):
                 face_groups.append(current_group)
 
             if line_count % checkpoint_lines == 0:
-                await _vnccs_async_checkpoint()
+                await _jakkanna_async_checkpoint()
 
     vertex_uvs = np.zeros((len(vertices), 2), dtype=np.float32)
     for vertex_index, uv in vertex_to_uv.items():
@@ -114,7 +114,7 @@ async def _vnccs_load_obj_async(file_path, checkpoint_lines=1500):
     mesh.vertex_uvs = vertex_uvs
     return mesh
 
-async def _vnccs_load_target_data_async(target_entry, checkpoint_lines=1200):
+async def _jakkanna_load_target_data_async(target_entry, checkpoint_lines=1200):
     if target_entry.get("data") is not None:
         return target_entry["data"]
 
@@ -139,7 +139,7 @@ async def _vnccs_load_target_data_async(target_entry, checkpoint_lines=1200):
                         pass
 
                 if line_count % checkpoint_lines == 0:
-                    await _vnccs_async_checkpoint()
+                    await _jakkanna_async_checkpoint()
     except Exception as exc:
         print(f"Error reading {target_entry['path']}: {exc}")
         return None
@@ -151,7 +151,7 @@ async def _vnccs_load_target_data_async(target_entry, checkpoint_lines=1200):
     target_entry["data"] = data
     return data
 
-async def _vnccs_scan_targets_async(parser):
+async def _jakkanna_scan_targets_async(parser):
     base_folders = ["macrodetails", "breast", "genitals"]
     all_targets = []
 
@@ -184,15 +184,15 @@ async def _vnccs_scan_targets_async(parser):
                     "data": None,
                     "filename": file_name.replace(".target", ""),
                 }
-                await _vnccs_load_target_data_async(target_entry)
+                await _jakkanna_load_target_data_async(target_entry)
                 all_targets.append(target_entry)
                 if len(all_targets) % 8 == 0:
-                    await _vnccs_async_checkpoint()
+                    await _jakkanna_async_checkpoint()
 
     parser.macro_targets = all_targets
     return all_targets
 
-def _vnccs_content_length_ok(request, max_bytes):
+def _jakkanna_content_length_ok(request, max_bytes):
     try:
         raw_length = request.headers.get("Content-Length")
         if raw_length is None:
@@ -202,11 +202,11 @@ def _vnccs_content_length_ok(request, max_bytes):
         return False
     return length <= int(max_bytes or 0)
 
-def _vnccs_safe_id(value, fallback="item"):
+def _jakkanna_safe_id(value, fallback="item"):
     cleaned = _SAFE_ID_RE.sub("_", str(value or "")).strip("_")
     return cleaned[:128] or fallback
 
-def _vnccs_validate_capture_payload(data):
+def _jakkanna_validate_capture_payload(data):
     if not isinstance(data, dict):
         raise ValueError("capture payload must be an object")
     captured_images = data.get("captured_images", [])
@@ -239,7 +239,7 @@ def _vnccs_validate_capture_payload(data):
         )
     return captured_images, lighting_prompts, capture_version
 
-def _vnccs_validate_unicanvas_state_payload(data):
+def _jakkanna_validate_unicanvas_state_payload(data):
     state = data.get("state")
     if not isinstance(state, dict):
         raise ValueError("state must be an object")
@@ -251,7 +251,7 @@ def _vnccs_validate_unicanvas_state_payload(data):
         raise ValueError("unicanvas state payload is too large")
     return state
 
-async def _vnccs_ensure_pose_data_loaded_async():
+async def _jakkanna_ensure_pose_data_loaded_async():
     from .CharacterData.mh_parser import TargetParser
     from .CharacterData.mh_skeleton import Skeleton
     from .nodes.pose_studio import POSE_STUDIO_CACHE, _get_character_data_path
@@ -259,11 +259,11 @@ async def _vnccs_ensure_pose_data_loaded_async():
     if POSE_STUDIO_CACHE.get("base_mesh") is not None:
         return
 
-    global _VNCCS_DATA_LOAD_LOCK
-    if _VNCCS_DATA_LOAD_LOCK is None:
-        _VNCCS_DATA_LOAD_LOCK = asyncio.Lock()
+    global _JAKKANNA_DATA_LOAD_LOCK
+    if _JAKKANNA_DATA_LOAD_LOCK is None:
+        _JAKKANNA_DATA_LOAD_LOCK = asyncio.Lock()
 
-    async with _VNCCS_DATA_LOAD_LOCK:
+    async with _JAKKANNA_DATA_LOAD_LOCK:
         if POSE_STUDIO_CACHE.get("base_mesh") is not None:
             return
 
@@ -282,13 +282,13 @@ async def _vnccs_ensure_pose_data_loaded_async():
         if not base_path:
             raise RuntimeError("Could not find base.obj inside makehuman data.")
 
-        base_mesh = await _vnccs_load_obj_async(base_path)
-        await _vnccs_async_checkpoint()
+        base_mesh = await _jakkanna_load_obj_async(base_path)
+        await _jakkanna_async_checkpoint()
 
         parser = TargetParser(mh_path)
-        targets = await _vnccs_scan_targets_async(parser)
+        targets = await _jakkanna_scan_targets_async(parser)
         print(f"[Jakkanna Pose Studio] Loaded {len(targets)} targets.")
-        await _vnccs_async_checkpoint()
+        await _jakkanna_async_checkpoint()
 
         skeleton = None
         skel_path = os.path.join(mh_path, "makehuman", "data", "rigs", "game_engine.mhskel")
@@ -309,7 +309,7 @@ async def _vnccs_ensure_pose_data_loaded_async():
             "skeleton": skeleton,
         })
 
-def _vnccs_build_update_preview_payload(data):
+def _jakkanna_build_update_preview_payload(data):
     age = float(data.get('age', 25.0))
     gender = float(data.get('gender', 0.5))
     weight = float(data.get('weight', 0.5))
@@ -533,7 +533,7 @@ def _vnccs_build_update_preview_payload(data):
         "landmark_indices": landmark_indices_for_frontend
     }
 
-def _vnccs_register_endpoint():
+def _jakkanna_register_endpoint():
     """Lazy registration to avoid import errors in analysis tools."""
     try:
         from server import PromptServer
@@ -542,34 +542,34 @@ def _vnccs_register_endpoint():
         return
 
     @PromptServer.instance.routes.post("/vnccs/character_studio/update_preview")
-    async def vnccs_character_studio_update_preview(request):
+    async def jakkanna_character_studio_update_preview(request):
         try:
-            global _VNCCS_PREVIEW_LOCK
-            if not _vnccs_content_length_ok(request, 1024 * 1024):
+            global _JAKKANNA_PREVIEW_LOCK
+            if not _jakkanna_content_length_ok(request, 1024 * 1024):
                 return web.json_response({"error": "Request body is too large"}, status=413)
             data = await request.json()
-            if _VNCCS_PREVIEW_LOCK is None:
-                _VNCCS_PREVIEW_LOCK = asyncio.Lock()
-            async with _VNCCS_PREVIEW_LOCK:
-                await _vnccs_ensure_pose_data_loaded_async()
-                return web.json_response(await asyncio.to_thread(_vnccs_build_update_preview_payload, data))
+            if _JAKKANNA_PREVIEW_LOCK is None:
+                _JAKKANNA_PREVIEW_LOCK = asyncio.Lock()
+            async with _JAKKANNA_PREVIEW_LOCK:
+                await _jakkanna_ensure_pose_data_loaded_async()
+                return web.json_response(await asyncio.to_thread(_jakkanna_build_update_preview_payload, data))
         except Exception as e:
             import traceback
             traceback.print_exc()
             return web.json_response({"error": str(e)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/character_studio/morph_data.bin")
-    async def vnccs_character_studio_morph_data(request):
+    async def jakkanna_character_studio_morph_data(request):
         try:
-            global _VNCCS_MORPH_DATA_BINARY, _VNCCS_MORPH_DATA_LOCK
-            if _VNCCS_MORPH_DATA_BINARY is None:
-                if _VNCCS_MORPH_DATA_LOCK is None:
-                    _VNCCS_MORPH_DATA_LOCK = asyncio.Lock()
-                async with _VNCCS_MORPH_DATA_LOCK:
-                    if _VNCCS_MORPH_DATA_BINARY is None:
+            global _JAKKANNA_MORPH_DATA_BINARY, _JAKKANNA_MORPH_DATA_LOCK
+            if _JAKKANNA_MORPH_DATA_BINARY is None:
+                if _JAKKANNA_MORPH_DATA_LOCK is None:
+                    _JAKKANNA_MORPH_DATA_LOCK = asyncio.Lock()
+                async with _JAKKANNA_MORPH_DATA_LOCK:
+                    if _JAKKANNA_MORPH_DATA_BINARY is None:
                         from .nodes.pose_studio import POSE_STUDIO_CACHE
 
-                        await _vnccs_ensure_pose_data_loaded_async()
+                        await _jakkanna_ensure_pose_data_loaded_async()
                         base_mesh = POSE_STUDIO_CACHE["base_mesh"]
                         targets = POSE_STUDIO_CACHE["targets"] or []
 
@@ -631,7 +631,7 @@ def _vnccs_register_endpoint():
 
                         header_bytes = json.dumps(header, separators=(",", ":")).encode("utf-8")
                         header_padding = b"\0" * ((4 - ((12 + len(header_bytes)) % 4)) % 4)
-                        _VNCCS_MORPH_DATA_BINARY = (
+                        _JAKKANNA_MORPH_DATA_BINARY = (
                             b"VNMORPH1"
                             + struct.pack("<I", len(header_bytes))
                             + header_bytes
@@ -640,7 +640,7 @@ def _vnccs_register_endpoint():
                         )
 
             return web.Response(
-                body=_VNCCS_MORPH_DATA_BINARY,
+                body=_JAKKANNA_MORPH_DATA_BINARY,
                 content_type="application/octet-stream",
                 headers={"Cache-Control": "no-store"},
             )
@@ -649,10 +649,10 @@ def _vnccs_register_endpoint():
             traceback.print_exc()
             return web.json_response({"error": str(e)}, status=500)
 
-_vnccs_register_endpoint()
+_jakkanna_register_endpoint()
 
 # Register Pose Library API
-def _vnccs_register_pose_library():
+def _jakkanna_register_pose_library():
     try:
         from server import PromptServer
         from .api.pose_library import register_routes
@@ -660,26 +660,26 @@ def _vnccs_register_pose_library():
     except Exception as e:
         print(f"[Jakkanna] Failed to register Pose Library API: {e}")
 
-_vnccs_register_pose_library()
+_jakkanna_register_pose_library()
 
 
 # === Pose Studio Capture Cache ===
-VNCCS_CAPTURE_CACHE = {}
+JAKKANNA_CAPTURE_CACHE = {}
 _CAPTURE_CACHE_MAX = 10
 _CAPTURE_CACHE_LOCK = threading.Lock()
 
-def _vnccs_get_capture_cache(capture_id, min_version=0):
-    capture_id = _vnccs_safe_id(capture_id, "capture")
+def _jakkanna_get_capture_cache(capture_id, min_version=0):
+    capture_id = _jakkanna_safe_id(capture_id, "capture")
     with _CAPTURE_CACHE_LOCK:
-        entry = VNCCS_CAPTURE_CACHE.pop(capture_id, None)
+        entry = JAKKANNA_CAPTURE_CACHE.pop(capture_id, None)
         if entry is None:
             return None
-        VNCCS_CAPTURE_CACHE[capture_id] = entry
+        JAKKANNA_CAPTURE_CACHE[capture_id] = entry
         if entry.get("capture_version", 0) < min_version:
             return None
         return entry
 
-def _vnccs_register_capture_cache():
+def _jakkanna_register_capture_cache():
     try:
         from server import PromptServer
         from aiohttp import web
@@ -687,9 +687,9 @@ def _vnccs_register_capture_cache():
         return
 
     @PromptServer.instance.routes.post("/vnccs/pose_captures_upload")
-    async def vnccs_pose_captures_upload(request):
+    async def jakkanna_pose_captures_upload(request):
         try:
-            if not _vnccs_content_length_ok(request, _CAPTURE_CACHE_MAX_TOTAL_CHARS + 1024 * 1024):
+            if not _jakkanna_content_length_ok(request, _CAPTURE_CACHE_MAX_TOTAL_CHARS + 1024 * 1024):
                 return web.json_response({"error": "captured_images payload is too large"}, status=413)
             data = await request.json()
             if not isinstance(data, dict):
@@ -697,30 +697,30 @@ def _vnccs_register_capture_cache():
             capture_id = data.get("capture_id")
             if not capture_id:
                 return web.json_response({"error": "missing capture_id"}, status=400)
-            capture_id = _vnccs_safe_id(capture_id, "capture")
+            capture_id = _jakkanna_safe_id(capture_id, "capture")
             try:
-                captured_images, lighting_prompts, capture_version = _vnccs_validate_capture_payload(data)
+                captured_images, lighting_prompts, capture_version = _jakkanna_validate_capture_payload(data)
             except ValueError as exc:
                 return web.json_response({"error": str(exc)}, status=413)
 
             with _CAPTURE_CACHE_LOCK:
-                existing = VNCCS_CAPTURE_CACHE.get(capture_id)
+                existing = JAKKANNA_CAPTURE_CACHE.get(capture_id)
                 if existing and existing.get("capture_version", 0) > capture_version:
                     return web.json_response({
                         "status": "stale",
                         "capture_id": capture_id,
                         "capture_version": capture_version,
                     })
-                VNCCS_CAPTURE_CACHE.pop(capture_id, None)
-                VNCCS_CAPTURE_CACHE[capture_id] = {
+                JAKKANNA_CAPTURE_CACHE.pop(capture_id, None)
+                JAKKANNA_CAPTURE_CACHE[capture_id] = {
                     "captured_images": captured_images,
                     "lighting_prompts": lighting_prompts,
                     "capture_version": capture_version,
                 }
 
-                while len(VNCCS_CAPTURE_CACHE) > _CAPTURE_CACHE_MAX:
-                    oldest = next(iter(VNCCS_CAPTURE_CACHE))
-                    del VNCCS_CAPTURE_CACHE[oldest]
+                while len(JAKKANNA_CAPTURE_CACHE) > _CAPTURE_CACHE_MAX:
+                    oldest = next(iter(JAKKANNA_CAPTURE_CACHE))
+                    del JAKKANNA_CAPTURE_CACHE[oldest]
 
             return web.json_response({
                 "status": "ok",
@@ -731,39 +731,39 @@ def _vnccs_register_capture_cache():
             return web.json_response({"error": str(e)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/pose_captures/{capture_id}")
-    async def vnccs_pose_captures_get(request):
-        capture_id = _vnccs_safe_id(request.match_info["capture_id"], "capture")
-        entry = _vnccs_get_capture_cache(capture_id)
+    async def jakkanna_pose_captures_get(request):
+        capture_id = _jakkanna_safe_id(request.match_info["capture_id"], "capture")
+        entry = _jakkanna_get_capture_cache(capture_id)
         if not entry:
             return web.json_response({"error": "not found"}, status=404)
         return web.json_response(entry)
 
-_vnccs_register_capture_cache()
+_jakkanna_register_capture_cache()
 
 
 # === UniCanvas State Cache ===
-VNCCS_UNICANVAS_STATE_CACHE = {}
+JAKKANNA_UNICANVAS_STATE_CACHE = {}
 
-def _vnccs_unicanvas_state_cache_path(state_id):
-    safe_id = _vnccs_safe_id(state_id, "unicanvas")
+def _jakkanna_unicanvas_state_cache_path(state_id):
+    safe_id = _jakkanna_safe_id(state_id, "unicanvas")
     return os.path.join(_UNICANVAS_STATE_CACHE_DIR, f"{safe_id}.json")
 
-def _vnccs_write_unicanvas_state_cache_file(state_id, entry):
+def _jakkanna_write_unicanvas_state_cache_file(state_id, entry):
     os.makedirs(_UNICANVAS_STATE_CACHE_DIR, exist_ok=True)
-    path = _vnccs_unicanvas_state_cache_path(state_id)
+    path = _jakkanna_unicanvas_state_cache_path(state_id)
     temp_path = f"{path}.tmp"
     with open(temp_path, "w", encoding="utf-8") as handle:
         json.dump(entry, handle, ensure_ascii=False)
     os.replace(temp_path, path)
 
-def _vnccs_read_unicanvas_state_cache_file(state_id):
-    path = _vnccs_unicanvas_state_cache_path(state_id)
+def _jakkanna_read_unicanvas_state_cache_file(state_id):
+    path = _jakkanna_unicanvas_state_cache_path(state_id)
     if not os.path.exists(path):
         return None
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
-def _vnccs_register_unicanvas_state_cache():
+def _jakkanna_register_unicanvas_state_cache():
     try:
         from server import PromptServer
         from aiohttp import web
@@ -771,54 +771,54 @@ def _vnccs_register_unicanvas_state_cache():
         return
 
     @PromptServer.instance.routes.post("/vnccs/unicanvas_state_upload")
-    async def vnccs_unicanvas_state_upload(request):
+    async def jakkanna_unicanvas_state_upload(request):
         try:
-            if not _vnccs_content_length_ok(request, _UNICANVAS_STATE_CACHE_MAX_TOTAL_CHARS + 1024 * 1024):
+            if not _jakkanna_content_length_ok(request, _UNICANVAS_STATE_CACHE_MAX_TOTAL_CHARS + 1024 * 1024):
                 return web.json_response({"error": "unicanvas state payload is too large"}, status=413)
             data = await request.json()
             state_id = data.get("state_id")
             if not state_id:
                 return web.json_response({"error": "missing state_id"}, status=400)
-            state_id = _vnccs_safe_id(state_id, "unicanvas")
+            state_id = _jakkanna_safe_id(state_id, "unicanvas")
             try:
-                state = _vnccs_validate_unicanvas_state_payload(data)
+                state = _jakkanna_validate_unicanvas_state_payload(data)
             except ValueError as exc:
                 return web.json_response({"error": str(exc)}, status=413)
 
             entry = {"state": state}
-            if state_id in VNCCS_UNICANVAS_STATE_CACHE:
-                del VNCCS_UNICANVAS_STATE_CACHE[state_id]
-            VNCCS_UNICANVAS_STATE_CACHE[state_id] = entry
-            _vnccs_write_unicanvas_state_cache_file(state_id, entry)
-            while len(VNCCS_UNICANVAS_STATE_CACHE) > _UNICANVAS_STATE_CACHE_MAX:
-                oldest = next(iter(VNCCS_UNICANVAS_STATE_CACHE))
-                del VNCCS_UNICANVAS_STATE_CACHE[oldest]
+            if state_id in JAKKANNA_UNICANVAS_STATE_CACHE:
+                del JAKKANNA_UNICANVAS_STATE_CACHE[state_id]
+            JAKKANNA_UNICANVAS_STATE_CACHE[state_id] = entry
+            _jakkanna_write_unicanvas_state_cache_file(state_id, entry)
+            while len(JAKKANNA_UNICANVAS_STATE_CACHE) > _UNICANVAS_STATE_CACHE_MAX:
+                oldest = next(iter(JAKKANNA_UNICANVAS_STATE_CACHE))
+                del JAKKANNA_UNICANVAS_STATE_CACHE[oldest]
 
             return web.json_response({"status": "ok", "state_id": state_id})
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
     @PromptServer.instance.routes.get("/vnccs/unicanvas_state/{state_id}")
-    async def vnccs_unicanvas_state_get(request):
-        state_id = _vnccs_safe_id(request.match_info["state_id"], "unicanvas")
-        entry = VNCCS_UNICANVAS_STATE_CACHE.get(state_id)
+    async def jakkanna_unicanvas_state_get(request):
+        state_id = _jakkanna_safe_id(request.match_info["state_id"], "unicanvas")
+        entry = JAKKANNA_UNICANVAS_STATE_CACHE.get(state_id)
         if not entry:
-            entry = _vnccs_read_unicanvas_state_cache_file(state_id)
+            entry = _jakkanna_read_unicanvas_state_cache_file(state_id)
         if not entry:
             return web.json_response({"error": "not found"}, status=404)
-        if state_id in VNCCS_UNICANVAS_STATE_CACHE:
-            del VNCCS_UNICANVAS_STATE_CACHE[state_id]
-        VNCCS_UNICANVAS_STATE_CACHE[state_id] = entry
-        while len(VNCCS_UNICANVAS_STATE_CACHE) > _UNICANVAS_STATE_CACHE_MAX:
-            oldest = next(iter(VNCCS_UNICANVAS_STATE_CACHE))
-            del VNCCS_UNICANVAS_STATE_CACHE[oldest]
+        if state_id in JAKKANNA_UNICANVAS_STATE_CACHE:
+            del JAKKANNA_UNICANVAS_STATE_CACHE[state_id]
+        JAKKANNA_UNICANVAS_STATE_CACHE[state_id] = entry
+        while len(JAKKANNA_UNICANVAS_STATE_CACHE) > _UNICANVAS_STATE_CACHE_MAX:
+            oldest = next(iter(JAKKANNA_UNICANVAS_STATE_CACHE))
+            del JAKKANNA_UNICANVAS_STATE_CACHE[oldest]
         return web.json_response(entry)
 
-_vnccs_register_unicanvas_state_cache()
+_jakkanna_register_unicanvas_state_cache()
 register_unicanvas_routes()
 
 
-def _vnccs_register_sam3d_pose_import():
+def _jakkanna_register_sam3d_pose_import():
     try:
         from server import PromptServer
         from aiohttp import web
@@ -826,9 +826,9 @@ def _vnccs_register_sam3d_pose_import():
         return
 
     @PromptServer.instance.routes.get("/vnccs/sam3d/import_status/{task_id}")
-    async def vnccs_sam3d_import_status(request):
+    async def jakkanna_sam3d_import_status(request):
         try:
-            from .vnccs_sam3d import progress
+            from .jakkanna_sam3d import progress
 
             return web.json_response(progress.get_task(request.match_info["task_id"]))
         except Exception as e:
@@ -839,7 +839,7 @@ def _vnccs_register_sam3d_pose_import():
             })
 
     @PromptServer.instance.routes.post("/vnccs/sam3d/process_image_to_pose_json")
-    async def vnccs_sam3d_process_image_to_pose_json(request):
+    async def jakkanna_sam3d_process_image_to_pose_json(request):
         try:
             import io
             import json
@@ -847,7 +847,7 @@ def _vnccs_register_sam3d_pose_import():
             import torch
             from PIL import Image
 
-            if not _vnccs_content_length_ok(request, _SAM3D_MAX_UPLOAD_BYTES + 1024 * 1024):
+            if not _jakkanna_content_length_ok(request, _SAM3D_MAX_UPLOAD_BYTES + 1024 * 1024):
                 return web.json_response({"error": "image upload is too large"}, status=413)
             post = await request.post()
             image_field = post.get("image")
@@ -866,7 +866,7 @@ def _vnccs_register_sam3d_pose_import():
             image_tensor = torch.from_numpy(image_np).unsqueeze(0)
 
             def run_sam3d_process():
-                from .vnccs_sam3d import process_image_to_pose_json, progress
+                from .jakkanna_sam3d import process_image_to_pose_json, progress
 
                 progress.start_task(task_id)
                 with progress.task_context(task_id):
@@ -887,7 +887,7 @@ def _vnccs_register_sam3d_pose_import():
             })
         except Exception as e:
             try:
-                from .vnccs_sam3d import progress
+                from .jakkanna_sam3d import progress
                 with progress.task_context(task_id if "task_id" in locals() else ""):
                     progress.fail(str(e))
             except Exception:
@@ -897,11 +897,11 @@ def _vnccs_register_sam3d_pose_import():
             return web.json_response({"error": str(e)}, status=500)
 
     @PromptServer.instance.routes.post("/vnccs/sam3d/render_mesh_overlay")
-    async def vnccs_sam3d_render_mesh_overlay(request):
+    async def jakkanna_sam3d_render_mesh_overlay(request):
         try:
             import asyncio
 
-            if not _vnccs_content_length_ok(request, 32 * 1024 * 1024):
+            if not _jakkanna_content_length_ok(request, 32 * 1024 * 1024):
                 return web.json_response({"error": "mesh overlay payload is too large"}, status=413)
             data = await request.json()
             pose_data = data.get("pose_data")
@@ -911,7 +911,7 @@ def _vnccs_register_sam3d_pose_import():
             pose_adjust = float(data.get("pose_adjust") or 0.0)
 
             def build_overlay():
-                from .vnccs_sam3d.pose_import import process_pose_json_to_overlay_mesh
+                from .jakkanna_sam3d.pose_import import process_pose_json_to_overlay_mesh
 
                 return process_pose_json_to_overlay_mesh(
                     pose_data,
@@ -927,4 +927,4 @@ def _vnccs_register_sam3d_pose_import():
             return web.json_response({"error": str(e)}, status=500)
 
 
-_vnccs_register_sam3d_pose_import()
+_jakkanna_register_sam3d_pose_import()

@@ -9,7 +9,7 @@ import numpy as np
 
 from ..CharacterData import matrix
 from ..CharacterData.mh_parser import HumanSolver
-from .pose_studio import POSE_STUDIO_CACHE, VNCCS_PoseStudio, _ensure_data_loaded, _validate_pose_data
+from .pose_studio import JakkannaPoseStudio, POSE_STUDIO_CACHE, _ensure_data_loaded, _validate_pose_data
 
 
 _FINGERS = ("thumb", "index", "middle", "ring", "pinky")
@@ -330,7 +330,7 @@ def _combine_openpose_grid(keypoints, columns, cell_width, cell_height):
     }]
 
 
-class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
+class JakkannaPoseStudioOpenPose(JakkannaPoseStudio):
     RETURN_TYPES = ("IMAGE", "STRING", "POSE_KEYPOINT")
     RETURN_NAMES = ("images", "lighting_prompt", "keypoints")
     OUTPUT_IS_LIST = (True, True, False)
@@ -370,7 +370,7 @@ class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
         return images, prompts, keypoints
 
 
-class VNCCSReplaceOpenPoseHands:
+class JakkannaReplaceOpenPoseHands:
     @classmethod
     def INPUT_TYPES(cls):
         return {

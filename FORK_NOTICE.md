@@ -25,6 +25,22 @@ They register the same node identifiers and would conflict. The GitHub
 repository, Python project, Registry package, display name, and release
 versions are distinct.
 
+The remaining legacy names are limited to compatibility, external data, and
+provenance:
+
+| Retained name | Why it remains |
+| --- | --- |
+| `VNCCS_*` node identifiers | Serialized ComfyUI workflows resolve nodes by these exact IDs. |
+| `/vnccs/` routes and `vnccs_*` frontend sync events | Existing frontend/backend integrations use these protocol names. |
+| `vnccs_keypoints` | This serialized node input name must remain stable. |
+| `vnccs_user_config.json`, `vnccs_installed_models.json`, `vnccs_config.json`, and existing Canvas cache/backup keys | Reusing these names preserves installed-model state, tokens, settings, and recoverable canvas data across upgrades. New browser state uses Jakkanna names and reads the earlier keys as a migration fallback. |
+| `MIUProject/VNCCS*`, model paths containing `VNCCS`, and the accepted VNCCS skeleton JSON shape | These identify external repositories, model artifacts, or an imported data format that Jakkanna does not control. |
+| Upstream names in notices and pre-1.0 changelog entries | Attribution, licensing, and accurate project history must not be rewritten. |
+
+Implementation modules, frontend files, Python classes, style namespaces,
+extension registrations, logs, and bundled promotional assets use the
+Jakkanna identity.
+
 The earlier `vnccs-utils-maintained` Registry package and its `0.6.0` release
 are a superseded pre-brand publication of this work. Jakkanna starts at
 `1.0.0`; no relationship between Jakkanna and upstream version numbers should
