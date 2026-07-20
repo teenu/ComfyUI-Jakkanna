@@ -1,0 +1,53 @@
+name: Deprecate Comfy Registry version
+
+on:
+  workflow_dispatch:
+    inputs:
+      node_id:
+        description: Registry node ID
+        required: true
+        type: string
+      version:
+        description: Semantic version to deprecate
+        required: true
+        type: string
+      message:
+        description: Migration guidance shown in the Registry
+        required: true
+        type: string
+
+jobs:
+  deprecate-version:
+    name: Deprecate Registry version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deprecate version
+        env:
+          NODE_ID: ${{ inputs.node_id }}
+          VERSION: ${{ inputs.version }}
+          MESSAGE: ${{ inputs.message }}
+          REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          [[ "$NODE_ID" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
+          [[ -n "$MESSAGE" ]]
+          [[ -n "$REGISTRY_ACCESS_TOKEN" ]]
+
+          version_json="$(curl --fail --silent --show-error \
+            "https://api.comfy.org/nodes/${NODE_ID}/versions/${VERSION}")"
+          version_id="$(jq -r '.id // empty' <<<"$version_json")"
+          [[ "$version_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+
+          request_body="$(jq -n \
+            --arg changelog "$MESSAGE" \
+            '{changelog: $changelog, deprecated: true}')"
+          response="$(curl --fail --silent --show-error \
+            --request PUT \
+            --url "https://api.comfy.org/publishers/teenu/nodes/${NODE_ID}/versions/${version_id}" \
+            --header "Authorization: Bearer ${REGISTRY_ACCESS_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --data "$request_body")"
+
+          jq -e '.deprecated == true' <<<"$response"
