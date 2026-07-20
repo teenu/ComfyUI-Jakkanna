@@ -344,9 +344,9 @@ class Skeleton(object):
                  
         # Retarget weights if referencing is used (e.g. Game Engine config)
         if self.vertexWeights:
-            self._retarget_weights()
+            self._retarget_weights(mesh)
 
-    def _retarget_weights(self):
+    def _retarget_weights(self, mesh=None):
         """
         Retarget weights from referenced bones (e.g. upperarm01+upperarm02) 
         to the actual bone (upperarm_l), if 'weights_reference' structure is present.
@@ -446,8 +446,108 @@ class Skeleton(object):
             print(f"[Skeleton] Retargeted weights for {len(new_weights_data)} bones (including cleanup).")
             # Replace data
             self.vertexWeights._data = new_weights_data
-            # Re-calculate metadata
-            self.vertexWeights._calculate_num_weights()
+        self._canonicalize_weights(mesh)
+
+    def _canonicalize_weights(self, mesh=None, max_influences=4):
+        vertex_count = self.vertexWeights._vertexCount
+        vertex_weights = [dict() for _ in range(vertex_count)]
+
+        for bone_name, (indices, weights) in self.vertexWeights.data.items():
+            if bone_name not in self.bones:
+                continue
+            if len(indices) != len(weights):
+                raise ValueError(f"Invalid weight data for bone {bone_name}")
+            for vertex, weight in zip(indices.tolist(), weights.tolist()):
+                vertex = int(vertex)
+                weight = float(weight)
+                if vertex < 0 or vertex >= vertex_count:
+                    raise ValueError(f"Invalid vertex index {vertex} for bone {bone_name}")
+                if not np.isfinite(weight) or weight < 0.0:
+                    raise ValueError(f"Invalid weight for vertex {vertex} on bone {bone_name}")
+                if weight > 0.0:
+                    vertex_weights[vertex][bone_name] = vertex_weights[vertex].get(bone_name, 0.0) + weight
+
+        dominant = {
+            vertex: max(weights, key=lambda bone: (weights[bone], bone))
+            for vertex, weights in enumerate(vertex_weights)
+            if weights
+        }
+        pending = {vertex for vertex, weights in enumerate(vertex_weights) if not weights}
+
+        if pending and mesh is not None:
+            neighbors = {vertex: set() for vertex in pending}
+            for face in mesh.faces:
+                vertices = [int(item[0] if isinstance(item, (list, tuple)) else item) for item in face]
+                for vertex in vertices:
+                    if vertex in neighbors:
+                        neighbors[vertex].update(other for other in vertices if other != vertex)
+
+            while pending:
+                assignments = {}
+                for vertex in pending:
+                    counts = {}
+                    for neighbor in neighbors[vertex]:
+                        bone_name = dominant.get(neighbor)
+                        if bone_name is not None:
+                            counts[bone_name] = counts.get(bone_name, 0) + 1
+                    if counts:
+                        assignments[vertex] = max(counts, key=lambda bone: (counts[bone], bone))
+                if not assignments:
+                    break
+                for vertex, bone_name in assignments.items():
+                    dominant[vertex] = bone_name
+                pending.difference_update(assignments)
+
+            if pending and dominant:
+                assigned_indices = np.fromiter(sorted(dominant), dtype=np.int64)
+                assigned_positions = mesh.vertices[assigned_indices]
+                for vertex in sorted(pending):
+                    distances = np.sum((assigned_positions - mesh.vertices[vertex]) ** 2, axis=1)
+                    nearest = int(assigned_indices[int(np.argmin(distances))])
+                    dominant[vertex] = dominant[nearest]
+
+        root_name = self.roots[0].name if self.roots else next(iter(self.bones), None)
+        for vertex in range(vertex_count):
+            weights = vertex_weights[vertex]
+            if not weights:
+                bone_name = dominant.get(vertex, root_name)
+                if bone_name is None:
+                    raise ValueError(f"No bone available for vertex {vertex}")
+                weights[bone_name] = 1.0
+            else:
+                total = sum(weights.values())
+                if total < 1.0 - 1e-3:
+                    bone_name = max(weights, key=lambda bone: (weights[bone], bone))
+                    weights[bone_name] += 1.0 - total
+
+            strongest = sorted(weights.items(), key=lambda item: (-item[1], item[0]))[:max_influences]
+            total = sum(weight for _, weight in strongest)
+            if total <= 0.0:
+                raise ValueError(f"Vertex {vertex} has no positive skin weights")
+            normalize = abs(total - 1.0) > 1e-6
+            vertex_weights[vertex] = {
+                bone_name: weight / total if normalize else weight
+                for bone_name, weight in strongest
+            }
+
+        canonical = OrderedDict()
+        for bone in self.boneslist:
+            indices = []
+            weights = []
+            for vertex, assignments in enumerate(vertex_weights):
+                weight = assignments.get(bone.name)
+                if weight is not None:
+                    indices.append(vertex)
+                    weights.append(weight)
+            if indices:
+                canonical[bone.name] = (
+                    np.asarray(indices, dtype=np.uint32),
+                    np.asarray(weights, dtype=np.float32),
+                )
+
+        self.vertexWeights._data = canonical
+        self.vertexWeights._compiled.clear()
+        self.vertexWeights._calculate_num_weights()
 
     def addBone(self, name, parentName, head, tail, roll, ref=None, w_ref=None):
         bone = Bone(self, name, parentName, head, tail, roll, ref, w_ref)
