@@ -1,32 +1,32 @@
-# VNCCS Model Manager and Selector Usage
+# Jakkanna Model Manager and Selector Usage
 
 This guide focuses on the model-management pair:
 
-- `VNCCS Model Manager`
-- `VNCCS Model Selector`
+- `Jakkanna Model Manager`
+- `Jakkanna Model Selector`
 
 For the full node reference, including Position Control, QWEN Detailer, BBox
 Extractor, and Pose Studio, see `MODEL_MANAGER_GUIDE.md`.
 
 ## What These Nodes Do
 
-`VNCCS Model Manager` gives a workflow a project model repository id. The custom
+`Jakkanna Model Manager` gives a workflow a project model repository id. The custom
 web UI uses that id to load a remote `model_updater.json`, display install
 status, save tokens, and queue downloads.
 
-`VNCCS Model Selector` reads the same manifest and outputs a model path string
+`Jakkanna Model Selector` reads the same manifest and outputs a model path string
 that can be connected to standard ComfyUI loaders.
 
 Typical chain:
 
 ```text
-VNCCS Model Manager.repo_id
-  -> VNCCS Model Selector.repo_id
+Jakkanna Model Manager.repo_id
+  -> Jakkanna Model Selector.repo_id
   -> model_path
   -> LoraLoader.lora_name / CheckpointLoaderSimple.ckpt_name / ControlNetLoader.control_net_name
 ```
 
-## VNCCS Model Manager
+## Jakkanna Model Manager
 
 Inputs:
 
@@ -55,7 +55,7 @@ The manager UI can:
 - Save Hugging Face and Civitai tokens.
 - Set the active installed version for a model name.
 
-## VNCCS Model Selector
+## Jakkanna Model Selector
 
 Inputs:
 
@@ -92,7 +92,7 @@ Minimal manifest:
     {
       "name": "Example LoRA",
       "version": "1.0.0",
-      "description": "Short description shown in the VNCCS UI.",
+      "description": "Short description shown in the Jakkanna UI.",
       "hf_repo": "MIUProject/VNCCS",
       "hf_path": "models/loras/example_lora.safetensors",
       "local_path": "models/loras/example_lora.safetensors"
@@ -222,14 +222,14 @@ If no known prefix matches, the selector returns the normalized `local_path`.
 1. Create a Hugging Face model repository for your team.
 2. Put `model_updater.json` in the repository root.
 3. Add each LoRA version as a separate manifest entry with the same `name` and a different `version`.
-4. In ComfyUI, add `VNCCS Model Manager` and set `repo_id`.
-5. Add `VNCCS Model Selector`, connect `repo_id`, choose the LoRA in the card UI.
+4. In ComfyUI, add `Jakkanna Model Manager` and set `repo_id`.
+5. Add `Jakkanna Model Selector`, connect `repo_id`, choose the LoRA in the card UI.
 6. Connect `model_path` to `LoraLoader.lora_name`.
 
 ### Checkpoint Picker
 
 1. Add checkpoint entries with `local_path` under `models/checkpoints/`.
-2. Select a checkpoint in `VNCCS Model Selector`.
+2. Select a checkpoint in `Jakkanna Model Selector`.
 3. Connect `model_path` to `CheckpointLoaderSimple.ckpt_name`.
 
 ### Private Hugging Face Repository

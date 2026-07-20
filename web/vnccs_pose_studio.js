@@ -1,5 +1,5 @@
 /**
- * VNCCS Pose Studio - Combined mesh editor and multi-pose generator
+ * Jakkanna Pose Studio - combined mesh editor and multi-pose generator
  * 
  * Combines Character Studio sliders, dynamic pose tabs, and Debug3 gizmo controls.
  */
@@ -53,7 +53,7 @@ function getVNCCSSharedMorphWorker() {
         };
         worker.onerror = (event) => {
             VNCCS_SHARED_MORPH_WORKER_FAILED = true;
-            console.warn("[VNCCS PoseStudio] Shared live morph worker error:", event.message || event);
+            console.warn("[Jakkanna PoseStudio] Shared live morph worker error:", event.message || event);
             for (const callback of VNCCS_SHARED_MORPH_CLIENTS.values()) {
                 callback({ type: "error", message: event.message || String(event) });
             }
@@ -64,7 +64,7 @@ function getVNCCSSharedMorphWorker() {
         VNCCS_SHARED_MORPH_WORKER = worker;
     } catch (error) {
         VNCCS_SHARED_MORPH_WORKER_FAILED = true;
-        console.warn("[VNCCS PoseStudio] Shared live morph worker unavailable:", error);
+        console.warn("[Jakkanna PoseStudio] Shared live morph worker unavailable:", error);
     }
 
     return VNCCS_SHARED_MORPH_WORKER;
@@ -75,7 +75,7 @@ const EXTENSION_URL = new URL(".", import.meta.url).toString();
 
 // === Styles ===
 const STYLES = `
-/* ===== VNCCS Pose Studio — Sakura Theme ===== */
+/* ===== Jakkanna Pose Studio — Sakura Theme ===== */
 /* Variables scoped to the node container — won't leak to other ComfyUI tabs */
 .vnccs-pose-studio {
     --ps-bg:            #0a0a0f;
@@ -2867,7 +2867,7 @@ class PoseStudioWidget {
 
         const title = document.createElement("div");
         title.className = "vnccs-ps-manager-title";
-        title.textContent = "VNCCS Pose Manager";
+        title.textContent = "Jakkanna Pose Manager";
 
         const actions = document.createElement("div");
         actions.className = "vnccs-ps-manager-actions";
@@ -4720,7 +4720,7 @@ class PoseStudioWidget {
             : null;
 
         if (window.VNCCS_POSE_RADAR_DEBUG) {
-            console.log("[VNCCS Pose Studio] radar pointer", {
+            console.log("[Jakkanna Pose Studio] radar pointer", {
                 source: "rect",
                 point: rectPoint,
                 rectPoint,
@@ -6138,7 +6138,7 @@ class PoseStudioWidget {
             this.viewer.setSAMMeshOverlayVisible?.(showMeshOverlay);
             return ok;
         } catch (err) {
-            console.error("[VNCCS] Failed to build SAM mesh overlay:", err);
+            console.error("[Jakkanna] Failed to build SAM mesh overlay:", err);
             this.showMessage?.(`Failed to build SAM mesh overlay: ${err?.message || err}`, true);
             return false;
         }
@@ -6177,7 +6177,7 @@ class PoseStudioWidget {
                 poseData: this.buildSAM3DFittedPoseData(poseData, meshData),
             };
         } catch (err) {
-            console.error("[VNCCS] Failed to build SAM render fit:", err);
+            console.error("[Jakkanna] Failed to build SAM render fit:", err);
             this.showMessage?.(`Failed to build SAM render fit: ${err?.message || err}`, true);
             return null;
         }
@@ -8144,7 +8144,7 @@ class PoseStudioWidget {
 
     handleMorphWorkerMessage(message) {
         if (message.type === "error") {
-            console.warn("[VNCCS PoseStudio] Live morph worker failed:", message.message);
+            console.warn("[Jakkanna PoseStudio] Live morph worker failed:", message.message);
             this._morphWorkerFailed = true;
             return;
         }
@@ -9161,7 +9161,7 @@ class PoseStudioWidget {
             })
                 .then(response => requireSuccessfulResponse(response, "Capture upload"))
                 .catch(e => {
-                    console.error("[VNCCS PoseStudio] Capture upload failed:", e);
+                    console.error("[Jakkanna PoseStudio] Capture upload failed:", e);
                     this.showMessage(e?.message || "Capture upload failed.", true);
                 });
         }
@@ -9301,7 +9301,7 @@ class PoseStudioWidget {
                     this.showMessage("Workflow contained no poses; a default pose was restored.", true);
                     this.poses = [{}];
                 } else if (data.poses.length > VNCCS_POSE_MAX_COUNT) {
-                    console.error(`[VNCCS PoseStudio] Workflow contains ${data.poses.length} poses; the limit is ${VNCCS_POSE_MAX_COUNT}.`);
+                    console.error(`[Jakkanna PoseStudio] Workflow contains ${data.poses.length} poses; the limit is ${VNCCS_POSE_MAX_COUNT}.`);
                     this.showMessage(`Workflow has too many poses; only the first ${VNCCS_POSE_MAX_COUNT} were loaded.`, true);
                     this.poses = data.poses.slice(0, VNCCS_POSE_MAX_COUNT);
                 } else {
@@ -9519,7 +9519,7 @@ app.registerExtension({
                     // (captured_images are no longer stored in the widget to keep workflow size small)
                     await uploadPoseStudioSync(node, nodeId);
                 } catch (e) {
-                    console.error("[VNCCS] Batch Sync Error:", e);
+                    console.error("[Jakkanna] Batch Sync Error:", e);
                     node.studioWidget.showMessage(e?.message || "Pose sync failed.", true);
                 }
             }
@@ -9562,7 +9562,7 @@ app.registerExtension({
                 if (!widget.syncToNode(true)) return;
                 await uploadPoseStudioSync(node, nodeId);
             } catch (e) {
-                console.error("[VNCCS] SAM3D pose_image apply error:", e);
+                console.error("[Jakkanna] SAM3D pose_image apply error:", e);
             }
         });
     },

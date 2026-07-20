@@ -1,4 +1,4 @@
-"""Bundled Anima ControlNet-LLLite runtime for VNCCS UniCanvas.
+"""Bundled Anima ControlNet-LLLite runtime for Jakkanna Canvas.
 
 This is an internal adaptation of kohya-ss/ComfyUI-Anima-LLLite. UniCanvas uses
 it directly so Anima inpaint control does not depend on an external custom node.

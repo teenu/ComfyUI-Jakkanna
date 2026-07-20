@@ -1,4 +1,4 @@
-"""Internal SAM3D Body bridge used by VNCCS Pose Studio.
+"""Internal SAM3D Body bridge used by Jakkanna Pose Studio.
 
 This package vendors only the image-to-pose inference path needed by Pose
 Studio. It intentionally does not register the original SAM3DBody ComfyUI

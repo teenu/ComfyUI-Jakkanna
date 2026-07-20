@@ -1,7 +1,7 @@
 [project]
-name = "vnccs-utils-maintained"
-description = "Maintained VNCCS Utils fork with corrected Pose Studio, OpenPose, capture, and morph execution."
-version = "0.6.0"
+name = "jakkanna"
+description = "Visual control and creative tools for ComfyUI: 3D posing, OpenPose, canvas editing, detailing, and model workflows."
+version = "1.0.0"
 license = {file = "LICENSE"} 
 
 dependencies = [
@@ -32,14 +32,14 @@ classifiers = [
 keywords = ["comfyui", "image-processing", "3d", "pose-estimation"]
 
 [project.urls]
-Repository = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained"
+Repository = "https://github.com/teenu/ComfyUI-Jakkanna"
 #  Used by Comfy Registry https://registry.comfy.org
-Documentation = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained"
-"Bug Tracker" = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained/issues"
+Documentation = "https://github.com/teenu/ComfyUI-Jakkanna"
+"Bug Tracker" = "https://github.com/teenu/ComfyUI-Jakkanna/issues"
 
 [tool.comfy]
 PublisherId = "teenu"
-DisplayName = "VNCCS Utils Maintained"
+DisplayName = "Jakkanna"
 NodeIds = [
     "VNCCS_PositionControl",
     "VNCCS_VisualPositionControl",

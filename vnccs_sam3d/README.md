@@ -1,7 +1,7 @@
-# VNCCS Internal SAM3D Bridge
+# Jakkanna Internal SAM3D Bridge
 
 This directory vendors the SAM3D Body image-to-pose inference path used by
-VNCCS Pose Studio.
+Jakkanna Pose Studio.
 
 It intentionally excludes the external ComfyUI node registration layer,
 `comfy_env` bootstrap, web editors, Blender exporters, workflow examples, and

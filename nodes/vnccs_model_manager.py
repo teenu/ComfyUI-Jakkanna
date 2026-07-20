@@ -116,7 +116,7 @@ def get_cached_config_path(repo_id, force_refresh=False):
 
     if needs_remote:
         try:
-            print(f"[VNCCS] Checking for updates on HF: {repo_id}...")
+            print(f"[Jakkanna] Checking for updates on HF: {repo_id}...")
             path = hf_hub_download(
                 repo_id=repo_id, 
                 filename="model_updater.json", 
@@ -131,11 +131,11 @@ def get_cached_config_path(repo_id, force_refresh=False):
             return path
         except Exception as e:
             err_str = str(e)
-            print(f"[VNCCS] Remote config check failed: {err_str}")
+            print(f"[Jakkanna] Remote config check failed: {err_str}")
             
             # Back-off on 429
             if "429" in err_str:
-                print("[VNCCS] Rate limited (429). Will retry in 10 minutes.")
+                print("[Jakkanna] Rate limited (429). Will retry in 10 minutes.")
                 if cached:
                     cached["remote_timestamp"] = now - (UPDATE_CHECK_TTL - 600)
             
@@ -197,11 +197,11 @@ def worker_loop():
                     if "modelVersionId" in qs:
                         ver_id = qs["modelVersionId"][0]
                         url = f"https://civitai.com/api/download/models/{ver_id}"
-                        print(f"[VNCCS] Auto-converted Civitai Web Link to API: {url}")
+                        print(f"[Jakkanna] Auto-converted Civitai Web Link to API: {url}")
 
                 url = validate_download_url(url)
 
-                print(f"[VNCCS] Starting download from URL: {url}...")
+                print(f"[Jakkanna] Starting download from URL: {url}...")
                 
                 # Civitai specific: Add API key
                 if "civitai.com" in url:
@@ -281,11 +281,11 @@ def worker_loop():
             
             # 4. Update registry
             update_installed_version(model_name, target_model["version"])
-            print(f"[VNCCS] Successfully installed {model_name} to {target_abs_path}")
+            print(f"[Jakkanna] Successfully installed {model_name} to {target_abs_path}")
             download_status[model_name] = {"status": "success", "message": "Installed"}
 
         except Exception as e:
-            print(f"[VNCCS] Failed to download {model_name}:")
+            print(f"[Jakkanna] Failed to download {model_name}:")
             # Check for 401 specifically in the exception (requests raises HTTPError)
             is_auth_error = False
             if isinstance(e, requests.exceptions.HTTPError):
@@ -325,7 +325,7 @@ class VNCCS_ModelManager:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("repo_id",)
     FUNCTION = "process"
-    CATEGORY = "VNCCS/manager"
+    CATEGORY = "Jakkanna/manager"
 
     def process(self, repo_id):
         # Simply pass through the repo_id so it can be used by other nodes
@@ -494,7 +494,7 @@ async def check_models(request):
                     full_path = ""
                     exists = False
                 if force_refresh:
-                    print(f"[VNCCS] Check: {name} v{v['version']} -> {full_path} [{'EXISTS' if exists else 'MISSING'}]")
+                    print(f"[Jakkanna] Check: {name} v{v['version']} -> {full_path} [{'EXISTS' if exists else 'MISSING'}]")
                 if exists:
                     installed_versions.append(v["version"])
             
@@ -629,7 +629,7 @@ class VNCCS_ModelSelector:
     RETURN_TYPES = (any_type,)
     RETURN_NAMES = ("model_path",)
     FUNCTION = "get_path"
-    CATEGORY = "VNCCS/manager"
+    CATEGORY = "Jakkanna/manager"
 
     def get_path(self, repo_id, model_name="", version="auto"):
         try:
@@ -677,7 +677,7 @@ class VNCCS_ModelSelector:
                         break
                 
                 if found:
-                    print(f"[VNCCS] ModelSelector: Found exact match for '{target_name}' v{found['version']} -> {found['local_path']}")
+                    print(f"[Jakkanna] ModelSelector: Found exact match for '{target_name}' v{found['version']} -> {found['local_path']}")
             
             # 3. Fallback to default (pick the latest version based on sorting) if active not found or not set
             if found is None:
@@ -693,16 +693,16 @@ class VNCCS_ModelSelector:
                     
                     found = matching_names[0]
                     if active_ver:
-                        print(f"[VNCCS] ModelSelector: Requested version '{active_ver}' not found for '{target_name}'. Using latest: v{found['version']}")
+                        print(f"[Jakkanna] ModelSelector: Requested version '{active_ver}' not found for '{target_name}'. Using latest: v{found['version']}")
                     else:
-                        print(f"[VNCCS] ModelSelector: no preference. Using latest: v{found['version']} -> {found['local_path']}")
+                        print(f"[Jakkanna] ModelSelector: no preference. Using latest: v{found['version']} -> {found['local_path']}")
 
             if found:
                 local_path = found["local_path"]
                 try:
                     resolve_model_local_path(local_path)
                 except ValueError as exc:
-                    print(f"[VNCCS] ModelSelector: invalid local_path for '{model_name}': {exc}")
+                    print(f"[Jakkanna] ModelSelector: invalid local_path for '{model_name}': {exc}")
                     return ("",)
                 # Normalize slashes to forward slash for processing
                 norm_path = local_path.replace("\\", "/")
@@ -734,15 +734,15 @@ class VNCCS_ModelSelector:
                 # Ensure relative path uses forward slashes (standard for ComfyUI keys)
                 relative_path = relative_path.replace("\\", "/")
                 
-                print(f"[VNCCS] ModelSelector Result: {relative_path}")
+                print(f"[Jakkanna] ModelSelector Result: {relative_path}")
                 return (relative_path,)
             
             # Fallback
-            print(f"[VNCCS] ModelSelector: Model '{model_name}' not found.")
+            print(f"[Jakkanna] ModelSelector: Model '{model_name}' not found.")
             return ("",)
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[VNCCS] ModelSelector Error: {e}")
+            print(f"[Jakkanna] ModelSelector Error: {e}")
             return ("",)

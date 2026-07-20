@@ -1219,7 +1219,7 @@ class VNCCS_SelectorWidget {
             this.models = await fetchPromise;
             this.render();
         } catch (e) {
-            console.error("VNCCS Selector Fetch Error", e);
+            console.error("Jakkanna Selector Fetch Error", e);
         } finally {
             if (this.refreshBtn) this.refreshBtn.textContent = "↻";
             delete window.VNCCS_FETCH_PROMISES[repo_id];

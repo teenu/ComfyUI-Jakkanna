@@ -383,7 +383,7 @@ class VNCCSReplaceOpenPoseHands:
     RETURN_TYPES = ("POSE_KEYPOINT",)
     RETURN_NAMES = ("keypoints",)
     FUNCTION = "replace_hands"
-    CATEGORY = "VNCCS/Pose"
+    CATEGORY = "Jakkanna/pose"
 
     def replace_hands(self, base_keypoints, vnccs_keypoints):
         merged = copy.deepcopy(base_keypoints)

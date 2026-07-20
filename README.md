@@ -1,21 +1,27 @@
-# ComfyUI VNCCS Utils Maintained
+# Jakkanna
 
-This is a maintained fork of
-[AHEKOT/ComfyUI_VNCCS_Utils](https://github.com/AHEKOT/ComfyUI_VNCCS_Utils),
-an MIT-licensed collection of utility nodes from the
-[VNCCS](https://github.com/AHEKOT/ComfyUI_VNCCS) project. It includes
-**VNCCS UniCanvas**, **VNCCS Pose Studio**, and supporting generation
-utilities.
+**Sculpting control for the AI age.**
+
+Jakkanna is an independently governed ComfyUI custom-node suite for 3D posing,
+OpenPose control, canvas composition, camera direction, regional detailing,
+and model selection. It is derived from
+[AHEKOT/ComfyUI_VNCCS_Utils](https://github.com/AHEKOT/ComfyUI_VNCCS_Utils)
+and preserves its established workflow identifiers while following an
+independent release and development path.
+
+The name honours the legendary master sculptor popularly known as Jakanachari
+or Jakkanna. It expresses the project's aim: precise control of form, movement,
+framing, and composition.
 
 > [!IMPORTANT]
-> Install this package as a replacement for the upstream `vnccs-utils`
-> package. Do not install both packages in the same ComfyUI instance: this
-> fork intentionally retains the original ComfyUI node identifiers so
-> existing workflows continue to load.
+> Install Jakkanna as a replacement for the upstream `vnccs-utils` package.
+> Do not install both packages in the same ComfyUI instance. Jakkanna retains
+> the original `VNCCS_*` node identifiers and `/vnccs/` routes so existing
+> workflows continue to load.
 
-## Why This Fork Exists
+## Why Jakkanna Exists
 
-Release `0.6.0` provides a correctness-focused maintenance baseline:
+Jakkanna begins at version `1.0.0` with a correctness baseline that:
 
 * Pose Studio and Pose Studio + OpenPose resolve one effective execution
   state and render from it exactly once.
@@ -34,19 +40,40 @@ Release `0.6.0` provides a correctness-focused maintenance baseline:
 * Repository refresh is explicitly user initiated; opening Pose Studio no
   longer starts an external repository refresh.
 
-See [FORK_NOTICE.md](FORK_NOTICE.md) for attribution, compatibility, and the
+See [FORK_NOTICE.md](FORK_NOTICE.md) for lineage, compatibility, and a
 comparison with related ComfyUI pose nodes.
+
+## Who Jakkanna Is For
+
+Use Jakkanna when a ComfyUI workflow needs an accurate production control
+source. It is particularly useful for:
+
+* existing VNCCS workflows that need the corrections without node migration;
+* workflows that require rendered frames and body, hand, and face OpenPose
+  data to remain exactly aligned;
+* batch, grid, Mixamo, SAM-driven, pose-library, and MakeHuman morph workflows;
+  and
+* workflow authors who need deterministic output when sharing graphs with
+  other users.
+
+If you only need lightweight 2D keypoint editing and do not use VNCCS
+workflows, a dedicated OpenPose editor may be a smaller fit.
 
 <table>
 <tr>
-<td width="50%" align="center">
+<td width="33%" align="center">
 <strong>Upstream VNCCS Community</strong><br>
 Share results, ask questions, and follow VNCCS updates.<br><br>
 <a href="https://discord.com/invite/9Dacp4wvQw" target="_blank"><img src="images/VNCCS_Discord_Button.png" alt="Join our Discord"></a>
 </td>
-<td width="50%" align="center">
-<strong>Support the Upstream Project</strong><br>
-VNCCS is developed independently. Support helps keep the project moving.<br><br>
+<td width="33%" align="center">
+<strong>Support Jakkanna</strong><br>
+Support ongoing compatibility work, testing, fixes, and releases.<br><br>
+<a href="https://www.buymeacoffee.com/teenu" target="_blank">Support Jakkanna</a>
+</td>
+<td width="33%" align="center">
+<strong>Support Original VNCCS</strong><br>
+Support MiuProject's original VNCCS development separately.<br><br>
 <a href="https://www.buymeacoffee.com/MIUProject" target="_blank"><img src="images/VNCCS_Donate_Button.png" alt="Support VNCCS"></a>
 </td>
 </tr>
@@ -54,13 +81,13 @@ VNCCS is developed independently. Support helps keep the project moving.<br><br>
 
 ---
 
-## VNCCS UniCanvas
+## Jakkanna Canvas
 
 <p align="center">
-  <img src="images/uni-canvas-logo.png" alt="VNCCS UniCanvas logo" width="360">
+  <img src="images/uni-canvas-logo.png" alt="Jakkanna Canvas" width="360">
 </p>
 
-**VNCCS UniCanvas** is an integrated infinite-canvas image generation and editing workspace inside ComfyUI. It is designed for freeform creative work: generate anywhere, edit any region, build results across layers, and keep refining without being locked to a single fixed image boundary.
+**Jakkanna Canvas** is an integrated infinite-canvas image generation and editing workspace inside ComfyUI. It is designed for freeform creative work: generate anywhere, edit any region, build results across layers, and keep refining without being locked to a single fixed image boundary.
 
 ### Key Features
 
@@ -73,15 +100,15 @@ VNCCS is developed independently. Support helps keep the project moving.<br><br>
 *   **Canvas Editing Tools**: Move, transform, resize, snap, undo/redo, and manage generation results without leaving the node.
 *   **Progress and Result Handling**: Track generation progress and apply results back into the canvas as editable layers.
 
-## VNCCS Pose Studio
+## Jakkanna Pose Studio
 
 <p align="center">
-  <img src="images/pose-studio-logo.png" alt="VNCCS Pose Studio logo" width="360">
+  <img src="images/pose-studio-logo.png" alt="Jakkanna Pose Studio" width="360">
 </p>
 
-**Example Workflows:** [QWEN](workflows/VNCCS_Utils%20Pose%20Studio%20QWEN.json) · [Klein9b](workflows/VNCCS_Utils%20Pose%20Studio%20Klein9b.json)
+**Example Workflows:** [QWEN](workflows/Jakkanna%20Pose%20Studio%20QWEN.json) · [Klein9b](workflows/Jakkanna%20Pose%20Studio%20Klein9b.json)
 
-**VNCCS Pose Studio** is a professional 3D posing, framing, lighting, and pose-library environment running directly inside a ComfyUI node. It is designed for building high-quality pose/control references without leaving the graph: adjust the character body, pose bones interactively, frame the camera, tune lights, manage saved poses, and output single images or pose batches.
+**Jakkanna Pose Studio** is a professional 3D posing, framing, lighting, and pose-library environment running directly inside a ComfyUI node. It is designed for building high-quality pose/control references without leaving the graph: adjust the character body, pose bones interactively, frame the camera, tune lights, manage saved poses, and output single images or pose batches.
 
 ### Key Features
 
@@ -101,12 +128,12 @@ VNCCS is developed independently. Support helps keep the project moving.<br><br>
 *   **Direct Sidebar Prompting**: Add scene details in an auto-expanding prompt field directly inside the Pose Studio UI.
 *   **Flexible Export Modes**: Output poses as a list or as a grid, with configurable background color.
 
-👉 **[Detailed Usage Guide](docs/VNCCS_POSE_STUDIO_USAGE.md)**
+👉 **[Detailed Usage Guide](docs/JAKKANNA_POSE_STUDIO_USAGE.md)**
 
 ## Additional Nodes
 
-### VNCCS Visual Camera Control
-**[Example Workflow](workflows/VNCCS_Utils%20Visual%20camera%20control%20node%20for%20Qwen-Image-Edit-2511-Multiple-Angles%20LoRa.json)**
+### Jakkanna Visual Camera Control
+**[Example Workflow](workflows/Jakkanna%20Visual%20Camera%20Control.json)**
 
 An interactive node with a visual widget for controlling camera position. It is designed for intuitive angle control and prompt generation, especially for multi-angle LoRAs like **Qwen-Image-Edit-2511-Multiple-Angles**.
 
@@ -114,8 +141,8 @@ An interactive node with a visual widget for controlling camera position. It is 
 *   **Elevation Slider**: Pick elevation from -30° to 60°.
 *   **Trigger Word Toggle**: Enable or disable the `<sks>` trigger from the widget.
 
-### VNCCS QWEN Detailer
-**[Example Workflow](workflows/VNCCS_Utils%20QwenDetailer_ChangeEmotion.json)**
+### Jakkanna QWEN Detailer
+**[Example Workflow](workflows/Jakkanna%20QWEN%20Detailer.json)**
 
 A QWEN-Image-Edit2511 detailer for enhancing detected regions such as faces, hands, and objects with vision-guided instructions.
 
@@ -126,12 +153,12 @@ A QWEN-Image-Edit2511 detailer for enhancing detected regions such as faces, han
 *   **Inpainting Mode**: Supports mask-based editing and filling black areas.
 *   **QWEN Options**: Supports QWEN-Image-Edit2511-specific options such as `distortion_fix` and `qwen_2511` mode.
 
-### VNCCS Model Manager & Selector
-**[Example Workflow](workflows/VNCCS_Utils%20Model%20Loader%20ShowCase.json)**
+### Jakkanna Model Manager & Selector
+**[Example Workflow](workflows/Jakkanna%20Model%20Loader%20Showcase.json)**
 
 A system for managing and selecting LoRAs and checkpoints directly in ComfyUI, with support for Civitai and HuggingFace.
 
-#### VNCCS Model Manager
+#### Jakkanna Model Manager
 The backend node that reads a HuggingFace-hosted `model_updater.json` and manages model downloads.
 
 *   **Repo ID**: Point the manager to your HuggingFace model repository.
@@ -140,7 +167,7 @@ The backend node that reads a HuggingFace-hosted `model_updater.json` and manage
 
 👉 **[Configuration Guide: How to create your own model repo](docs/MODEL_MANAGER_GUIDE.md)**
 
-#### VNCCS Model Selector
+#### Jakkanna Model Selector
 The companion UI node for choosing models from the configured repository.
 
 *   **Visual Card UI**: Shows model name, version, status, and description.
@@ -151,7 +178,7 @@ The companion UI node for choosing models from the configured repository.
 
 👉 **[Usage Guide: How to use Selector with Standard Loaders](docs/MODEL_SELECTOR_USAGE.md)**
 
-### VNCCS BBox Extractor
+### Jakkanna BBox Extractor
 
 A helper node for extracting and visualizing crops when you need detected bounding-box regions without running a full face/detailer workflow.
 
@@ -161,7 +188,7 @@ A helper node for extracting and visualizing crops when you need detected boundi
 
 1. Open **ComfyUI Manager**.
 2. Choose **Custom Nodes Manager**.
-3. Search for **VNCCS Utils Maintained**.
+3. Search for **Jakkanna**.
 4. Click **Install**.
 5. Restart ComfyUI.
 
@@ -173,17 +200,23 @@ Open a terminal in your ComfyUI directory and run:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained.git
-cd ComfyUI-VNCCS-Utils-Maintained
+git clone https://github.com/teenu/ComfyUI-Jakkanna.git
+cd ComfyUI-Jakkanna
 pip install -r requirements.txt
 ```
 
 Restart ComfyUI after installation.
 
-## Attribution and Maintenance
+## Lineage, Licensing, and Maintenance
 
-The original implementation and bundled assets remain attributed to
-MiuProject/VNCCS under their respective licenses. This fork is maintained at
-[teenu/ComfyUI-VNCCS-Utils-Maintained](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained).
-Please report fork-specific defects through its
-[issue tracker](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained/issues).
+The original VNCCS implementation remains attributed to MiuProject under the
+MIT license. MakeHuman-derived code and assets, SAM 3D Body, MHR, Three.js,
+and other bundled components retain their own licenses and notices; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the package-level
+inventory.
+
+Jakkanna is maintained independently at
+[teenu/ComfyUI-Jakkanna](https://github.com/teenu/ComfyUI-Jakkanna).
+It is not affiliated with or endorsed by the upstream VNCCS project. Please
+report Jakkanna defects through its
+[issue tracker](https://github.com/teenu/ComfyUI-Jakkanna/issues).

@@ -1,29 +1,31 @@
-# VNCCS Utils Node Guide
+# Jakkanna Node Guide
 
-This document is the main user guide for the ComfyUI nodes shipped by
-`ComfyUI_VNCCS_Utils`.
+This document is the main user guide for the ComfyUI nodes shipped by Jakkanna.
 
 Registered nodes:
 
 | Display name | Internal name | Category | Main purpose |
 | --- | --- | --- | --- |
-| VNCCS Position Control | `VNCCS_PositionControl` | `VNCCS` | Build a camera-angle prompt string from sliders. |
-| VNCCS Visual Camera Control | `VNCCS_VisualPositionControl` | `VNCCS` | Same prompt builder, controlled by the custom visual JS widget. |
-| VNCCS QWEN Detailer | `VNCCS_QWEN_Detailer` | `VNCCS/detailing` | Detect image regions, regenerate them with a Qwen image/edit model, and paste them back. |
-| VNCCS BBox Extractor | `VNCCS_BBox_Extractor` | `VNCCS/detailing` | Crop detected bounding-box regions into an image batch. |
-| VNCCS Model Manager | `VNCCS_ModelManager` | `VNCCS/manager` | Fetch a model manifest, display model install state, and queue downloads. |
-| VNCCS Model Selector | `VNCCS_ModelSelector` | `VNCCS/manager` | Select one manifest model and output a loader-compatible model path. |
-| VNCCS Pose Studio | `VNCCS_PoseStudio` | `VNCCS/pose` | Interactive 3D pose, body, camera, lighting, and pose-library workspace. |
+| Jakkanna Position Control | `VNCCS_PositionControl` | `Jakkanna` | Build a camera-angle prompt string from sliders. |
+| Jakkanna Visual Camera Control | `VNCCS_VisualPositionControl` | `Jakkanna` | Same prompt builder, controlled by the custom visual JS widget. |
+| Jakkanna QWEN Detailer | `VNCCS_QWEN_Detailer` | `Jakkanna/detailing` | Detect image regions, regenerate them with a Qwen image/edit model, and paste them back. |
+| Jakkanna BBox Extractor | `VNCCS_BBox_Extractor` | `Jakkanna/detailing` | Crop detected bounding-box regions into an image batch. |
+| Jakkanna Model Manager | `VNCCS_ModelManager` | `Jakkanna/manager` | Fetch a model manifest, display model install state, and queue downloads. |
+| Jakkanna Model Selector | `VNCCS_ModelSelector` | `Jakkanna/manager` | Select one manifest model and output a loader-compatible model path. |
+| Jakkanna Pose Studio | `VNCCS_PoseStudio` | `Jakkanna/pose` | Interactive 3D pose, body, camera, lighting, and pose-library workspace. |
+| Jakkanna Pose Studio + OpenPose | `VNCCS_PoseStudioOpenPose` | `Jakkanna/pose` | Render Pose Studio images and export aligned OpenPose keypoints in one execution. |
+| Jakkanna Replace OpenPose Hands | `VNCCSReplaceOpenPoseHands` | `Jakkanna/pose` | Replace another OpenPose result's hand and wrist data with Pose Studio data. |
+| Jakkanna Canvas | `VNCCS_UniCanvas` | `Jakkanna/canvas` | Host the integrated infinite-canvas generation and editing workspace. |
 
 The bundled `vnccs_sam3d` package is used by Pose Studio for image-to-pose import
 and also contains standalone SAM 3D Body node classes. Those classes are not
 registered by the top-level `__init__.py` in this repository version, but their
-behavior is documented in `VNCCS_POSE_STUDIO_USAGE.md` because Pose Studio calls
+behavior is documented in `JAKKANNA_POSE_STUDIO_USAGE.md` because Pose Studio calls
 the same backend path.
 
-## VNCCS Position Control
+## Jakkanna Position Control
 
-`VNCCS Position Control` outputs a text prompt fragment for camera/view control.
+`Jakkanna Position Control` outputs a text prompt fragment for camera/view control.
 It is useful when a LoRA or edit model expects explicit view tokens.
 
 Inputs:
@@ -65,13 +67,13 @@ Elevation mapping:
 
 Typical use:
 
-1. Add `VNCCS Position Control`.
+1. Add `Jakkanna Position Control`.
 2. Connect `prompt` into a prompt-combining node or directly append it to your text prompt.
 3. Disable `include_trigger` when your workflow already adds `<sks>` elsewhere.
 
-## VNCCS Visual Camera Control
+## Jakkanna Visual Camera Control
 
-`VNCCS Visual Camera Control` is the visual-widget version of Position Control.
+`Jakkanna Visual Camera Control` is the visual-widget version of Position Control.
 The Python node has a hidden `camera_data` string input. The web extension writes
 JSON into that hidden input:
 
@@ -84,15 +86,15 @@ JSON into that hidden input:
 }
 ```
 
-The output is the same `prompt` string as `VNCCS Position Control`.
+The output is the same `prompt` string as `Jakkanna Position Control`.
 
 Use this node when you prefer an interactive camera UI instead of raw sliders.
 If the hidden JSON is missing or invalid, the node falls back to front,
 eye-level, medium shot, with `<sks>` enabled.
 
-## VNCCS QWEN Detailer
+## Jakkanna QWEN Detailer
 
-`VNCCS QWEN Detailer` is a region-detailing node. It detects one or more regions
+`Jakkanna QWEN Detailer` is a region-detailing node. It detects one or more regions
 with an Impact Pack-compatible `BBOX_DETECTOR`, crops each region, generates a
 replacement with a Qwen image/edit model, color-matches it if requested, and
 pastes it back into the original image.
@@ -169,9 +171,9 @@ Important limits and behavior:
 - If `kornia` is not installed, color matching is skipped with a console warning.
 - If no valid segment remains after dilation/size checks, the original image is returned.
 
-## VNCCS BBox Extractor
+## Jakkanna BBox Extractor
 
-`VNCCS BBox Extractor` is a utility node for checking detector regions. It runs
+`Jakkanna BBox Extractor` is a utility node for checking detector regions. It runs
 the same bbox detector style as QWEN Detailer, crops all valid detections, pads
 them to a common size, and returns them as an image batch.
 
@@ -194,9 +196,9 @@ Output:
 Use this node before QWEN Detailer when you need to tune `threshold`,
 `dilation`, or detector choice.
 
-## VNCCS Model Manager
+## Jakkanna Model Manager
 
-`VNCCS Model Manager` is a UI/control node for project model manifests. It
+`Jakkanna Model Manager` is a UI/control node for project model manifests. It
 passes through a Hugging Face repository id and the web UI uses that id to load
 `model_updater.json`, show install state, save tokens, and queue downloads.
 
@@ -210,7 +212,7 @@ Output:
 
 | Output | Type | Notes |
 | --- | --- | --- |
-| `repo_id` | `STRING` | Pass this into `VNCCS Model Selector` so both nodes use the same manifest. |
+| `repo_id` | `STRING` | Pass this into `Jakkanna Model Selector` so both nodes use the same manifest. |
 
 Manifest location:
 
@@ -276,25 +278,25 @@ Local state files:
 | `vnccs_installed_models.json` | Active version registry by model name. |
 | `vnccs_user_config.json` | HF/Civitai tokens and other user-level settings. |
 
-## VNCCS Model Selector
+## Jakkanna Model Selector
 
-`VNCCS Model Selector` reads the same manifest as the manager and outputs one
+`Jakkanna Model Selector` reads the same manifest as the manager and outputs one
 selected model path. See `MODEL_SELECTOR_USAGE.md` for the focused selector
 guide.
 
 Minimal manager/selector setup:
 
-1. Add `VNCCS Model Manager`.
+1. Add `Jakkanna Model Manager`.
 2. Set `repo_id`.
-3. Add `VNCCS Model Selector`.
+3. Add `Jakkanna Model Selector`.
 4. Connect manager `repo_id` to selector `repo_id`.
 5. Use the selector UI card to choose a model.
 6. Connect selector `model_path` into a standard ComfyUI loader input such as `lora_name`, `ckpt_name`, or `control_net_name`.
 
-## VNCCS Pose Studio
+## Jakkanna Pose Studio
 
-`VNCCS Pose Studio` is the interactive pose/body/camera/lighting node. It has
-its own complete guide in `VNCCS_POSE_STUDIO_USAGE.md`.
+`Jakkanna Pose Studio` is the interactive pose/body/camera/lighting node. It has
+its own complete guide in `JAKKANNA_POSE_STUDIO_USAGE.md`.
 
 Inputs:
 
@@ -311,6 +313,27 @@ Outputs:
 | `images` | `IMAGE` list | One image per pose tab in LIST mode, or one grid image in GRID mode. |
 | `lighting_prompt` | `STRING` list | Lighting prompt per output image. |
 
+### Pose Studio OpenPose Nodes
+
+`Jakkanna Pose Studio + OpenPose` has the same inputs and first two outputs as
+Pose Studio, plus a `POSE_KEYPOINT` output named `keypoints`. Its rendered
+images and OpenPose data come from the same resolved execution state. LIST mode
+returns one keypoint frame per image; GRID mode returns one frame containing
+all translated people on the grid canvas.
+
+`Jakkanna Replace OpenPose Hands` accepts `base_keypoints` and
+`vnccs_keypoints`, both `POSE_KEYPOINT`. It returns a copy of the base data
+whose left-hand, right-hand, and corresponding wrist coordinates are replaced
+with the direct Pose Studio values when valid hand data is present.
+
+## Jakkanna Canvas
+
+`Jakkanna Canvas` hosts the browser-side infinite canvas and exports its current
+serialized state as an `IMAGE`. Its required `unicanvas_state` string and
+hidden `unique_id` are managed by the custom widget. Generation actions use the
+Canvas controls and backend routes rather than queuing the entire ComfyUI graph.
+See `UNICANVAS_MODEL_MODULES.md` for the supported generation backends.
+
 ## Troubleshooting
 
 ### The model selector outputs an empty string
@@ -318,7 +341,7 @@ Outputs:
 - Check that `model_name` is selected in the selector UI.
 - Check that `repo_id` points to a repository containing `model_updater.json`.
 - Check that the manifest entry has a valid `local_path` under `models/`.
-- Check the ComfyUI console for `VNCCS ModelSelector` messages.
+- Check the ComfyUI console for `Jakkanna ModelSelector` messages.
 
 ### A download is rejected
 
@@ -330,14 +353,14 @@ Outputs:
 ### QWEN Detailer returns the original image
 
 - No bbox segment was detected or all segments were smaller than 10 px.
-- Lower `threshold`, reduce negative `dilation`, or test with `VNCCS BBox Extractor`.
+- Lower `threshold`, reduce negative `dilation`, or test with `Jakkanna BBox Extractor`.
 - Make sure the detector returns Impact Pack-compatible SEGS.
 
 ### QWEN Detailer crop looks warped
 
 - Enable `distortion_fix`.
 - Increase `target_size`.
-- Use `VNCCS BBox Extractor` to verify the crop is not too narrow or too loose.
+- Use `Jakkanna BBox Extractor` to verify the crop is not too narrow or too loose.
 
 ### Pose Studio does not update from the UI
 

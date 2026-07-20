@@ -1,5 +1,5 @@
 /**
- * VNCCS Pose Studio Core
+ * Jakkanna Pose Studio Core
  * 
  * Extracted reusable 3D viewer logic.
  */

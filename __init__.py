@@ -19,16 +19,16 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VNCCS_PositionControl": "VNCCS Position Control",
-    "VNCCS_VisualPositionControl": "VNCCS Visual Camera Control",
-    "VNCCS_QWEN_Detailer": "VNCCS QWEN Detailer",
-    "VNCCS_BBox_Extractor": "VNCCS BBox Extractor",
-    "VNCCS_ModelManager": "VNCCS Model Manager",
-    "VNCCS_ModelSelector": "VNCCS Model Selector",
-    "VNCCS_PoseStudio": "VNCCS Pose Studio",
-    "VNCCS_PoseStudioOpenPose": "VNCCS Pose Studio + OpenPose",
-    "VNCCSReplaceOpenPoseHands": "VNCCS Replace OpenPose Hands",
-    "VNCCS_UniCanvas": "VNCCS UniCanvas",
+    "VNCCS_PositionControl": "Jakkanna Position Control",
+    "VNCCS_VisualPositionControl": "Jakkanna Visual Camera Control",
+    "VNCCS_QWEN_Detailer": "Jakkanna QWEN Detailer",
+    "VNCCS_BBox_Extractor": "Jakkanna BBox Extractor",
+    "VNCCS_ModelManager": "Jakkanna Model Manager",
+    "VNCCS_ModelSelector": "Jakkanna Model Selector",
+    "VNCCS_PoseStudio": "Jakkanna Pose Studio",
+    "VNCCS_PoseStudioOpenPose": "Jakkanna Pose Studio + OpenPose",
+    "VNCCSReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands",
+    "VNCCS_UniCanvas": "Jakkanna Canvas",
 }
 
 WEB_DIRECTORY = "./web"
@@ -272,7 +272,7 @@ async def _vnccs_ensure_pose_data_loaded_async():
         if not os.path.exists(mh_path):
             raise RuntimeError(f"MakeHuman data not found at: {mh_path}")
 
-        print(f"[VNCCS Pose Studio] Loading MakeHuman data from {mh_path}...")
+        print(f"[Jakkanna Pose Studio] Loading MakeHuman data from {mh_path}...")
 
         base_obj_paths = [
             os.path.join(mh_path, "makehuman", "data", "3dobjs", "base.obj"),
@@ -287,7 +287,7 @@ async def _vnccs_ensure_pose_data_loaded_async():
 
         parser = TargetParser(mh_path)
         targets = await _vnccs_scan_targets_async(parser)
-        print(f"[VNCCS Pose Studio] Loaded {len(targets)} targets.")
+        print(f"[Jakkanna Pose Studio] Loaded {len(targets)} targets.")
         await _vnccs_async_checkpoint()
 
         skeleton = None
@@ -296,11 +296,11 @@ async def _vnccs_ensure_pose_data_loaded_async():
             skel_path = os.path.join(mh_path, "makehuman", "data", "rigs", "default.mhskel")
 
         if os.path.exists(skel_path):
-            print(f"[VNCCS Pose Studio] Loading skeleton from {skel_path}...")
+            print(f"[Jakkanna Pose Studio] Loading skeleton from {skel_path}...")
             skeleton = Skeleton()
             await asyncio.to_thread(skeleton.fromFile, skel_path, base_mesh)
         else:
-            print(f"[VNCCS Pose Studio] Warning: Default skeleton not found at {skel_path}")
+            print(f"[Jakkanna Pose Studio] Warning: Default skeleton not found at {skel_path}")
 
         POSE_STUDIO_CACHE.update({
             "base_mesh": base_mesh,
@@ -488,7 +488,7 @@ def _vnccs_build_update_preview_payload(data):
                 if point is not None:
                     landmarks_for_frontend[landmark_name] = point
     except Exception as exc:
-        print(f"[VNCCS] Failed to build MH face landmarks: {exc}")
+        print(f"[Jakkanna] Failed to build MH face landmarks: {exc}")
 
     if skel:
         class MeshWrapper:
@@ -658,7 +658,7 @@ def _vnccs_register_pose_library():
         from .api.pose_library import register_routes
         register_routes(PromptServer.instance.app)
     except Exception as e:
-        print(f"[VNCCS] Failed to register Pose Library API: {e}")
+        print(f"[Jakkanna] Failed to register Pose Library API: {e}")
 
 _vnccs_register_pose_library()
 

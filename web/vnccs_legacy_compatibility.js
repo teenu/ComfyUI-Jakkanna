@@ -14,7 +14,7 @@ app.registerExtension({
 				if (widget) {
 					const valid_methods = ["disabled", "kornia_reinhard"];
 					if (!valid_methods.includes(widget.value)) {
-						console.warn(`[VNCCS] Auto-fixing deprecated color match method '${widget.value}' to 'kornia_reinhard'`);
+						console.warn(`[Jakkanna] Auto-fixing deprecated color match method '${widget.value}' to 'kornia_reinhard'`);
 						widget.value = "kornia_reinhard";
 					}
 				}

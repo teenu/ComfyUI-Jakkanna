@@ -1,4 +1,4 @@
-"""VNCCS UniCanvas - in-node canvas editor with direct modular draw actions."""
+"""Jakkanna Canvas - in-node canvas editor with direct modular draw actions."""
 
 from __future__ import annotations
 
@@ -1493,13 +1493,13 @@ def _get_unicanvas_model_loader(loader_type: str | None) -> UniCanvasModelLoader
 
 def _uc_log(draw_id: str, message: str, data: dict[str, Any] | None = None) -> None:
     if data is None:
-        print(f"[VNCCS UniCanvas][draw:{draw_id}] {message}", flush=True)
+        print(f"[Jakkanna UniCanvas][draw:{draw_id}] {message}", flush=True)
         return
     try:
         payload = json.dumps(data, ensure_ascii=False, default=str, sort_keys=True)
     except Exception:
         payload = str(data)
-    print(f"[VNCCS UniCanvas][draw:{draw_id}] {message}: {payload}", flush=True)
+    print(f"[Jakkanna UniCanvas][draw:{draw_id}] {message}: {payload}", flush=True)
 
 
 def _set_draw_progress(draw_id: str, stage: str, progress: float, step: int = 0, steps: int = 0, message: str | None = None) -> None:
@@ -1601,7 +1601,7 @@ def _conditioning_debug(conditioning: Any) -> dict[str, Any]:
 
 
 class VNCCS_UniCanvas:
-    """A ComfyUI node that hosts the VNCCS UniCanvas editor.
+    """A ComfyUI node that hosts the Jakkanna Canvas editor.
 
     The node's visible work happens in the frontend widget. Its DRAW button calls
     the custom backend endpoint below and intentionally does not queue the whole
@@ -1611,7 +1611,7 @@ class VNCCS_UniCanvas:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "export_state"
-    CATEGORY = "VNCCS/canvas"
+    CATEGORY = "Jakkanna/canvas"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -4151,5 +4151,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VNCCS_UniCanvas": "VNCCS UniCanvas",
+    "VNCCS_UniCanvas": "Jakkanna Canvas",
 }

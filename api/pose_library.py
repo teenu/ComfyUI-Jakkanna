@@ -134,8 +134,8 @@ def load_default_repositories():
     path = get_default_repositories_path()
     fallback = {
         "repo_id": DEFAULT_REPO_ID,
-        "title": "VNCCS Pose Library Main",
-        "description": "Default curated VNCCS Pose Studio pose library.",
+        "title": "Jakkanna Pose Library Main",
+        "description": "Default curated pose library for Jakkanna Pose Studio.",
         "manifest_path": "pose_library.json",
         "enabled": True,
         "builtin": True,
@@ -752,7 +752,7 @@ def build_pose_manifest(repo_id, remote_manifest, local_poses, changed_paths):
     title = remote_manifest.get("title") if isinstance(remote_manifest, dict) else ""
     return {
         "schema_version": 1,
-        "title": title or "VNCCS Pose Library",
+        "title": title or "Jakkanna Pose Library",
         "repo_id": repo_id,
         "updated_at": now,
         "poses": sorted(manifest_poses, key=lambda item: (item.get("category") or "", item.get("name") or "")),
