@@ -100,13 +100,25 @@ Support MiuProject's original VNCCS development separately.<br><br>
 *   **Canvas Editing Tools**: Move, transform, resize, snap, undo/redo, and manage generation results without leaving the node.
 *   **Progress and Result Handling**: Track generation progress and apply results back into the canvas as editable layers.
 
+## Krea 2 Community Workflows
+
+The [plain Krea 2 workflow](workflows/Krea%202%20Community%20Raw%20Mystic%20Turbo.json)
+provides a text-to-image baseline, while the
+[Pose Studio workflow](workflows/Jakkanna%20Pose%20Studio%20Krea%202%20Community.json)
+uses the editable mannequin render as an image-to-image structural reference.
+Both use `raw.safetensors`, MysticXXX Stripped at `0.55`, Raw-to-Turbo at
+`1.00`, and Euler with the beta scheduler for 12 steps at 1024 × 1024. The
+Pose Studio workflow starts at an adherence-first `0.35` denoise; raise it
+deliberately when stronger prompt-driven restyling matters more than the
+mannequin silhouette.
+
 ## Jakkanna Pose Studio
 
 <p align="center">
   <img src="images/pose-studio-logo.png" alt="Jakkanna Pose Studio" width="360">
 </p>
 
-**Example Workflows:** [QWEN](workflows/Jakkanna%20Pose%20Studio%20QWEN.json) · [Klein9b](workflows/Jakkanna%20Pose%20Studio%20Klein9b.json)
+**Example Workflows:** [Krea 2 Community](workflows/Jakkanna%20Pose%20Studio%20Krea%202%20Community.json) · [QWEN](workflows/Jakkanna%20Pose%20Studio%20QWEN.json) · [Klein9b](workflows/Jakkanna%20Pose%20Studio%20Klein9b.json)
 
 **Jakkanna Pose Studio** is a professional 3D posing, framing, lighting, and pose-library environment running directly inside a ComfyUI node. It is designed for building high-quality pose/control references without leaving the graph: adjust the character body, pose bones interactively, frame the camera, tune lights, manage saved poses, and output single images or pose batches.
 
