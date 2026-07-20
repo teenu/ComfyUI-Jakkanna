@@ -14,6 +14,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from CharacterData.mh_parser import HumanSolver, TargetParser
 from CharacterData.mh_skeleton import Skeleton
 from CharacterData.obj_loader import load_obj
 
@@ -102,6 +103,40 @@ class CapturedImageTests(unittest.TestCase):
     def test_invalid_base64_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "valid base64"):
             self.pose_studio._decode_captured_images(["data:image/png;base64,not-valid!"])
+
+
+class MorphFactorTests(unittest.TestCase):
+    def test_proportion_targets_are_tagged(self):
+        makehuman = os.path.join(ROOT, "CharacterData", "makehuman")
+        targets = TargetParser(makehuman).scan_targets()
+        proportions = [
+            target["tags"].get("proportions")
+            for target in targets
+            if "proportions" in target["tags"]
+        ]
+
+        self.assertEqual(proportions.count("idealproportions"), 54)
+        self.assertEqual(proportions.count("uncommonproportions"), 54)
+
+    def test_proportion_and_race_factors_are_normalized(self):
+        factors = HumanSolver().calculate_factors(
+            0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+            proportions=0.8, african=2.0, asian=-1.0, caucasian=1.0,
+        )
+
+        self.assertAlmostEqual(factors["idealproportions"], 0.8)
+        self.assertAlmostEqual(factors["uncommonproportions"], 0.2)
+        self.assertAlmostEqual(factors["african"], 2.0 / 3.0)
+        self.assertEqual(factors["asian"], 0.0)
+        self.assertAlmostEqual(factors["caucasian"], 1.0 / 3.0)
+
+    def test_live_worker_defines_python_morph_factors(self):
+        worker_path = os.path.join(ROOT, "web", "vnccs_pose_morph_worker.js")
+        with open(worker_path, "r", encoding="utf-8") as handle:
+            worker = handle.read()
+
+        for factor in ("idealproportions", "uncommonproportions", "african", "asian", "caucasian"):
+            self.assertIn(f"{factor}:", worker)
 
 
 if __name__ == "__main__":

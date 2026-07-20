@@ -384,7 +384,13 @@ class VNCCS_PoseStudio:
         
         # Solve base mesh
         solver = HumanSolver()
-        factors = solver.calculate_factors(mh_age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test)
+        factors = solver.calculate_factors(
+            mh_age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test,
+            proportions=mesh.get("proportions", 0.5),
+            african=mesh.get("african", 1.0 / 3),
+            asian=mesh.get("asian", 1.0 / 3),
+            caucasian=mesh.get("caucasian", None),
+        )
         base_verts = solver.solve_mesh(
             POSE_STUDIO_CACHE['base_mesh'],
             POSE_STUDIO_CACHE['targets'],

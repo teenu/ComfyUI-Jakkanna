@@ -306,6 +306,11 @@ def _vnccs_build_update_preview_payload(data):
     penis_len = float(data.get('penis_len', 0.5))
     penis_circ = float(data.get('penis_circ', 0.5))
     penis_test = float(data.get('penis_test', 0.5))
+    proportions = float(data.get('proportions', 0.5))
+    african = float(data.get('african', 1.0 / 3))
+    asian = float(data.get('asian', 1.0 / 3))
+    caucasian = data.get('caucasian')
+    caucasian = float(caucasian) if caucasian is not None else None
 
     from .CharacterData.mh_parser import HumanSolver
     from .nodes.pose_studio import POSE_STUDIO_CACHE
@@ -317,7 +322,10 @@ def _vnccs_build_update_preview_payload(data):
         raise RuntimeError("Pose Studio data is not loaded")
 
     solver = HumanSolver()
-    factors = solver.calculate_factors(mh_age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test)
+    factors = solver.calculate_factors(
+        mh_age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test,
+        proportions=proportions, african=african, asian=asian, caucasian=caucasian,
+    )
     new_verts = solver.solve_mesh(POSE_STUDIO_CACHE['base_mesh'], POSE_STUDIO_CACHE['targets'], factors)
 
     skel = POSE_STUDIO_CACHE.get('skeleton')

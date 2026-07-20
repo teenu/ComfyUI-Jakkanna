@@ -17,18 +17,36 @@ function factorMin(value) {
     return Math.max(0.0, 1 - value * 2);
 }
 
+function finiteNumber(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+}
+
 function calculateFactors(params) {
-    const ageInput = Number(params.age ?? 25);
+    const ageInput = finiteNumber(params.age, 25);
     const age = Math.max(0, Math.min(1, (ageInput - 1.0) / (90.0 - 1.0)));
-    const gender = Number(params.gender ?? 0.5);
-    const weight = Number(params.weight ?? 0.5);
-    const muscle = Number(params.muscle ?? 0.5);
-    const height = Number(params.height ?? 0.5);
-    const breastSize = Number(params.breast_size ?? 0.5);
-    const firmness = Number(params.firmness ?? 0.5);
-    const penisLen = Number(params.penis_len ?? params.genital_size ?? 0.5);
-    const penisCirc = Number(params.penis_circ ?? 0.5);
-    const penisTest = Number(params.penis_test ?? 0.5);
+    const gender = finiteNumber(params.gender, 0.5);
+    const weight = finiteNumber(params.weight, 0.5);
+    const muscle = finiteNumber(params.muscle, 0.5);
+    const height = finiteNumber(params.height, 0.5);
+    const breastSize = finiteNumber(params.breast_size, 0.5);
+    const firmness = finiteNumber(params.firmness, 0.5);
+    const penisLen = finiteNumber(params.penis_len ?? params.genital_size, 0.5);
+    const penisCirc = finiteNumber(params.penis_circ, 0.5);
+    const penisTest = finiteNumber(params.penis_test, 0.5);
+    const proportions = Math.max(0, Math.min(1, finiteNumber(params.proportions, 0.5)));
+    let african = Math.max(0, finiteNumber(params.african, 1 / 3));
+    let asian = Math.max(0, finiteNumber(params.asian, 1 / 3));
+    let caucasian = params.caucasian == null
+        ? Math.max(0, 1 - african - asian)
+        : Math.max(0, finiteNumber(params.caucasian, 1 / 3));
+    let raceTotal = african + asian + caucasian;
+    if (raceTotal <= 0) {
+        african = 1 / 3;
+        asian = 1 / 3;
+        caucasian = 1 - african - asian;
+        raceTotal = 1;
+    }
 
     const factors = {
         male: gender,
@@ -39,9 +57,11 @@ function calculateFactors(params) {
         minweight: factorMin(weight),
         maxheight: factorMax(height),
         minheight: factorMin(height),
-        african: 0.333,
-        asian: 0.333,
-        caucasian: 0.334,
+        african: african / raceTotal,
+        asian: asian / raceTotal,
+        caucasian: caucasian / raceTotal,
+        idealproportions: proportions,
+        uncommonproportions: 1 - proportions,
         maxcup: factorMax(breastSize),
         mincup: factorMin(breastSize),
         maxfirmness: factorMax(firmness),

@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 
 class TargetParser:
@@ -14,6 +15,7 @@ class TargetParser:
             'weight': ['minweight', 'averageweight', 'maxweight'],
             'height': ['minheight', 'averageheight', 'maxheight'],
             'race': ['african', 'asian', 'caucasian'],
+            'proportions': ['idealproportions', 'uncommonproportions'],
             'cup': ['mincup', 'averagecup', 'maxcup'],
             'firmness': ['minfirmness', 'averagefirmness', 'maxfirmness'],
             'universal': ['universal'], # Special flag
@@ -163,7 +165,8 @@ class HumanSolver:
     def __init__(self):
         pass
 
-    def calculate_factors(self, age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test):
+    def calculate_factors(self, age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test,
+                          proportions=0.5, african=1.0/3, asian=1.0/3, caucasian=None):
         """
         Returns a dictionary of factor values based on MakeHuman logic.
         """
@@ -200,10 +203,30 @@ class HumanSolver:
         factors['minheight'] = max(0.0, 1 - height * 2)
         factors['averageheight'] = 1 - (factors['maxheight'] + factors['minheight'])
 
-        # Race (defaults)
-        factors['african'] = 0.333
-        factors['asian'] = 0.333
-        factors['caucasian'] = 0.334
+        proportions = float(proportions)
+        proportions = proportions if math.isfinite(proportions) else 0.5
+        proportions = max(0.0, min(1.0, proportions))
+
+        african = float(african)
+        asian = float(asian)
+        african = max(0.0, african) if math.isfinite(african) else 1.0 / 3
+        asian = max(0.0, asian) if math.isfinite(asian) else 1.0 / 3
+        if caucasian is None:
+            caucasian = max(0.0, 1.0 - african - asian)
+        else:
+            caucasian = float(caucasian)
+            caucasian = max(0.0, caucasian) if math.isfinite(caucasian) else 1.0 / 3
+        total = african + asian + caucasian
+        if total <= 0:
+            african = asian = 1.0 / 3
+            caucasian = 1.0 - african - asian
+            total = 1.0
+        factors['african'] = african / total
+        factors['asian'] = asian / total
+        factors['caucasian'] = caucasian / total
+
+        factors['idealproportions'] = proportions
+        factors['uncommonproportions'] = 1.0 - proportions
 
         # Breast Size (Cup)
         factors['maxcup'] = max(0.0, breast_size * 2 - 1)

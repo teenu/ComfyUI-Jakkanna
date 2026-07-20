@@ -48,6 +48,10 @@ def _solve_vertices(mesh):
         _number(mesh, "penis_len", 0.5),
         _number(mesh, "penis_circ", 0.5),
         _number(mesh, "penis_test", 0.5),
+        proportions=_number(mesh, "proportions", 0.5),
+        african=_number(mesh, "african", 1.0 / 3),
+        asian=_number(mesh, "asian", 1.0 / 3),
+        caucasian=_number(mesh, "caucasian", 1.0 / 3) if mesh.get("caucasian") is not None else None,
     )
     return solver.solve_mesh(POSE_STUDIO_CACHE["base_mesh"], POSE_STUDIO_CACHE["targets"], factors)
 

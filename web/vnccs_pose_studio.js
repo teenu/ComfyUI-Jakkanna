@@ -2712,6 +2712,8 @@ class PoseStudioWidget {
         this.meshParams = {
             age: 25, gender: 0.5, weight: 0.5,
             muscle: 0.5, height: 0.5,
+            proportions: 0.5,
+            african: 1 / 3, asian: 1 / 3, caucasian: 1 / 3,
             // Female-specific
             breast_size: 0.5, firmness: 0.5,
             // Male-specific
