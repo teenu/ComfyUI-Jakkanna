@@ -1,7 +1,7 @@
 [project]
-name = "vnccs-utils"
-description = "VNCCS - Collection of utility nodes. VNCCS Pose Studio. VNCCS UniCanvas."
-version = "0.5.3"
+name = "vnccs-utils-maintained"
+description = "Maintained VNCCS Utils fork with corrected Pose Studio, OpenPose, capture, and morph execution."
+version = "0.6.0"
 license = {file = "LICENSE"} 
 
 dependencies = [
@@ -32,15 +32,14 @@ classifiers = [
 keywords = ["comfyui", "image-processing", "3d", "pose-estimation"]
 
 [project.urls]
-Repository = "https://github.com/AHEKOT/ComfyUI_VNCCS_Utils"
+Repository = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained"
 #  Used by Comfy Registry https://registry.comfy.org
-Documentation = "https://github.com/AHEKOT/ComfyUI_VNCCS_Utils"
-"Bug Tracker" = "https://github.com/AHEKOT/ComfyUI_VNCCS_Utils/issues"
+Documentation = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained"
+"Bug Tracker" = "https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained/issues"
 
 [tool.comfy]
-PublisherId = "vnccs"
-DisplayName = "VNCCS - Collection of utility nodes"
-Icon = "https://raw.githubusercontent.com/AHEKOT/ComfyUI_VNCCS/refs/heads/main/images/VNCCS_LOGO.png"
+PublisherId = "teenu"
+DisplayName = "VNCCS Utils Maintained"
 NodeIds = [
     "VNCCS_PositionControl",
     "VNCCS_VisualPositionControl",
@@ -48,5 +47,8 @@ NodeIds = [
     "VNCCS_BBox_Extractor",
     "VNCCS_ModelManager",
     "VNCCS_ModelSelector",
-    "VNCCS_PoseStudio"
+    "VNCCS_PoseStudio",
+    "VNCCS_PoseStudioOpenPose",
+    "VNCCSReplaceOpenPoseHands",
+    "VNCCS_UniCanvas",
 ]

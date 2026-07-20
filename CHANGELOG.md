@@ -1,3 +1,28 @@
+# Version 0.6.0
+## Maintained Fork Correctness Baseline
+
+This release establishes the first maintained-fork baseline. It preserves the
+upstream node identifiers and workflow compatibility while correcting the Pose
+Studio execution, capture, geometry, and OpenPose paths.
+
+### Fixes
+
+*   **Single-pass Pose Studio execution**: Pose Studio and Pose Studio + OpenPose now share one private resolver for effective execution data.
+    *   Frontend-synchronized captures, cache fallback, SAM pose application, prompts, lighting, dimensions, and pose metadata are resolved once.
+    *   The rendered images and OpenPose data are produced from that same resolved state.
+    *   Invalid or stale frontend state now fails clearly instead of silently mixing data from different executions.
+*   **OpenPose correctness**: Added strict frame and dimension validation, real face-landmark export, correct per-person translation in grid layouts, and consistent empty-hand handling.
+*   **MakeHuman geometry parity**: Canonicalized and normalized skin weights, limited vertices to four influences, and aligned browser morph factors with the Python renderer for body proportions and ancestry controls.
+*   **Animation sampling**: Mixamo imports are capped at 128 poses while retaining the animation endpoint.
+*   **Capture boundaries**: Aligned browser and server limits at 128 captures and 128 megapixels total, with consistent pose, prompt, and lighting validation.
+*   **Repository access**: Pose Studio repository refresh is explicitly user initiated. Opening the node no longer triggers an external refresh, and passive CDN fallbacks were removed.
+
+### Validation
+
+*   Added 30 focused regression tests covering the corrected execution and geometry paths.
+*   Verified a live ComfyUI Pose Studio capture and OpenPose export end to end.
+*   Verified cache freshness ordering, synchronization failure behavior, capture-budget rejection, and non-mutating metadata reads.
+
 # Version 0.5.3
 ## Z-Image Fun ControlNet Crash Mitigation
 

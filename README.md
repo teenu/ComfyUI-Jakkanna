@@ -1,16 +1,51 @@
-# ComfyUI VNCCS Utils
+# ComfyUI VNCCS Utils Maintained
 
-A collection of utility nodes from the [VNCCS](https://github.com/AHEKOT/ComfyUI_VNCCS) project for everyday ComfyUI workflows, including **VNCCS UniCanvas**, **VNCCS Pose Studio**, and supporting generation utilities.
+This is a maintained fork of
+[AHEKOT/ComfyUI_VNCCS_Utils](https://github.com/AHEKOT/ComfyUI_VNCCS_Utils),
+an MIT-licensed collection of utility nodes from the
+[VNCCS](https://github.com/AHEKOT/ComfyUI_VNCCS) project. It includes
+**VNCCS UniCanvas**, **VNCCS Pose Studio**, and supporting generation
+utilities.
+
+> [!IMPORTANT]
+> Install this package as a replacement for the upstream `vnccs-utils`
+> package. Do not install both packages in the same ComfyUI instance: this
+> fork intentionally retains the original ComfyUI node identifiers so
+> existing workflows continue to load.
+
+## Why This Fork Exists
+
+Release `0.6.0` provides a correctness-focused maintenance baseline:
+
+* Pose Studio and Pose Studio + OpenPose resolve one effective execution
+  state and render from it exactly once.
+* Captured images, lighting prompts, and OpenPose keypoints remain aligned
+  across ordinary execution, frontend synchronization, cache fallback, and
+  SAM-driven pose application.
+* Skin weights are canonicalized, normalized, and limited to four influences
+  per vertex.
+* Browser and Python MakeHuman morph factors agree for body proportions and
+  ancestry controls.
+* Pose, capture, lighting, prompt, and total-pixel limits are consistent
+  across browser and server boundaries.
+* OpenPose validates frame structure and dimensions, exports real face
+  landmarks, and translates people correctly in grid output.
+* Mixamo sampling is hard-capped without dropping the animation endpoint.
+* Repository refresh is explicitly user initiated; opening Pose Studio no
+  longer starts an external repository refresh.
+
+See [FORK_NOTICE.md](FORK_NOTICE.md) for attribution, compatibility, and the
+comparison with related ComfyUI pose nodes.
 
 <table>
 <tr>
 <td width="50%" align="center">
-<strong>Join The Community</strong><br>
+<strong>Upstream VNCCS Community</strong><br>
 Share results, ask questions, and follow VNCCS updates.<br><br>
 <a href="https://discord.com/invite/9Dacp4wvQw" target="_blank"><img src="images/VNCCS_Discord_Button.png" alt="Join our Discord"></a>
 </td>
 <td width="50%" align="center">
-<strong>Support VNCCS</strong><br>
+<strong>Support the Upstream Project</strong><br>
 VNCCS is developed independently. Support helps keep the project moving.<br><br>
 <a href="https://www.buymeacoffee.com/MIUProject" target="_blank"><img src="images/VNCCS_Donate_Button.png" alt="Support VNCCS"></a>
 </td>
@@ -126,9 +161,11 @@ A helper node for extracting and visualizing crops when you need detected boundi
 
 1. Open **ComfyUI Manager**.
 2. Choose **Custom Nodes Manager**.
-3. Search for **VNCCS Utils**.
+3. Search for **VNCCS Utils Maintained**.
 4. Click **Install**.
 5. Restart ComfyUI.
+
+Remove the upstream `vnccs-utils` package first if it is already installed.
 
 ### Manual Installation
 
@@ -136,19 +173,17 @@ Open a terminal in your ComfyUI directory and run:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/AHEKOT/ComfyUI_VNCCS_Utils.git
-cd ComfyUI_VNCCS_Utils
+git clone https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained.git
+cd ComfyUI-VNCCS-Utils-Maintained
 pip install -r requirements.txt
 ```
 
 Restart ComfyUI after installation.
 
-## Star History
+## Attribution and Maintenance
 
-<a href="https://www.star-history.com/?repos=AHEKOT%2FComfyUI_VNCCS_Utils%2CAHEKOT%2FComfyUI_VNCCS%2CAHEKOT%2FComfyUI_HYWorld2&type=timeline&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=AHEKOT/ComfyUI_VNCCS_Utils%2CAHEKOT/ComfyUI_VNCCS%2CAHEKOT/ComfyUI_HYWorld2&type=timeline&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=AHEKOT/ComfyUI_VNCCS_Utils%2CAHEKOT/ComfyUI_VNCCS%2CAHEKOT/ComfyUI_HYWorld2&type=timeline&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=AHEKOT/ComfyUI_VNCCS_Utils%2CAHEKOT/ComfyUI_VNCCS%2CAHEKOT/ComfyUI_HYWorld2&type=timeline&legend=top-left" />
- </picture>
-</a>
+The original implementation and bundled assets remain attributed to
+MiuProject/VNCCS under their respective licenses. This fork is maintained at
+[teenu/ComfyUI-VNCCS-Utils-Maintained](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained).
+Please report fork-specific defects through its
+[issue tracker](https://github.com/teenu/ComfyUI-VNCCS-Utils-Maintained/issues).
