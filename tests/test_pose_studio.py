@@ -1,8 +1,13 @@
+import base64
+import importlib
+import io
 import os
 import sys
+import types
 import unittest
 
 import numpy as np
+from PIL import Image
 
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -11,6 +16,24 @@ if ROOT not in sys.path:
 
 from CharacterData.mh_skeleton import Skeleton
 from CharacterData.obj_loader import load_obj
+
+
+def load_pose_studio_module():
+    package_name = "ComfyUI_VNCCS_Utils"
+    package = sys.modules.get(package_name)
+    if package is None:
+        package = types.ModuleType(package_name)
+        package.__path__ = [ROOT]
+        sys.modules[package_name] = package
+
+    nodes_name = f"{package_name}.nodes"
+    nodes = sys.modules.get(nodes_name)
+    if nodes is None:
+        nodes = types.ModuleType(nodes_name)
+        nodes.__path__ = [os.path.join(ROOT, "nodes")]
+        sys.modules[nodes_name] = nodes
+
+    return importlib.import_module(f"{nodes_name}.pose_studio")
 
 
 class SkeletonWeightTests(unittest.TestCase):
@@ -50,6 +73,35 @@ class SkeletonWeightTests(unittest.TestCase):
             self.assertEqual(before_name, after_name)
             np.testing.assert_array_equal(before_indices, after_indices)
             np.testing.assert_array_equal(before_weights, after_weights)
+
+
+class CapturedImageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.pose_studio = load_pose_studio_module()
+        image = Image.new("RGB", (2, 2), (12, 34, 56))
+        encoded = io.BytesIO()
+        image.save(encoded, format="PNG")
+        cls.data_url = "data:image/png;base64," + base64.b64encode(encoded.getvalue()).decode("ascii")
+
+    def test_decodes_eighty_one_captures(self):
+        images = self.pose_studio._decode_captured_images([self.data_url] * 81)
+
+        self.assertEqual(len(images), 81)
+        self.assertTrue(all(image.size == (2, 2) for image in images))
+
+    def test_sparse_capture_slots_remain_supported(self):
+        images = self.pose_studio._decode_captured_images([None, self.data_url, "", self.data_url])
+
+        self.assertEqual(len(images), 2)
+
+    def test_capture_count_limit_is_enforced(self):
+        with self.assertRaisesRegex(ValueError, "limit is 256"):
+            self.pose_studio._decode_captured_images([None] * 257)
+
+    def test_invalid_base64_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "valid base64"):
+            self.pose_studio._decode_captured_images(["data:image/png;base64,not-valid!"])
 
 
 if __name__ == "__main__":

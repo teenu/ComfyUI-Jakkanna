@@ -22,6 +22,7 @@ RESERVED_LIBRARY_JSON = {"repositories.user.json", "pose_library.json"}
 SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_-]+")
 MAX_PREVIEW_BYTES = 16 * 1024 * 1024
 MAX_SYNC_CAPTURE_CHARS = 64 * 1024 * 1024
+MAX_SYNC_CAPTURE_IMAGES = 256
 MAX_POSE_REPOSITORY_FILE_BYTES = 32 * 1024 * 1024
 MAX_POSE_REPOSITORY_SYNC_BYTES = 256 * 1024 * 1024
 _REPOSITORY_PROGRESS = {}
@@ -1661,6 +1662,19 @@ async def upload_pose_sync(request):
         node_id = sanitize_node_id(data.get("node_id"))
         if not node_id:
              return web.json_response({"error": "No node_id"}, status=400)
+        captured_images = data.get("captured_images", [])
+        if not isinstance(captured_images, list):
+            return web.json_response({"error": "captured_images must be a list"}, status=400)
+        if len(captured_images) > MAX_SYNC_CAPTURE_IMAGES:
+            return web.json_response(
+                {"error": f"captured_images limit is {MAX_SYNC_CAPTURE_IMAGES}"},
+                status=413,
+            )
+        if any(image is not None and not isinstance(image, str) for image in captured_images):
+            return web.json_response(
+                {"error": "captured_images entries must be strings or null"},
+                status=400,
+            )
         if len(json.dumps(data, separators=(",", ":"))) > MAX_SYNC_CAPTURE_CHARS:
             return web.json_response({"error": "capture payload is too large"}, status=413)
              

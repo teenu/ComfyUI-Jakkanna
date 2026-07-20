@@ -24,7 +24,7 @@ from ..CharacterData.mh_skeleton import Skeleton
 import threading
 import types
 _CACHE_LOCK = threading.Lock()
-_CAPTURED_IMAGE_MAX_COUNT = 16
+_CAPTURED_IMAGE_MAX_COUNT = 256
 _CAPTURED_IMAGE_MAX_TOTAL_CHARS = 64 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_PIXELS = 4096 * 4096
@@ -50,23 +50,31 @@ def _decode_captured_images(captured_images):
     rendered_images = []
     total_chars = 0
     for b64 in captured_images:
-        if not b64:
+        if b64 is None or b64 == "":
             continue
         if not isinstance(b64, str):
-            raise ValueError("captured_images entries must be strings")
+            raise ValueError("captured_images entries must be strings or null")
         total_chars += len(b64)
         if total_chars > _CAPTURED_IMAGE_MAX_TOTAL_CHARS:
             raise ValueError("captured_images payload is too large")
         if "," in b64:
             b64 = b64.split(",", 1)[1]
 
-        img_data = base64.b64decode(b64)
+        try:
+            img_data = base64.b64decode(b64, validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise ValueError("captured image is not valid base64") from exc
         if len(img_data) > _CAPTURED_IMAGE_MAX_BYTES:
             raise ValueError("captured image is too large")
-        img = Image.open(BytesIO(img_data))
-        if img.width * img.height > _CAPTURED_IMAGE_MAX_PIXELS:
-            raise ValueError("captured image dimensions are too large")
-        rendered_images.append(img.convert('RGB'))
+        try:
+            with Image.open(BytesIO(img_data)) as img:
+                if img.width * img.height > _CAPTURED_IMAGE_MAX_PIXELS:
+                    raise ValueError("captured image dimensions are too large")
+                rendered_images.append(img.convert('RGB'))
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError("captured image data is invalid") from exc
     return rendered_images
 
 
@@ -335,6 +343,9 @@ class VNCCS_PoseStudio:
             # Pad prompts to match images count if needed
             while len(lighting_prompts) < len(captured_images):
                 lighting_prompts.append("")
+            # Empty capture entries are skipped by the decoder; drop their
+            # prompts too so images and prompts stay index-aligned.
+            lighting_prompts = [p for b64, p in zip(captured_images, lighting_prompts) if b64]
             try:
                 rendered_images = _decode_captured_images(captured_images)
             except Exception as e:

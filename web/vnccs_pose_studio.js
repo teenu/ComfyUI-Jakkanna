@@ -12,11 +12,24 @@ import { importMixamoFBXAsPoses } from "./vnccs_mixamo_import.js";
 import { detectAndParseJSON, extractKeypointsFromImage, convertOpenPoseToPose, roundTripTest } from "./vnccs_openpose_import.js";
 
 const VNCCS_POSE_MORPH_WORKER_URL = new URL("./vnccs_pose_morph_worker.js", import.meta.url);
+const VNCCS_POSE_MAX_COUNT = 256;
 let VNCCS_SHARED_MORPH_WORKER = null;
 let VNCCS_SHARED_MORPH_WORKER_FAILED = false;
 let VNCCS_SHARED_MORPH_WORKER_WARMED = false;
 let VNCCS_SHARED_MORPH_CLIENT_ID = 1;
 const VNCCS_SHARED_MORPH_CLIENTS = new Map();
+
+async function requireSuccessfulResponse(response, action) {
+    if (response.ok) return response;
+    let detail = "";
+    try {
+        const payload = await response.json();
+        detail = payload?.error || "";
+    } catch (_) {
+        detail = await response.text().catch(() => "");
+    }
+    throw new Error(`${action} failed (${response.status})${detail ? `: ${detail}` : ""}`);
+}
 
 function getVNCCSSharedMorphWorker() {
     if (VNCCS_SHARED_MORPH_WORKER_FAILED || typeof Worker === "undefined") return null;
@@ -5717,6 +5730,11 @@ class PoseStudioWidget {
     }
 
     addTab(options = {}) {
+        if (this.poses.length >= VNCCS_POSE_MAX_COUNT) {
+            this.showMessage(`Pose Studio supports at most ${VNCCS_POSE_MAX_COUNT} poses.`, true);
+            return;
+        }
+
         // Save current & capture
         if (this.viewer && this.viewer.isInitialized()) {
             const savedPose = this.viewer.getPose();
@@ -6272,9 +6290,12 @@ class PoseStudioWidget {
                     this.resetCameraParams();
                     const result = await importMixamoFBXAsPoses(file, this.viewer, {
                         fps: 12,
-                        maxFrames: 48,
+                        maxFrames: VNCCS_POSE_MAX_COUNT,
                     });
 
+                    if (result.poses.length > VNCCS_POSE_MAX_COUNT) {
+                        throw new Error(`Animation contains more than ${VNCCS_POSE_MAX_COUNT} sampled poses.`);
+                    }
                     this.poses = result.poses;
                     this.activeTab = 0;
                     this.updateTabs();
@@ -6406,6 +6427,9 @@ class PoseStudioWidget {
                     // Import Set
                     const newPoses = data.poses || (Array.isArray(data) ? data : null);
                     if (newPoses && Array.isArray(newPoses)) {
+                        if (newPoses.length > VNCCS_POSE_MAX_COUNT) {
+                            throw new Error(`Pose set contains more than ${VNCCS_POSE_MAX_COUNT} poses.`);
+                        }
                         this.clearSAMCameraMode();
                         this.resetCameraParams();
                         this.poses = newPoses;
@@ -6436,7 +6460,7 @@ class PoseStudioWidget {
 
             } catch (err) {
                 console.error("Error importing pose:", err);
-                this.showMessage("Failed to load pose file. Invalid JSON.", true);
+                this.showMessage(`Failed to load pose file: ${err?.message || err}`, true);
             }
 
             // Reset input so same file can be selected again
@@ -9123,7 +9147,7 @@ class PoseStudioWidget {
             background_url: this.exportParams.background_url || null
         };
 
-        // Upload captures to server cache (fire-and-forget; errors are non-fatal)
+        // Upload captures to server cache without blocking routine editor updates.
         if (this.poseCaptures && this.poseCaptures.some(c => c)) {
             fetch('/vnccs/pose_captures_upload', {
                 method: 'POST',
@@ -9133,7 +9157,12 @@ class PoseStudioWidget {
                     captured_images: this.poseCaptures,
                     lighting_prompts: this.lightingPrompts || []
                 })
-            }).catch(e => console.warn("[VNCCS PoseStudio] Capture upload failed:", e));
+            })
+                .then(response => requireSuccessfulResponse(response, "Capture upload"))
+                .catch(e => {
+                    console.error("[VNCCS PoseStudio] Capture upload failed:", e);
+                    this.showMessage(e?.message || "Capture upload failed.", true);
+                });
         }
 
         const widget = this.node.widgets?.find(w => w.name === "pose_data");
@@ -9262,7 +9291,11 @@ class PoseStudioWidget {
             if (this.updateOverrideBtn) this.updateOverrideBtn();
 
             if (data.poses && Array.isArray(data.poses)) {
-                this.poses = data.poses;
+                if (data.poses.length > VNCCS_POSE_MAX_COUNT) {
+                    console.error(`[VNCCS PoseStudio] Workflow contains ${data.poses.length} poses; the limit is ${VNCCS_POSE_MAX_COUNT}.`);
+                    this.showMessage(`Workflow has too many poses; only the first ${VNCCS_POSE_MAX_COUNT} were loaded.`, true);
+                }
+                this.poses = data.poses.slice(0, VNCCS_POSE_MAX_COUNT);
                 this.posePrompts = []; // rebuild from pose.prompt on next ensurePosePrompts() call
             }
 
@@ -9444,11 +9477,12 @@ app.registerExtension({
                 lighting_prompts: node.studioWidget.lightingPrompts || []
             };
 
-            await fetch('/vnccs/pose_sync/upload_capture', {
+            const response = await fetch('/vnccs/pose_sync/upload_capture', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            await requireSuccessfulResponse(response, "Pose sync upload");
         };
 
         api.addEventListener("vnccs_req_pose_sync", async (event) => {
@@ -9472,6 +9506,7 @@ app.registerExtension({
                     await uploadPoseStudioSync(node, nodeId);
                 } catch (e) {
                     console.error("[VNCCS] Batch Sync Error:", e);
+                    node.studioWidget.showMessage(e?.message || "Pose sync failed.", true);
                 }
             }
         });

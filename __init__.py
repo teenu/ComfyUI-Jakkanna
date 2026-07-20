@@ -46,7 +46,7 @@ import asyncio
 import tempfile
 
 _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_-]+")
-_CAPTURE_CACHE_MAX_IMAGES = 16
+_CAPTURE_CACHE_MAX_IMAGES = 256
 _CAPTURE_CACHE_MAX_TOTAL_CHARS = 64 * 1024 * 1024
 _UNICANVAS_STATE_CACHE_MAX = 10
 _UNICANVAS_STATE_CACHE_MAX_TOTAL_CHARS = 96 * 1024 * 1024
@@ -213,8 +213,10 @@ def _vnccs_validate_capture_payload(data):
         raise ValueError(f"captured_images limit is {_CAPTURE_CACHE_MAX_IMAGES}")
     total_chars = 0
     for image in captured_images:
+        if image is None or image == "":
+            continue
         if not isinstance(image, str):
-            raise ValueError("captured_images entries must be strings")
+            raise ValueError("captured_images entries must be strings or null")
         total_chars += len(image)
         if total_chars > _CAPTURE_CACHE_MAX_TOTAL_CHARS:
             raise ValueError("captured_images payload is too large")
