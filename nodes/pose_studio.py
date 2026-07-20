@@ -10,24 +10,26 @@ This node is fully self-contained with all data loading logic.
 import json
 import os
 import base64
+import binascii
+import math
+import threading
 from io import BytesIO
 import hashlib
 import torch
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 
 # Import from CharacterData module
-from ..CharacterData.mh_parser import TargetParser, HumanSolver
+from ..CharacterData.mh_parser import TargetParser
 from ..CharacterData.obj_loader import load_obj
-from ..CharacterData import matrix
 from ..CharacterData.mh_skeleton import Skeleton
-import threading
-import types
+
 _CACHE_LOCK = threading.Lock()
 _CAPTURED_IMAGE_MAX_COUNT = 256
 _CAPTURED_IMAGE_MAX_TOTAL_CHARS = 64 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 _CAPTURED_IMAGE_MAX_PIXELS = 4096 * 4096
+_CAPTURED_IMAGE_MAX_TOTAL_PIXELS = 128 * 1024 * 1024
 
 
 # === Data Cache and Loader (from Character Studio) ===
@@ -41,6 +43,163 @@ POSE_STUDIO_CACHE = {
 }
 
 
+def _finite_number(value, path):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"{path} must be a finite number")
+    return value
+
+
+def _vector3(value, path):
+    if not isinstance(value, list) or len(value) != 3:
+        raise ValueError(f"{path} must contain three numbers")
+    for index, component in enumerate(value):
+        _finite_number(component, f"{path}[{index}]")
+
+
+def _validate_pose_data(data):
+    if not isinstance(data, dict):
+        raise ValueError("pose_data must be a JSON object")
+
+    mesh = data.get("mesh", {})
+    if not isinstance(mesh, dict):
+        raise ValueError("mesh must be an object")
+    mesh_numbers = {
+        "age", "gender", "weight", "muscle", "height", "breast_size", "firmness",
+        "penis_len", "penis_circ", "penis_test", "genital_size", "proportions",
+        "african", "asian", "caucasian", "head_size", "arm_size", "hand_size",
+        "foot_size", "upper_arm_l_length", "upper_arm_r_length", "forearm_l_length",
+        "forearm_r_length", "thigh_l_length", "thigh_r_length", "shin_l_length",
+        "shin_r_length", "spine_length",
+    }
+    for name in mesh_numbers.intersection(mesh):
+        if name == "caucasian" and mesh[name] is None:
+            continue
+        _finite_number(mesh[name], f"mesh.{name}")
+
+    export = data.get("export", {})
+    if not isinstance(export, dict):
+        raise ValueError("export must be an object")
+    for name in (
+        "view_width", "view_height", "view_size", "cam_zoom", "cam_offset_x",
+        "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns",
+    ):
+        if name in export:
+            _finite_number(export[name], f"export.{name}")
+    for name in ("view_width", "view_height", "view_size"):
+        if name in export and not 1 <= export[name] <= 4096:
+            raise ValueError(f"export.{name} must be between 1 and 4096")
+    if "grid_columns" in export:
+        if export["grid_columns"] != int(export["grid_columns"]) or not 1 <= export["grid_columns"] <= _CAPTURED_IMAGE_MAX_COUNT:
+            raise ValueError(f"export.grid_columns must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
+    output_mode = export.get("output_mode", "LIST")
+    if output_mode not in ("LIST", "GRID"):
+        raise ValueError("export.output_mode must be LIST or GRID")
+    bg_color = export.get("bg_color", [40, 40, 40])
+    _vector3(bg_color, "export.bg_color")
+    if any(component != int(component) or component < 0 or component > 255 for component in bg_color):
+        raise ValueError("export.bg_color values must be integers between 0 and 255")
+
+    poses = data.get("poses", [{}])
+    if not isinstance(poses, list):
+        raise ValueError("poses must be a list")
+    if not poses:
+        raise ValueError("poses must contain at least one pose")
+    if len(poses) > _CAPTURED_IMAGE_MAX_COUNT:
+        raise ValueError(f"poses limit is {_CAPTURED_IMAGE_MAX_COUNT}")
+    for pose_index, pose in enumerate(poses):
+        path = f"poses[{pose_index}]"
+        if not isinstance(pose, dict):
+            raise ValueError(f"{path} must be an object")
+        bones = pose.get("bones", {})
+        if not isinstance(bones, dict):
+            raise ValueError(f"{path}.bones must be an object")
+        if len(bones) > 256:
+            raise ValueError(f"{path}.bones contains too many entries")
+        for bone_name, rotation in bones.items():
+            if not isinstance(bone_name, str) or not bone_name or len(bone_name) > 128:
+                raise ValueError(f"{path}.bones contains an invalid bone name")
+            _vector3(rotation, f"{path}.bones.{bone_name}")
+        if "modelRotation" in pose:
+            _vector3(pose["modelRotation"], f"{path}.modelRotation")
+        for map_name in ("ikEffectorPositions", "poleTargetPositions", "hipBonePosition"):
+            positions = pose.get(map_name, {})
+            if not isinstance(positions, dict):
+                raise ValueError(f"{path}.{map_name} must be an object")
+            if len(positions) > 256:
+                raise ValueError(f"{path}.{map_name} contains too many entries")
+            for position_name, position in positions.items():
+                if not isinstance(position_name, str) or len(position_name) > 128:
+                    raise ValueError(f"{path}.{map_name} contains an invalid name")
+                _vector3(position, f"{path}.{map_name}.{position_name}")
+        for camera_name in ("camera", "cameraParams"):
+            camera = pose.get(camera_name)
+            if camera is None:
+                continue
+            if not isinstance(camera, dict):
+                raise ValueError(f"{path}.{camera_name} must be an object")
+            for name, value in camera.items():
+                _finite_number(value, f"{path}.{camera_name}.{name}")
+        if pose.get("prompt") is not None and not isinstance(pose["prompt"], str):
+            raise ValueError(f"{path}.prompt must be a string")
+
+    lights = data.get("lights", [])
+    if not isinstance(lights, list):
+        raise ValueError("lights must be a list")
+    if len(lights) > 32:
+        raise ValueError("lights contains too many entries")
+    for light_index, light in enumerate(lights):
+        if not isinstance(light, dict):
+            raise ValueError(f"lights[{light_index}] must be an object")
+        for name in ("intensity", "x", "y", "z", "angle", "penumbra", "distance", "decay"):
+            if name in light:
+                _finite_number(light[name], f"lights[{light_index}].{name}")
+
+    captured_images = data.get("captured_images", [])
+    if not isinstance(captured_images, list):
+        raise ValueError("captured_images must be a list")
+    if len(captured_images) > _CAPTURED_IMAGE_MAX_COUNT:
+        raise ValueError(f"captured_images limit is {_CAPTURED_IMAGE_MAX_COUNT}")
+    for image in captured_images:
+        if image is not None and not isinstance(image, str):
+            raise ValueError("captured_images entries must be strings or null")
+    if captured_images and len(captured_images) != len(poses):
+        raise ValueError("captured_images must have one slot per pose")
+
+    lighting_prompts = data.get("lighting_prompts", [])
+    if not isinstance(lighting_prompts, list):
+        raise ValueError("lighting_prompts must be a list")
+    if len(lighting_prompts) > _CAPTURED_IMAGE_MAX_COUNT:
+        raise ValueError(f"lighting_prompts limit is {_CAPTURED_IMAGE_MAX_COUNT}")
+    if any(not isinstance(prompt, str) for prompt in lighting_prompts):
+        raise ValueError("lighting_prompts entries must be strings")
+    if any(len(prompt) > 4096 for prompt in lighting_prompts):
+        raise ValueError("lighting_prompts entries must not exceed 4096 characters")
+    if len(lighting_prompts) > len(poses):
+        raise ValueError("lighting_prompts cannot contain more entries than poses")
+
+    capture_id = data.get("capture_id")
+    if capture_id is not None and (not isinstance(capture_id, str) or len(capture_id) > 256):
+        raise ValueError("capture_id must be a string of at most 256 characters")
+
+    active_tab = data.get("activeTab")
+    if active_tab is not None:
+        if isinstance(active_tab, bool) or not isinstance(active_tab, int):
+            raise ValueError("activeTab must be an integer")
+        if not 0 <= active_tab < len(poses):
+            raise ValueError("activeTab is outside the poses list")
+
+    return data
+
+
+def _captures_complete(data):
+    poses = data.get("poses", [{}])
+    captures = data.get("captured_images", [])
+    return len(captures) >= len(poses) and all(
+        isinstance(captures[index], str) and bool(captures[index])
+        for index in range(len(poses))
+    )
+
+
 def _decode_captured_images(captured_images):
     if not isinstance(captured_images, list):
         raise ValueError("captured_images must be a list")
@@ -49,6 +208,7 @@ def _decode_captured_images(captured_images):
 
     rendered_images = []
     total_chars = 0
+    total_pixels = 0
     for b64 in captured_images:
         if b64 is None or b64 == "":
             continue
@@ -62,7 +222,7 @@ def _decode_captured_images(captured_images):
 
         try:
             img_data = base64.b64decode(b64, validate=True)
-        except (ValueError, base64.binascii.Error) as exc:
+        except (ValueError, binascii.Error) as exc:
             raise ValueError("captured image is not valid base64") from exc
         if len(img_data) > _CAPTURED_IMAGE_MAX_BYTES:
             raise ValueError("captured image is too large")
@@ -70,6 +230,9 @@ def _decode_captured_images(captured_images):
             with Image.open(BytesIO(img_data)) as img:
                 if img.width * img.height > _CAPTURED_IMAGE_MAX_PIXELS:
                     raise ValueError("captured image dimensions are too large")
+                total_pixels += img.width * img.height
+                if total_pixels > _CAPTURED_IMAGE_MAX_TOTAL_PIXELS:
+                    raise ValueError("captured images contain too many total pixels")
                 rendered_images.append(img.convert('RGB'))
         except ValueError:
             raise
@@ -177,13 +340,23 @@ class VNCCS_PoseStudio:
         if pose_image is None:
             return pose_data
         try:
-            tensor = pose_image.detach().cpu()
+            tensor = pose_image.detach().cpu().contiguous()
             arr = tensor.numpy()
-            sample = arr.flat[::max(1, arr.size // 1000)]
-            digest = hashlib.sha256(bytes(sample)).hexdigest()
-            return f"{pose_data}|pose_image:{digest}"
+            hasher = hashlib.sha256()
+            hasher.update(f"{arr.dtype}:{arr.shape}:".encode("ascii"))
+            hasher.update(arr.tobytes())
+            return f"{pose_data}|pose_image:{hasher.hexdigest()}"
         except Exception:
             return f"{pose_data}|pose_image:{id(pose_image)}"
+
+    def _discard_frontend_sync(self, unique_id):
+        import folder_paths
+
+        filepath = os.path.join(folder_paths.get_temp_directory(), f"vnccs_debug_{unique_id}.json")
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
 
     def _wait_for_frontend_sync(self, unique_id, start_time, timeout=15.0):
         import time
@@ -193,16 +366,16 @@ class VNCCS_PoseStudio:
         filepath = os.path.join(temp_dir, f"vnccs_debug_{unique_id}.json")
 
         while time.time() - start_time < timeout:
-            if os.path.exists(filepath) and os.path.getmtime(filepath) > start_time - 1.0:
+            if os.path.exists(filepath) and os.path.getmtime(filepath) >= start_time:
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         sync_data = json.load(f)
                     try:
                         os.remove(filepath)
-                    except Exception:
+                    except OSError:
                         pass
                     return sync_data
-                except Exception:
+                except (OSError, json.JSONDecodeError):
                     pass
             time.sleep(0.1)
         return None
@@ -229,12 +402,13 @@ class VNCCS_PoseStudio:
                 print("[VNCCS Pose Studio] pose_image SAM import returned empty pose data.")
                 return None
 
+            self._discard_frontend_sync(unique_id)
             start_time = time.time()
             PromptServer.instance.send_sync("vnccs_apply_sam3d_pose", {
                 "node_id": unique_id,
                 "pose_data": pose_payload,
             })
-            synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=20.0)
+            synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
             if synced:
                 print("[VNCCS Pose Studio] Applied pose_image SAM pose through frontend sync.")
                 return synced
@@ -250,400 +424,90 @@ class VNCCS_PoseStudio:
         unique_id: str = None
     ):
         """Generate rendered mesh images for all poses."""
-        
-        # Parse pose data
+
         try:
             data = json.loads(pose_data) if pose_data else {}
-            pose_image_synced = False
-            export_settings = data.get("export", {}) if isinstance(data, dict) else {}
-            if isinstance(export_settings, dict) and export_settings.get("interface_mode") == "manager":
-                pose_image = None
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise ValueError("pose_data must contain valid JSON") from exc
+        _validate_pose_data(data)
 
-            if pose_image is not None:
-                synced = self._apply_pose_image_via_frontend(pose_image, unique_id)
-                if isinstance(synced, dict):
-                    data = synced
-                    pose_image_synced = True
-            
-            # --- LIVE SYNC with Frontend ---
-            # We request a fresh capture/sync from the frontend on every run
-            # to ensure the backend uses EXACTLY what the user sees in the widget.
-            if unique_id and not pose_image_synced and not data.get("captured_images"):
-                try:
-                    from server import PromptServer
-                    import time
-                    PromptServer.instance.send_sync("vnccs_req_pose_sync", {"node_id": unique_id})
-                    synced = self._wait_for_frontend_sync(unique_id, time.time(), timeout=5.0)
-                    if synced:
-                        data = synced
-                except Exception as e:
-                    print(f"[VNCCS Pose Studio] Sync error: {e}")
-            # ---------------------------------------------
-            
-        except (json.JSONDecodeError, TypeError):
-            data = {}
+        pose_image_synced = False
+        if data.get("export", {}).get("interface_mode") == "manager":
+            pose_image = None
+        if pose_image is not None:
+            synced = self._apply_pose_image_via_frontend(pose_image, unique_id)
+            if isinstance(synced, dict):
+                _validate_pose_data(synced)
+                data = synced
+                pose_image_synced = True
 
-        # Fallback: if live sync produced no captured_images, try LRU cache
-        if isinstance(data, dict) and not data.get("captured_images"):
+        if unique_id and not pose_image_synced and not _captures_complete(data):
+            synced = None
+            try:
+                from server import PromptServer
+                import time
+
+                self._discard_frontend_sync(unique_id)
+                start_time = time.time()
+                PromptServer.instance.send_sync("vnccs_req_pose_sync", {"node_id": unique_id})
+                synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
+            except Exception as exc:
+                print(f"[VNCCS Pose Studio] Frontend sync failed: {exc}")
+            if synced is not None:
+                _validate_pose_data(synced)
+                data = synced
+
+        if not _captures_complete(data):
             capture_id = data.get("capture_id")
             if capture_id:
                 try:
                     from .. import VNCCS_CAPTURE_CACHE
+
                     cached = VNCCS_CAPTURE_CACHE.get(capture_id)
                     if cached:
                         data["captured_images"] = cached.get("captured_images", [])
                         data["lighting_prompts"] = cached.get("lighting_prompts", [])
                         print(f"[VNCCS Pose Studio] Loaded {len(data['captured_images'])} captures from LRU cache (id={capture_id})")
-                except Exception as e:
-                    print(f"[VNCCS Pose Studio] Cache fallback failed: {e}")
+                except (ImportError, AttributeError) as exc:
+                    print(f"[VNCCS Pose Studio] Capture cache unavailable: {exc}")
 
-        if not isinstance(data, dict):
-            print(f"Pose Studio Error: pose_data is not a dict, got {type(data)}. Using default.")
-            data = {}
-        
-        # Extract settings from JSON
-        mesh = data.get("mesh", {})
-        age = mesh.get("age", 25.0)
-        gender = mesh.get("gender", 0.5)
-        weight = mesh.get("weight", 0.5)
-        muscle = mesh.get("muscle", 0.5)
-        height = mesh.get("height", 0.5)
-        breast_size = mesh.get("breast_size", 0.5)
-        firmness = mesh.get("firmness", 0.5)
-        
-        # Male specifics
-        penis_len = mesh.get("penis_len", 0.5)
-        penis_circ = mesh.get("penis_circ", 0.5)
-        penis_test = mesh.get("penis_test", 0.5)
-        # Fallback for old configs
-        if "genital_size" in mesh:
-            genital_size = mesh["genital_size"]
-            penis_len = genital_size # Map old single slider to length
-        
-        export = data.get("export", {})
-        view_width = export.get("view_width", export.get("view_size", 512))
-        view_height = export.get("view_height", export.get("view_size", 512))
-        cam_zoom = export.get("cam_zoom", 1.0)
-        output_mode = export.get("output_mode", "LIST")
-        grid_columns = export.get("grid_columns", 2)
-        bg_color = export.get("bg_color", [40, 40, 40])  # RGB
-        
-        poses = data.get("poses", [{}])
-        if not poses:
-            poses = [{}]
-            
-        # === 1. Try Client-Side Rendered Images (CSR) ===
-        # If frontend sent captured images, use them directly.
-        captured_images = data.get("captured_images", [])
-        
-        if captured_images:
-            # Extract prompts (frontend generated)
-            lighting_prompts = data.get("lighting_prompts", [])
-            
-            # Pad prompts to match images count if needed
-            while len(lighting_prompts) < len(captured_images):
-                lighting_prompts.append("")
-            # Empty capture entries are skipped by the decoder; drop their
-            # prompts too so images and prompts stay index-aligned.
-            lighting_prompts = [p for b64, p in zip(captured_images, lighting_prompts) if b64]
-            try:
-                rendered_images = _decode_captured_images(captured_images)
-            except Exception as e:
-                print(f"Pose Studio Error: Failed to decode captured images: {e}")
-                rendered_images = []
-            
-            if rendered_images:
-                # Convert to tensors
-                tensors = []
-                for img in rendered_images:
-                    np_img = np.array(img).astype(np.float32) / 255.0
-                    tensors.append(torch.from_numpy(np_img))
-                
-                if output_mode == "LIST":
-                    # Return list of individual images and prompts
-                    tensor_list = [t.unsqueeze(0) for t in tensors]
-                    return (tensor_list, lighting_prompts)
-                else:
-                    grid_img = self._make_grid(rendered_images, grid_columns, tuple(bg_color))
-                    np_grid = np.array(grid_img).astype(np.float32) / 255.0
-                    grid_tensor = torch.from_numpy(np_grid).unsqueeze(0)
-                    
-                    
-                    # For grid, return only the first prompt (conceptually the "main" prompt)
-                    combined_prompt = lighting_prompts[0] if lighting_prompts else ""
-                    return ([grid_tensor], [combined_prompt])
-        
-        # === 2. Fallback to Python Rendering ===
-        
-        # Ensure data loaded
-        _ensure_data_loaded()
-        
-        # Normalize age
-        mh_age = (age - 1.0) / (90.0 - 1.0)
-        mh_age = max(0.0, min(1.0, mh_age))
-        
-        # Solve base mesh
-        solver = HumanSolver()
-        factors = solver.calculate_factors(
-            mh_age, gender, weight, muscle, height, breast_size, firmness, penis_len, penis_circ, penis_test,
-            proportions=mesh.get("proportions", 0.5),
-            african=mesh.get("african", 1.0 / 3),
-            asian=mesh.get("asian", 1.0 / 3),
-            caucasian=mesh.get("caucasian", None),
-        )
-        base_verts = solver.solve_mesh(
-            POSE_STUDIO_CACHE['base_mesh'],
-            POSE_STUDIO_CACHE['targets'],
-            factors
-        )
-        
-        # Render each pose
-        rendered_images = []
-        view_size = (view_width, view_height)
-        
-        for pose_idx, pose in enumerate(poses):
-            bones = pose.get("bones", {})
-            model_rotation = pose.get("modelRotation", [0, 0, 0])
-            
-            # Apply pose to skeleton and get posed vertices
-            posed_verts = self._apply_pose(base_verts, bones, model_rotation)
-            
-            # Render with background color and current lights
-            img = self._render_mesh(posed_verts, view_size, tuple(bg_color), data.get("lights", []))
-            rendered_images.append(img)
-        
-        # Convert to tensors
-        tensors = []
-        for img in rendered_images:
-            np_img = np.array(img).astype(np.float32) / 255.0
-            tensors.append(torch.from_numpy(np_img))
-        
-        if output_mode == "LIST":
-            # Return list of individual images
-            tensor_list = [t.unsqueeze(0) for t in tensors]
-            # Fallback prompts (empty strings since python renderer doesn't generate them yet)
-            prompts = [""] * len(tensor_list)
-            return (tensor_list, prompts)
-        else:
-            # GRID mode - concatenate into single image
-            grid_img = self._make_grid(rendered_images, grid_columns, tuple(bg_color))
-            np_grid = np.array(grid_img).astype(np.float32) / 255.0
-            grid_tensor = torch.from_numpy(np_grid).unsqueeze(0)
-            return ([grid_tensor], [""])
-    
-    def _apply_pose(self, verts, bones_data, model_rotation):
-        """Apply bone rotations (FK) and global rotation to vertices."""
-        
-        mesh_wrapper = types.SimpleNamespace(vertices=verts)
-        
-        # 2. Get and copy skeleton
-        # We must copy because we modify joint positions (fitting) and bone rotations
-        orig_skel = POSE_STUDIO_CACHE['skeleton']
-        if not orig_skel:
-            # Should not happen if _ensure_data_loaded is called
-            return verts
-            
-        skel = orig_skel.copy()
-        
-        # 3. Fit skeleton to current mesh (proportions)
-        # This moves joints to match the morphing target
-        skel.updateJointPositions(mesh_wrapper)
-        
-        # 4. Apply rotations to bones
-        deg2rad = np.pi / 180.0
-        
-        for bone_name, rot_deg in bones_data.items():
-            bone = skel.getBone(bone_name)
-            if not bone:
-                continue
-            if not isinstance(rot_deg, (list, tuple)) or len(rot_deg) < 3:
-                continue
-            rx, ry, rz = rot_deg[0] * deg2rad, rot_deg[1] * deg2rad, rot_deg[2] * deg2rad
-            
-            # Create rotation matrix
-            # Note: matrix.rotx returns 4x4
-            rot_mat = np.dot(
-                matrix.rotz(rz),
-                np.dot(matrix.roty(ry), matrix.rotx(rx))
+        _validate_pose_data(data)
+        if not _captures_complete(data):
+            poses = data.get("poses", [{}])
+            captures = data.get("captured_images", [])
+            captured_count = sum(
+                isinstance(capture, str) and bool(capture)
+                for capture in captures[:len(poses)]
             )
-            
-            bone.matPose = rot_mat
+            raise RuntimeError(
+                f"Pose Studio received {captured_count} of {len(poses)} required frontend captures. "
+                "Open the node, wait for the 3D viewer to load, and run the workflow again."
+            )
 
-        # 5. Update global matrices (FK)
-        # boneslist is breadth-first sorted, so parents always processed before children
-        for bone in skel.boneslist:
-            bone.update()
-            
-        # 6. Linear Blend Skinning (LBS)
-        # Pre-allocate result (N, 3)
-        skinned_verts = np.zeros_like(verts)
-        
-        # Helper arrays
-        # Expand verts to (N, 4) for matrix multiplication
-        ones = np.ones((len(verts), 1), dtype=np.float32)
-        verts4 = np.hstack([verts, ones])
-        
-        has_weights = False
-        # Iterate over all bones that have weights
-        # skel.vertexWeights.data is OrderedDict {bone: (indices, weights)}
-        if skel.vertexWeights:
-            has_weights = True
-            for bname, (indices, weights) in skel.vertexWeights.data.items():
-                bone = skel.getBone(bname)
-                if not bone or len(indices) == 0:
-                    continue
-                
-                # Get Skinning Matrix: Pose * InvBind
-                # shape (4, 4)
-                mat_skin = bone.matPoseVerts
-                
-                # Select vertices affected by this bone
-                # v_subset shape (K, 4)
-                v_subset = verts4[indices]
-                
-                # Transform: v' = v * M^T
-                v_transformed = np.asarray(np.dot(v_subset, mat_skin.T))
-                
-                # Weighted accumulation
-                # weights shape (K,) -> reshape to (K, 1)
-                w_expanded = weights[:, np.newaxis]
-                
-                # Optimization: Doing it in place.
-                current = skinned_verts[indices]
-                skinned_verts[indices] = current + v_transformed[:, :3] * w_expanded
+        export = data.get("export", {})
+        output_mode = export.get("output_mode", "LIST")
+        grid_columns = int(export.get("grid_columns", 2))
+        bg_color = export.get("bg_color", [40, 40, 40])
+        captured_images = data.get("captured_images", [])
+        prompts = data.get("lighting_prompts", [])
+        lighting_prompts = [
+            prompts[index] if index < len(prompts) else ""
+            for index in range(len(data.get("poses", [{}])))
+        ]
+        rendered_images = _decode_captured_images(
+            captured_images[:len(data.get("poses", [{}]))]
+        )
+        tensors = [
+            torch.from_numpy(np.asarray(image, dtype=np.float32) / 255.0)
+            for image in rendered_images
+        ]
 
-        if not has_weights:
-            print("Pose Studio Warning: No weights found, skinning skipped!")
-            skinned_verts = verts.copy()
+        if output_mode == "LIST":
+            return ([tensor.unsqueeze(0) for tensor in tensors], lighting_prompts)
 
-        # 7. Apply Global Model Rotation
-        posed = skinned_verts
-        
-        rx, ry, rz = model_rotation
-        if abs(rx) > 0.01 or abs(ry) > 0.01 or abs(rz) > 0.01:
-            # Convert degrees to radians
-            rx, ry, rz = rx * deg2rad, ry * deg2rad, rz * deg2rad
-            
-            rot_mat = np.dot(
-                matrix.rotz(rz),
-                np.dot(matrix.roty(ry), matrix.rotx(rx))
-            )[:3, :3]
-            
-            # Center for rotation
-            center = posed.mean(axis=0)  # Rotate around body center
-            posed = posed - center
-            posed = np.dot(posed, rot_mat.T)
-            posed = posed + center
-        
-        return posed
-    
-    def _render_mesh(self, verts, size, bg_color=(40, 40, 40), lights=[]):
-        """Render mesh with skin-colored Phong shading."""
-        from PIL import Image, ImageDraw
-        
-        base_mesh = POSE_STUDIO_CACHE['base_mesh']
-        
-        # Setup viewport
-        W, H = size
-        img = Image.new('RGB', (W, H), bg_color)
-        draw = ImageDraw.Draw(img)
-        
-        # Project vertices
-        center = verts.mean(axis=0)
-        scale = min(W, H) * 0.4 / max(np.abs(verts - center).max(), 0.001)
-        
-        verts_screen = np.zeros((len(verts), 2))
-        verts_screen[:, 0] = (verts[:, 0] - center[0]) * scale + W / 2
-        verts_screen[:, 1] = H / 2 - (verts[:, 1] - center[1]) * scale
-        
-        # Get valid faces
-        valid_face_groups = ["body", "helper-r-eye", "helper-l-eye", "helper-upper-teeth", "helper-lower-teeth"]
-        faces = []
-        if base_mesh.face_groups:
-            for i, group in enumerate(base_mesh.face_groups):
-                g_clean = group.strip()
-                if g_clean in valid_face_groups:
-                    faces.append(base_mesh.faces[i])
-        
-        # Render with flat shading
-        self._render_flat_shaded(draw, verts_screen, verts, faces, W, H, lights)
-        
-        return img
-    
-    def _render_flat_shaded(self, draw, verts_screen, verts_3d, faces, W, H, lights=[]):
-        """Render faces with flat shading and skin color."""
-        # 1. Setup Lighting from params
-        main_light_dir = np.array([0.5, 0.8, 1.0])
-        main_light_int = 0.7
-        ambient_int = 0.3
-        
-        if lights:
-            # Simple aggregation of lights for Python renderer
-            for l in lights:
-                lt = l.get("type", "ambient")
-                if lt == "ambient":
-                    ambient_int = max(0.2, min(0.6, l.get("intensity", 1.0) * 0.4))
-                elif lt == "directional" or lt == "point":
-                    # For point lights we just use direction to center
-                    x, y, z = l.get("x", 0), l.get("y", 10), l.get("z", 10)
-                    main_light_dir = np.array([x, y, z])
-                    mag = np.linalg.norm(main_light_dir)
-                    if mag > 0.001: main_light_dir = main_light_dir / mag
-                    main_light_int = min(1.2, l.get("intensity", 1.0) * 0.8)
-                    break # Use first found as main for flat shading
-        
-        # Skin base color (warm tone)
-        base_color = np.array([212, 165, 116])  # 0xd4a574
-        
-        face_data = []
-        for face in faces:
-            if len(face) < 3:
-                continue
-            
-            # Get vertex indices
-            v_indices = []
-            for item in face:
-                if isinstance(item, (list, tuple)):
-                    v_indices.append(item[0])
-                else:
-                    v_indices.append(item)
-            
-            if any(vi >= len(verts_3d) for vi in v_indices):
-                continue
-            
-            # Calculate face center Z for sorting
-            z_avg = np.mean([verts_3d[vi][2] for vi in v_indices[:3]])
-            
-            # Calculate normal
-            p0 = verts_3d[v_indices[0]]
-            p1 = verts_3d[v_indices[1]]
-            p2 = verts_3d[v_indices[2]]
-            
-            v1 = p1 - p0
-            v2 = p2 - p0
-            normal = np.cross(v1, v2)
-            norm_len = np.linalg.norm(normal)
-            if norm_len < 1e-8:
-                continue
-            normal = normal / norm_len
-            
-            # Lighting
-            diffuse = max(0, np.dot(normal, main_light_dir))
-            intensity = min(1.0, ambient_int + diffuse * main_light_int)
-            
-            color = (base_color * intensity).astype(int)
-            color = tuple(np.clip(color, 0, 255))
-            
-            face_data.append((z_avg, v_indices, color))
-        
-        # Sort by depth (painter's algorithm)
-        face_data.sort(key=lambda x: x[0])
-        
-        # Draw faces
-        for _, v_indices, color in face_data:
-            points = [(verts_screen[vi][0], verts_screen[vi][1]) for vi in v_indices[:4]]
-            if len(points) >= 3:
-                draw.polygon(points, fill=color)
+        grid_img = self._make_grid(rendered_images, grid_columns, tuple(bg_color))
+        grid = torch.from_numpy(np.asarray(grid_img, dtype=np.float32) / 255.0).unsqueeze(0)
+        return ([grid], [lighting_prompts[0] if lighting_prompts else ""])
     
     def _make_grid(self, images, columns, bg_color=(40, 40, 40)):
         """Combine images into a grid."""
@@ -651,7 +515,7 @@ class VNCCS_PoseStudio:
             return Image.new('RGB', (512, 512), bg_color)
         
         n = len(images)
-        cols = min(columns, n)
+        cols = max(1, min(columns, n))
         rows = (n + cols - 1) // cols
         
         w, h = images[0].size

@@ -11,7 +11,7 @@ from server import PromptServer
 
 from ..CharacterData import matrix
 from ..CharacterData.mh_parser import HumanSolver
-from .pose_studio import POSE_STUDIO_CACHE, VNCCS_PoseStudio, _ensure_data_loaded
+from .pose_studio import POSE_STUDIO_CACHE, VNCCS_PoseStudio, _ensure_data_loaded, _validate_pose_data
 
 
 _FINGERS = ("thumb", "index", "middle", "ring", "pinky")
@@ -234,6 +234,7 @@ def _openpose_frame(vertices, skeleton, world_matrices, export, pose):
 
 def pose_data_to_openpose(pose_data):
     data = json.loads(pose_data) if pose_data else {}
+    _validate_pose_data(data)
     mesh = data.get("mesh", {})
     export = data.get("export", {})
     poses = data.get("poses") or [{}]
@@ -256,9 +257,10 @@ class VNCCS_PoseStudioOpenPose(VNCCS_PoseStudio):
     def generate_with_openpose(self, pose_data="{}", pose_image=None, unique_id=None):
         effective_pose_data = pose_data
         if unique_id and pose_image is None:
+            self._discard_frontend_sync(unique_id)
             start_time = time.time()
             PromptServer.instance.send_sync("vnccs_req_pose_sync", {"node_id": unique_id})
-            synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=5.0)
+            synced = self._wait_for_frontend_sync(unique_id, start_time, timeout=30.0)
             if synced:
                 effective_pose_data = json.dumps(synced)
         images, prompts = super().generate(effective_pose_data, pose_image, unique_id)

@@ -1,6 +1,7 @@
 import base64
 import importlib
 import io
+import json
 import os
 import sys
 import types
@@ -103,6 +104,59 @@ class CapturedImageTests(unittest.TestCase):
     def test_invalid_base64_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "valid base64"):
             self.pose_studio._decode_captured_images(["data:image/png;base64,not-valid!"])
+
+    def test_generate_returns_all_eighty_one_captures(self):
+        data = {
+            "poses": [{} for _ in range(81)],
+            "captured_images": [self.data_url] * 81,
+            "lighting_prompts": [f"prompt {index}" for index in range(81)],
+            "export": {"output_mode": "LIST"},
+        }
+
+        images, prompts = self.pose_studio.VNCCS_PoseStudio().generate(json.dumps(data))
+
+        self.assertEqual(len(images), 81)
+        self.assertEqual(prompts, data["lighting_prompts"])
+        self.assertTrue(all(tuple(image.shape) == (1, 2, 2, 3) for image in images))
+        self.assertAlmostEqual(float(images[0][0, 0, 0, 0]), 12.0 / 255.0)
+
+    def test_generate_rejects_incomplete_capture_set(self):
+        data = {
+            "poses": [{}, {}],
+            "captured_images": [self.data_url, None],
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "1 of 2 required frontend captures"):
+            self.pose_studio.VNCCS_PoseStudio().generate(json.dumps(data))
+
+
+class PoseDataValidationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.pose_studio = load_pose_studio_module()
+
+    def test_rejects_malformed_bone_rotation(self):
+        data = {"poses": [{"bones": {"upperarm_l": [10, float("nan"), 20]}}]}
+
+        with self.assertRaisesRegex(ValueError, "finite number"):
+            self.pose_studio._validate_pose_data(data)
+
+    def test_rejects_invalid_export_dimensions(self):
+        with self.assertRaisesRegex(ValueError, "between 1 and 4096"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}],
+                "export": {"view_width": 0},
+            })
+
+    def test_pose_image_hash_covers_every_element(self):
+        first = self.pose_studio.torch.zeros((1, 1, 2000, 1), dtype=self.pose_studio.torch.float32)
+        second = first.clone()
+        second.reshape(-1)[1] = 1.0
+
+        first_hash = self.pose_studio.VNCCS_PoseStudio.IS_CHANGED("{}", first)
+        second_hash = self.pose_studio.VNCCS_PoseStudio.IS_CHANGED("{}", second)
+
+        self.assertNotEqual(first_hash, second_hash)
 
 
 class MorphFactorTests(unittest.TestCase):
