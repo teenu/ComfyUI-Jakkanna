@@ -50,7 +50,7 @@
       "properties": {
         "Node name for S&R": "VNCCS_PoseStudio",
         "cnr_id": "jakkanna",
-        "ver": "1.0.1",
+        "ver": "1.1.0",
         "aux_id": "teenu/ComfyUI-Jakkanna"
       },
       "widgets_values": [
@@ -735,7 +735,7 @@
   "groups": [
     {
       "id": 1,
-      "title": "1 · JAKKANNA 1.0.1 — edit silhouette, pose, framing, lighting, and prompt",
+      "title": "1 · JAKKANNA 1.1.0 — edit silhouette, pose, framing, lighting, and prompt",
       "bounding": [
         -40,
         -70,

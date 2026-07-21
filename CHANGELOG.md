@@ -1,3 +1,39 @@
+# Version 1.1.0
+## Node Identifier Consistency
+
+### Breaking Change
+
+*   **`VNCCSReplaceOpenPoseHands` is now `VNCCS_ReplaceOpenPoseHands`**: the
+    Jakkanna-introduced hands-replacement node identifier now follows the same
+    `VNCCS_` underscore convention as every other registered node.
+    *   Workflows saved under `1.0.0`, `1.0.1`, or the superseded pre-brand
+        package serialize the earlier identifier and will report a missing
+        node. Re-add "Jakkanna Replace OpenPose Hands" from the node menu and
+        reconnect it, or change the node's serialized `type` to
+        `VNCCS_ReplaceOpenPoseHands` in the workflow JSON.
+    *   No upstream VNCCS identifier is affected. Every node that ever shipped
+        in upstream VNCCS Utils keeps its exact original identifier, and
+        `FORK_NOTICE.md` records this correction.
+
+### Licensing Metadata
+
+*   Removed the MIT-only license classifier from the Registry metadata. The
+    root `LICENSE` continues to cover original VNCCS code and Jakkanna
+    contributions; `THIRD_PARTY_NOTICES.md` remains the authoritative
+    statement that the distribution as a whole is not MIT-only because of the
+    bundled AGPL-3.0 MakeHuman-derived modules.
+
+### Documentation
+
+*   Documented prominently that Pose Studio executes from browser-supplied
+    captures: run workflows from a browser session with the node open so
+    captures can synchronize. Headless or API-only execution without
+    synchronized captures fails with a clear error by design.
+*   Noted the fixed-seed, capture-cached re-run behavior of the Krea 2
+    Community Pose Studio workflow and refreshed that workflow's bundled
+    version identity.
+*   Documented the `unittest`-based regression suite invocation.
+
 # Version 1.0.1
 ## Jakkanna Identity Cleanup
 
