@@ -63,9 +63,10 @@ Pose Studio nodes. It also corrects:
 The Jakkanna-introduced hands-replacement node is registered as
 `VNCCS_ReplaceOpenPoseHands`, matching the `VNCCS_*` identifier convention.
 The 1.0.0 and 1.0.1 releases and the superseded pre-brand package registered
-it as `VNCCSReplaceOpenPoseHands` (without the underscore separator);
-workflows saved with that early ID must be updated to the corrected
-identifier. No upstream VNCCS identifier is
+it as `VNCCSReplaceOpenPoseHands` (without the underscore separator). Jakkanna
+1.1.1 and later retain that early identifier as a deprecated compatibility
+alias, so saved workflows continue to load while new workflows use the
+corrected identifier. No upstream VNCCS identifier is
 affected — the retained-name guarantees above apply to every node that ever
 shipped in upstream VNCCS Utils.
 

@@ -5,6 +5,11 @@ from .nodes.pose_studio import JakkannaPoseStudio
 from .nodes.openpose_export import JakkannaPoseStudioOpenPose, JakkannaReplaceOpenPoseHands
 from .nodes.unicanvas import JakkannaCanvas, register_unicanvas_routes
 
+
+class JakkannaReplaceOpenPoseHandsLegacy(JakkannaReplaceOpenPoseHands):
+    DEPRECATED = True
+
+
 NODE_CLASS_MAPPINGS = {
     "VNCCS_PositionControl": JakkannaPositionControl,
     "VNCCS_VisualPositionControl": JakkannaVisualPositionControl,
@@ -14,6 +19,7 @@ NODE_CLASS_MAPPINGS = {
     "VNCCS_ModelSelector": JakkannaModelSelector,
     "VNCCS_PoseStudio": JakkannaPoseStudio,
     "VNCCS_PoseStudioOpenPose": JakkannaPoseStudioOpenPose,
+    "VNCCSReplaceOpenPoseHands": JakkannaReplaceOpenPoseHandsLegacy,
     "VNCCS_ReplaceOpenPoseHands": JakkannaReplaceOpenPoseHands,
     "VNCCS_UniCanvas": JakkannaCanvas,
 }
@@ -27,6 +33,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VNCCS_ModelSelector": "Jakkanna Model Selector",
     "VNCCS_PoseStudio": "Jakkanna Pose Studio",
     "VNCCS_PoseStudioOpenPose": "Jakkanna Pose Studio + OpenPose",
+    "VNCCSReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands (Legacy)",
     "VNCCS_ReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands",
     "VNCCS_UniCanvas": "Jakkanna Canvas",
 }

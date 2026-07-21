@@ -15,6 +15,9 @@ Registered nodes:
 | Jakkanna Pose Studio | `VNCCS_PoseStudio` | `Jakkanna/pose` | Interactive 3D pose, body, camera, lighting, and pose-library workspace. |
 | Jakkanna Pose Studio + OpenPose | `VNCCS_PoseStudioOpenPose` | `Jakkanna/pose` | Render Pose Studio images and export aligned OpenPose keypoints in one execution. |
 | Jakkanna Replace OpenPose Hands | `VNCCS_ReplaceOpenPoseHands` | `Jakkanna/pose` | Replace another OpenPose result's hand and wrist data with Pose Studio data. |
+
+The earlier `VNCCSReplaceOpenPoseHands` identifier remains available only as a
+deprecated compatibility alias for workflows saved before Jakkanna 1.1.1.
 | Jakkanna Canvas | `VNCCS_UniCanvas` | `Jakkanna/canvas` | Host the integrated infinite-canvas generation and editing workspace. |
 
 The bundled `jakkanna_sam3d` package is used by Pose Studio for image-to-pose import

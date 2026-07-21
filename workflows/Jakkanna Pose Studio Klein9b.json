@@ -101,7 +101,7 @@
         "Node name for S&R": "VNCCS_ModelManager",
         "cnr_id": "jakkanna",
         "aux_id": "teenu/ComfyUI-Jakkanna",
-        "ver": "1.0.1"
+        "ver": "1.1.1"
       },
       "widgets_values": [
         "MIUProject/VNCCS_PoseStudio_Klein",
@@ -278,7 +278,7 @@
       "properties": {
         "Node name for S&R": "VNCCS_PoseStudio",
         "cnr_id": "jakkanna",
-        "ver": "1.0.1",
+        "ver": "1.1.1",
         "aux_id": "teenu/ComfyUI-Jakkanna"
       },
       "widgets_values": [
@@ -354,7 +354,7 @@
         "aux_id": "teenu/ComfyUI-Jakkanna",
         "Node name for S&R": "VNCCS_ModelSelector",
         "cnr_id": "jakkanna",
-        "ver": "1.0.1"
+        "ver": "1.1.1"
       },
       "widgets_values": [
         "MIUProject/VNCCS_PoseStudio_Klein",

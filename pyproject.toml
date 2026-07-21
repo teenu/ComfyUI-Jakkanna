@@ -1,8 +1,8 @@
 [project]
 name = "jakkanna"
 description = "Visual control and creative tools for ComfyUI: 3D posing, OpenPose, canvas editing, detailing, and model workflows."
-version = "1.1.0"
-license = {file = "LICENSE"} 
+version = "1.1.1"
+license = {file = "THIRD_PARTY_NOTICES.md"}
 
 dependencies = [
     "opencv-python",
@@ -48,6 +48,7 @@ NodeIds = [
     "VNCCS_ModelSelector",
     "VNCCS_PoseStudio",
     "VNCCS_PoseStudioOpenPose",
+    "VNCCSReplaceOpenPoseHands",
     "VNCCS_ReplaceOpenPoseHands",
     "VNCCS_UniCanvas",
 ]

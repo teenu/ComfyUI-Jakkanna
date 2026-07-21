@@ -1,21 +1,24 @@
 import ast
+import json
 import os
+import tomllib
 import unittest
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-LEGACY_NODE_IDS = {
-    "VNCCS_PositionControl",
-    "VNCCS_VisualPositionControl",
-    "VNCCS_QWEN_Detailer",
-    "VNCCS_BBox_Extractor",
-    "VNCCS_ModelManager",
-    "VNCCS_ModelSelector",
-    "VNCCS_PoseStudio",
-    "VNCCS_PoseStudioOpenPose",
-    "VNCCS_ReplaceOpenPoseHands",
-    "VNCCS_UniCanvas",
+REGISTERED_NODE_MAPPINGS = {
+    "VNCCS_PositionControl": "JakkannaPositionControl",
+    "VNCCS_VisualPositionControl": "JakkannaVisualPositionControl",
+    "VNCCS_QWEN_Detailer": "JakkannaQwenDetailer",
+    "VNCCS_BBox_Extractor": "JakkannaBBoxExtractor",
+    "VNCCS_ModelManager": "JakkannaModelManager",
+    "VNCCS_ModelSelector": "JakkannaModelSelector",
+    "VNCCS_PoseStudio": "JakkannaPoseStudio",
+    "VNCCS_PoseStudioOpenPose": "JakkannaPoseStudioOpenPose",
+    "VNCCSReplaceOpenPoseHands": "JakkannaReplaceOpenPoseHandsLegacy",
+    "VNCCS_ReplaceOpenPoseHands": "JakkannaReplaceOpenPoseHands",
+    "VNCCS_UniCanvas": "JakkannaCanvas",
 }
 
 
@@ -67,7 +70,7 @@ class IdentityBoundaryTests(unittest.TestCase):
             self.assertNotIn('className = "vnccs-', source, filename)
             self.assertNotIn(".vnccs-", source, filename)
 
-    def test_legacy_node_ids_map_to_jakkanna_classes(self):
+    def test_registered_node_ids_map_to_jakkanna_classes(self):
         with open(os.path.join(ROOT, "__init__.py"), "r", encoding="utf-8") as handle:
             module = ast.parse(handle.read())
 
@@ -77,11 +80,60 @@ class IdentityBoundaryTests(unittest.TestCase):
             if isinstance(node, ast.Assign)
             and any(isinstance(target, ast.Name) and target.id == "NODE_CLASS_MAPPINGS" for target in node.targets)
         )
-        actual_ids = {key.value for key in mappings.keys}
-        class_names = {value.id for value in mappings.values}
+        actual_mappings = {key.value: value.id for key, value in zip(mappings.keys, mappings.values)}
 
-        self.assertEqual(actual_ids, LEGACY_NODE_IDS)
-        self.assertTrue(all(name.startswith("Jakkanna") for name in class_names))
+        self.assertEqual(actual_mappings, REGISTERED_NODE_MAPPINGS)
+
+    def test_old_hands_identifier_is_a_deprecated_compatibility_wrapper(self):
+        with open(os.path.join(ROOT, "__init__.py"), "r", encoding="utf-8") as handle:
+            module = ast.parse(handle.read())
+
+        wrapper = next(
+            node
+            for node in module.body
+            if isinstance(node, ast.ClassDef) and node.name == "JakkannaReplaceOpenPoseHandsLegacy"
+        )
+        self.assertEqual([base.id for base in wrapper.bases], ["JakkannaReplaceOpenPoseHands"])
+        deprecated = next(
+            node.value
+            for node in wrapper.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "DEPRECATED" for target in node.targets)
+        )
+        self.assertIs(deprecated.value, True)
+
+    def test_registry_ids_match_registered_nodes(self):
+        with open(os.path.join(ROOT, "pyproject.toml"), "rb") as handle:
+            metadata = tomllib.load(handle)
+
+        self.assertEqual(set(metadata["tool"]["comfy"]["NodeIds"]), set(REGISTERED_NODE_MAPPINGS))
+
+    def test_example_workflows_use_current_jakkanna_version(self):
+        with open(os.path.join(ROOT, "pyproject.toml"), "rb") as handle:
+            version = tomllib.load(handle)["project"]["version"]
+
+        found = 0
+
+        def check(value, filename):
+            nonlocal found
+            if isinstance(value, dict):
+                if value.get("cnr_id") == "jakkanna":
+                    found += 1
+                    self.assertEqual(value.get("ver"), version, filename)
+                for child in value.values():
+                    check(child, filename)
+            elif isinstance(value, list):
+                for child in value:
+                    check(child, filename)
+
+        workflow_dir = os.path.join(ROOT, "workflows")
+        for filename in os.listdir(workflow_dir):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(workflow_dir, filename), "r", encoding="utf-8") as handle:
+                check(json.load(handle), filename)
+
+        self.assertGreater(found, 0)
 
 
 if __name__ == "__main__":
