@@ -14,7 +14,7 @@ LEGACY_NODE_IDS = {
     "VNCCS_ModelSelector",
     "VNCCS_PoseStudio",
     "VNCCS_PoseStudioOpenPose",
-    "VNCCSReplaceOpenPoseHands",
+    "VNCCS_ReplaceOpenPoseHands",
     "VNCCS_UniCanvas",
 }
 
