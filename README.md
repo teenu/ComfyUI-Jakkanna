@@ -122,9 +122,9 @@ verified 704 × 1280 preset: ER-SDE/simple, 8 steps, CFG 1, denoise `0.60`, and
 a fixed seed. Its raw-capture preview should show a shaded, high-contrast
 figure; flat grey captures leave too little form information for restyling.
 Run it with the Pose Studio node open in the browser so captures can
-synchronize (see the capture note above), and note that the fixed seed plus
-capture caching make an unchanged re-run return instantly from cache — change
-the seed to explore variants.
+synchronize (see the capture note above). With ComfyUI execution caching
+enabled, the fixed seed and unchanged inputs allow the completed output to be
+reused; change the seed or another input to force sampling and explore variants.
 Describe the pose explicitly in the prompt for the strongest adherence.
 This remains VAE image-to-image conditioning rather than ControlNet: at
 denoise `0.60`, Krea 2 can still reinterpret a pose that is not described.

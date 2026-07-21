@@ -1,16 +1,29 @@
+# Version 1.1.1
+## Compatibility and Release Consistency
+
+*   Restored `VNCCSReplaceOpenPoseHands` as a deprecated compatibility alias
+    for `VNCCS_ReplaceOpenPoseHands`. Workflows saved by Jakkanna 1.0.x and the
+    superseded pre-brand package continue to load without manual editing.
+*   Updated every bundled Jakkanna workflow to version 1.1.1 and included the
+    example workflows in the Comfy Registry package.
+*   Pointed package license metadata at the aggregate third-party notice while
+    retaining every component license in the distribution.
+*   Clarified the distinction between Pose Studio capture synchronization and
+    ComfyUI execution-result caching.
+*   Added continuous integration for the regression suite and made Registry
+    publication depend on that suite passing.
+
 # Version 1.1.0
 ## Node Identifier Consistency
 
-### Breaking Change
+### Superseded Registry Submission
 
 *   **`VNCCSReplaceOpenPoseHands` is now `VNCCS_ReplaceOpenPoseHands`**: the
     Jakkanna-introduced hands-replacement node identifier now follows the same
     `VNCCS_` underscore convention as every other registered node.
-    *   Workflows saved under `1.0.0`, `1.0.1`, or the superseded pre-brand
-        package serialize the earlier identifier and will report a missing
-        node. Re-add "Jakkanna Replace OpenPose Hands" from the node menu and
-        reconnect it, or change the node's serialized `type` to
-        `VNCCS_ReplaceOpenPoseHands` in the workflow JSON.
+    *   This submission removed the earlier identifier and was superseded by
+        1.1.1 before general use. Version 1.1.1 restores it as a deprecated
+        compatibility alias.
     *   No upstream VNCCS identifier is affected. Every node that ever shipped
         in upstream VNCCS Utils keeps its exact original identifier, and
         `FORK_NOTICE.md` records this correction.

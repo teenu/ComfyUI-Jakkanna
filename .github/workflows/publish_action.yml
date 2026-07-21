@@ -3,9 +3,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   publish-node:
     name: Publish Custom Node to registry
+    needs: test
     runs-on: ubuntu-latest
+    env:
+      COMFY_NODE_CHANGELOG: >-
+        Restores VNCCSReplaceOpenPoseHands as a deprecated compatibility alias
+        for VNCCS_ReplaceOpenPoseHands, updates and ships every bundled
+        workflow, clarifies package licensing and cache documentation, and
+        gates Registry publication on the regression suite.
     steps:
       - name: Check out code
         uses: actions/checkout@v4
