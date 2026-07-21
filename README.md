@@ -19,6 +19,15 @@ framing, and composition.
 > the original `VNCCS_*` node identifiers and `/vnccs/` routes so existing
 > workflows continue to load.
 
+> [!NOTE]
+> Pose Studio images are captured by the node's browser viewport, not by a
+> server-side renderer. Run Pose Studio workflows from a browser session in
+> which the node is open and its 3D viewer has finished loading; the backend
+> then synchronizes the captures it needs. Headless or API-only execution
+> without synchronized captures stops with a clear error by design — Jakkanna
+> deliberately removed the upstream Python fallback renderer rather than let
+> it produce geometry that differs from the viewport.
+
 ## Why Jakkanna Exists
 
 Jakkanna begins at version `1.0.0` with a correctness baseline that:
@@ -112,6 +121,10 @@ Both use `raw.safetensors`, MysticXXX Stripped at `0.55`, and Raw-to-Turbo at
 verified 704 × 1280 preset: ER-SDE/simple, 8 steps, CFG 1, denoise `0.60`, and
 a fixed seed. Its raw-capture preview should show a shaded, high-contrast
 figure; flat grey captures leave too little form information for restyling.
+Run it with the Pose Studio node open in the browser so captures can
+synchronize (see the capture note above), and note that the fixed seed plus
+capture caching make an unchanged re-run return instantly from cache — change
+the seed to explore variants.
 Describe the pose explicitly in the prompt for the strongest adherence.
 This remains VAE image-to-image conditioning rather than ControlNet: at
 denoise `0.60`, Krea 2 can still reinterpret a pose that is not described.
@@ -222,6 +235,19 @@ pip install -r requirements.txt
 ```
 
 Restart ComfyUI after installation.
+
+## Development
+
+The regression suite uses the standard-library `unittest` runner and needs no
+extra test dependencies. Run it with the same Python environment that runs
+ComfyUI:
+
+```bash
+python -m unittest discover -s tests
+```
+
+`pytest` also discovers these tests if it happens to be installed, but it is
+not required.
 
 ## Lineage, Licensing, and Maintenance
 
