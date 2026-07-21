@@ -777,9 +777,9 @@
       "title": "SOURCE CHECK — avoid flat grey captures; describe the pose explicitly in the prompt",
       "bounding": [
         1680,
-        780,
+        800,
         1190,
-        730
+        710
       ],
       "color": "#9e633f",
       "font_size": 24,
