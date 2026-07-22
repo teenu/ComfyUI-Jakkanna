@@ -475,6 +475,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("Could not retarget the sampled frame", mixamo)
         self.assertNotIn("if (!applied) continue", mixamo)
         self.assertIn("The FBX skeleton is not compatible with the Mixamo bone layout.", mixamo)
+        self.assertIn("sourceBones.normalizedBones[`mixamorig${name}`]", mixamo)
 
     def test_head_retarget_options_stay_in_their_own_method(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:

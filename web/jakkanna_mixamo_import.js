@@ -212,7 +212,9 @@ function collectSourceBones(root) {
 
 function hasMixamoSignature(sourceBones) {
     const requiredNames = ['hips', 'spine', 'leftupleg', 'rightupleg'];
-    return requiredNames.every((name) => sourceBones.normalizedBones[name]);
+    return requiredNames.every((name) => (
+        sourceBones.normalizedBones[name] || sourceBones.normalizedBones[`mixamorig${name}`]
+    ));
 }
 
 function buildFrameRotationMap(sourceBones, targetTHREE) {
