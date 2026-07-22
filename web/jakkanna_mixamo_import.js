@@ -1,6 +1,6 @@
 import { IK_CHAINS } from "./jakkanna_pose_studio_core.js";
-
-const THREE_VERSION = "0.160.0";
+import * as THREE from "./three.module.js";
+import { FBXLoader } from "./vendor/three-r160/loaders/FBXLoader.js";
 
 const MIXAMO_TO_MH_BONE_MAP = {
     Hips: 'pelvis',
@@ -132,14 +132,6 @@ const MIXAMO_RETARGET_ORDER = [
     'thigh_r', 'calf_r', 'foot_r', 'ball_r',
 ];
 
-const MIXAMO_DEBUG_BONES = [
-    'pelvis', 'spine_01', 'spine_03',
-    'upperarm_l', 'lowerarm_l', 'hand_l',
-    'upperarm_r', 'lowerarm_r', 'hand_r',
-    'thigh_l', 'calf_l', 'foot_l',
-    'thigh_r', 'calf_r', 'foot_r',
-];
-
 const MIXAMO_KEYPOINT_ROTATION_LAYER_BONES = [
     'neck_01', 'head',
     'hand_l',
@@ -158,25 +150,10 @@ const MIXAMO_KEYPOINT_ROTATION_LAYER_BONES = [
     'foot_r', 'ball_r',
 ];
 
-let loaderPromise = null;
-
 function normalizeBoneName(name) {
     if (!name) return '';
     const shortName = name.includes(':') ? name.split(':').pop() : name;
     return shortName.replace(/[^a-z0-9]/gi, '').toLowerCase();
-}
-
-async function loadMixamoModules() {
-    if (!loaderPromise) {
-        loaderPromise = Promise.all([
-            import(`https://esm.sh/three@${THREE_VERSION}`),
-            import(`https://esm.sh/three@${THREE_VERSION}/examples/jsm/loaders/FBXLoader.js`),
-        ]).then(([threeModule, loaderModule]) => ({
-            THREE: threeModule,
-            FBXLoader: loaderModule.FBXLoader,
-        }));
-    }
-    return loaderPromise;
 }
 
 function collectSourceBones(root) {
@@ -592,17 +569,6 @@ function buildMixamoLegTargets(sourceBones, viewer) {
             kneeTarget: scaledWorldPoint(worldRightHip || rest.rightHip, rightHipSource || pelvisSource, rightKneeSource, rightLegScale),
             ankleTarget: scaledWorldPoint(worldRightHip || rest.rightHip, rightHipSource || pelvisSource, rightAnkleSource, rightLegScale),
         },
-        rawSources: {
-            pelvisSource,
-            leftHipSource,
-            rightHipSource,
-            leftKneeSource,
-            rightKneeSource,
-            leftAnkleSource,
-            rightAnkleSource,
-            leftLegScale,
-            rightLegScale,
-        }
     };
 }
 
@@ -651,7 +617,6 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
     if (!file) throw new Error('No FBX file was selected.');
     if (!viewer?.isInitialized?.() || !viewer.THREE) throw new Error('Pose viewer is not ready.');
 
-    const { THREE, FBXLoader } = await loadMixamoModules();
     const loader = new FBXLoader();
     const fileUrl = URL.createObjectURL(file);
     let originalPose = null;
@@ -664,13 +629,6 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         if (!clip) throw new Error('The FBX file does not contain any animation clips.');
 
         const sourceBones = collectSourceBones(root);
-        // Debug logging: print discovered bone names to browser console to aid mapping
-        try {
-            console.info('[jakkanna_mixamo_import] discovered bones:', Object.keys(sourceBones.bones || {}).slice(0,200));
-            console.info('[jakkanna_mixamo_import] discovered normalized bones:', Object.keys(sourceBones.normalizedBones || {}).slice(0,200));
-        } catch (e) {
-            // ignore logging failures
-        }
         // Accept any FBX that provides bones (either Bone objects or SkinnedMesh.skeleton.bones).
         const hasAnyBones = sourceBones && (
             (sourceBones.bones && Object.keys(sourceBones.bones).length > 0) ||
@@ -702,7 +660,6 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         originalHistory = Array.isArray(viewer.history) ? viewer.history.slice() : null;
         originalFuture = Array.isArray(viewer.future) ? viewer.future.slice() : null;
         const poses = [];
-        const debugFrames = [];
 
         for (const sampleTime of sampleTimes) {
             mixer.setTime(sampleTime);
@@ -723,24 +680,6 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
                 if (historySnapshot) viewer.history = historySnapshot;
                 if (futureSnapshot) viewer.future = futureSnapshot;
                 poses.push(viewer.getPose());
-
-                if (debugFrames.length < 3) {
-                    debugFrames.push({
-                        sampleTime,
-                        method: 'mixamo_keypoints_fk_ik',
-                        keypoints: Object.fromEntries(Object.entries(mixamoKeypoints.worldKps).map(([name, value]) => [
-                            name,
-                            value ? [value.x, value.y, value.z] : null,
-                        ])),
-                        scales: {
-                            torsoScale: mixamoKeypoints.debug.torsoScale,
-                            leftArmScale: mixamoKeypoints.debug.leftArmScale,
-                            rightArmScale: mixamoKeypoints.debug.rightArmScale,
-                            leftLegScale: mixamoKeypoints.debug.leftLegScale,
-                            rightLegScale: mixamoKeypoints.debug.rightLegScale,
-                        },
-                    });
-                }
                 continue;
             }
 
@@ -749,90 +688,18 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
             if (!legTargets) {
                 throw new Error('The FBX skeleton is not compatible with the Mixamo bone layout.');
             }
-            try {
-                console.info('[jakkanna_mixamo_import] sourceWorldRotations keys:', Object.keys(sourceWorldRotations || {}));
-            } catch (e) {}
-            const debugCollector = debugFrames.length < 3 ? {} : null;
             const applied = viewer.applyWorldRotationImport(
                 sourceWorldRotations,
                 MIXAMO_RETARGET_PARENTS,
                 MIXAMO_RETARGET_ORDER,
-                {
-                    sourceRestWorldRotations,
-                    debugBones: MIXAMO_DEBUG_BONES,
-                    debugFrame: debugFrames.length,
-                    debugCollector,
-                },
+                { sourceRestWorldRotations },
             );
             if (!applied) {
                 throw new Error(`Could not retarget the sampled frame at ${sampleTime.toFixed(3)}s.`);
             }
 
-            // Attach raw Mixamo source world rotations to the pose exported to the node
-            // so server-side converters can use exact source quaternions when retargeting.
-            const poseObj = viewer.getPose();
-            try {
-                poseObj._mixamo_sourceWorldRotations = {};
-                for (const [k, q] of Object.entries(sourceWorldRotations || {})) {
-                    if (!q) continue;
-                    poseObj._mixamo_sourceWorldRotations[k] = [q.x, q.y, q.z, q.w];
-                }
-                // Also include legTargets raw numeric sources for improved IK handling server-side
-                if (legTargets && legTargets.rawSources) poseObj._mixamo_legTargets = legTargets.rawSources;
-            } catch (e) {
-                // ignore any serialization errors
-            }
-
             viewer.applyImportedLegTargets(legTargets);
-            // Augment debug collector with leg target numeric values for first frames
-            if (debugCollector) {
-                try {
-                    debugCollector.legTargets = {
-                        left: legTargets && legTargets.leftLeg ? {
-                            knee: legTargets.leftLeg.kneeTarget ? [legTargets.leftLeg.kneeTarget.x, legTargets.leftLeg.kneeTarget.y, legTargets.leftLeg.kneeTarget.z] : null,
-                            ankle: legTargets.leftLeg.ankleTarget ? [legTargets.leftLeg.ankleTarget.x, legTargets.leftLeg.ankleTarget.y, legTargets.leftLeg.ankleTarget.z] : null,
-                        } : null,
-                        right: legTargets && legTargets.rightLeg ? {
-                            knee: legTargets.rightLeg.kneeTarget ? [legTargets.rightLeg.kneeTarget.x, legTargets.rightLeg.kneeTarget.y, legTargets.rightLeg.kneeTarget.z] : null,
-                            ankle: legTargets.rightLeg.ankleTarget ? [legTargets.rightLeg.ankleTarget.x, legTargets.rightLeg.ankleTarget.y, legTargets.rightLeg.ankleTarget.z] : null,
-                        } : null,
-                        rawSources: legTargets?.rawSources ? {
-                            pelvisSource: legTargets.rawSources.pelvisSource,
-                            leftHipSource: legTargets.rawSources.leftHipSource,
-                            rightHipSource: legTargets.rawSources.rightHipSource,
-                            leftKneeSource: legTargets.rawSources.leftKneeSource,
-                            rightKneeSource: legTargets.rawSources.rightKneeSource,
-                            leftAnkleSource: legTargets.rawSources.leftAnkleSource,
-                            rightAnkleSource: legTargets.rawSources.rightAnkleSource,
-                            leftLegScale: legTargets.rawSources.leftLegScale,
-                            rightLegScale: legTargets.rawSources.rightLegScale,
-                        } : null,
-                    };
-                } catch (e) {
-                    // ignore debug augmentation failures
-                }
-            }
-
-            if (debugCollector) {
-                debugFrames.push({
-                    sampleTime,
-                    bones: debugCollector,
-                });
-            }
-
             poses.push(viewer.getPose());
-        }
-
-        try {
-            globalThis.__jakkannaMixamoDebug = {
-                clipName: clip.name || file.name,
-                sampleTimes: sampleTimes.slice(0, debugFrames.length),
-                frames: debugFrames,
-            };
-            console.info('[jakkanna_mixamo_import] exact debug saved to globalThis.__jakkannaMixamoDebug');
-            console.info('[jakkanna_mixamo_import] exact debug frames:', debugFrames);
-        } catch (e) {
-            // ignore debug publishing failures
         }
 
         if (!poses.length) {

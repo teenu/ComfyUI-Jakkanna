@@ -488,6 +488,24 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("viewer.history = originalHistory", mixamo)
         self.assertIn("viewer.future = originalFuture", mixamo)
 
+    def test_mixamo_loader_is_bundled(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_mixamo_import.js"), "r", encoding="utf-8") as handle:
+            mixamo = handle.read()
+
+        self.assertIn('import * as THREE from "./three.module.js";', mixamo)
+        self.assertIn('from "./vendor/three-r160/loaders/FBXLoader.js";', mixamo)
+        self.assertNotIn("https://esm.sh", mixamo)
+        self.assertNotIn("__jakkannaMixamoDebug", mixamo)
+
+        vendor_root = os.path.join(ROOT, "web", "vendor", "three-r160")
+        for filename in (
+            os.path.join("loaders", "FBXLoader.js"),
+            os.path.join("curves", "NURBSCurve.js"),
+            os.path.join("curves", "NURBSUtils.js"),
+            os.path.join("libs", "fflate.module.js"),
+        ):
+            self.assertTrue(os.path.isfile(os.path.join(vendor_root, filename)), filename)
+
     def test_head_retarget_options_stay_in_their_own_method(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
             core = handle.read()

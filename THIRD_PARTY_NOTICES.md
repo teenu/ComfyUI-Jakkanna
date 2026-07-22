@@ -44,9 +44,14 @@ under the GNU GPL version 3.
 ## Three.js and Browser-Side Dependencies
 
 `web/three.module.js`, `web/OrbitControls.js`, and
-`web/TransformControls.js` are from Three.js revision 160, Copyright
-2010-2023 Three.js Authors, licensed under MIT. The bundled module retains
-the copyright and SPDX notice.
+`web/TransformControls.js`, together with the FBX and NURBS modules under
+`web/vendor/three-r160/`, are from Three.js revision 160, Copyright 2010-2023
+Three.js Authors, licensed under MIT. The bundled modules retain copyright
+and SPDX notices.
+
+`web/vendor/three-r160/libs/fflate.module.js` is fflate 0.6.9, Copyright
+Arjun Barrett, licensed under MIT. Its source header retains the upstream
+license notice.
 
 ## Python Dependencies
 
