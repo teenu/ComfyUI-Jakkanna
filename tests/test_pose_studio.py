@@ -474,6 +474,21 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("action.clampWhenFinished = true", mixamo)
         self.assertIn("Could not retarget the sampled frame", mixamo)
         self.assertNotIn("if (!applied) continue", mixamo)
+        self.assertIn("The FBX skeleton is not compatible with the Mixamo bone layout.", mixamo)
+
+    def test_head_retarget_options_stay_in_their_own_method(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
+            core = handle.read()
+
+        import_start = core.index("_applyImportPelvisAndTorso(")
+        import_end = core.index("_buildWorldKeypointsFromSAM3D(", import_start)
+        import_method = core[import_start:import_end]
+        self.assertIn("const includeHead = options.includeHead !== false;", import_method)
+        self.assertIn("if (includeHead)", import_method)
+
+        hmr_start = core.index("fitMannequinToHMR2(")
+        hmr_end = core.index("setMannequinVisible(", hmr_start)
+        self.assertNotIn("includeHead", core[hmr_start:hmr_end])
 
     def test_pose_studio_tracks_imported_animation_contract(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:

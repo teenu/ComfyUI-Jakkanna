@@ -6463,6 +6463,24 @@ export class PoseViewerCore {
             applyFK('spine_03', '_s2', 'neck');
         }
 
+        if (includeHead) {
+            const rightEar = worldKps.right_ear;
+            const leftEar = worldKps.left_ear;
+            if (rightEar && leftEar) {
+                worldKps._earMid = new THREE.Vector3(
+                    (rightEar.x + leftEar.x) / 2,
+                    (rightEar.y + leftEar.y) / 2,
+                    (rightEar.z + leftEar.z) / 2,
+                );
+            }
+            if (worldKps._earMid) {
+                applyFK('neck_01', 'neck', '_earMid');
+                if (worldKps.nose) applyFK('head', '_earMid', 'nose');
+            } else {
+                applyFK('neck_01', 'neck', 'nose');
+            }
+        }
+
         if (shoulderYOffset !== 0) {
             if (worldKps.right_shoulder) worldKps.right_shoulder = worldKps.right_shoulder.clone().setY(worldKps.right_shoulder.y + shoulderYOffset);
             if (worldKps.left_shoulder) worldKps.left_shoulder = worldKps.left_shoulder.clone().setY(worldKps.left_shoulder.y + shoulderYOffset);
@@ -6916,22 +6934,20 @@ export class PoseViewerCore {
             applyFK('spine_03', '_s2', 'neck');
         }
 
-        if (includeHead) {
-            const rightEar = worldKps.right_ear;
-            const leftEar = worldKps.left_ear;
-            if (rightEar && leftEar) {
-                worldKps._earMid = new THREE.Vector3(
-                    (rightEar.x + leftEar.x) / 2,
-                    (rightEar.y + leftEar.y) / 2,
-                    (rightEar.z + leftEar.z) / 2,
-                );
-            }
-            if (worldKps._earMid) {
-                applyFK('neck_01', 'neck', '_earMid');
-                if (worldKps.nose) applyFK('head', '_earMid', 'nose');
-            } else {
-                applyFK('neck_01', 'neck', 'nose');
-            }
+        const rightEar = worldKps.right_ear;
+        const leftEar = worldKps.left_ear;
+        if (rightEar && leftEar) {
+            worldKps._earMid = new THREE.Vector3(
+                (rightEar.x + leftEar.x) / 2,
+                (rightEar.y + leftEar.y) / 2,
+                (rightEar.z + leftEar.z) / 2,
+            );
+        }
+        if (worldKps._earMid) {
+            applyFK('neck_01', 'neck', '_earMid');
+            if (worldKps.nose) applyFK('head', '_earMid', 'nose');
+        } else {
+            applyFK('neck_01', 'neck', 'nose');
         }
 
         if (shoulderYOffset !== 0) {

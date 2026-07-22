@@ -739,6 +739,9 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
 
             const sourceWorldRotations = buildFrameRotationMap(sourceBones, viewer.THREE);
             const legTargets = buildMixamoLegTargets(sourceBones, viewer);
+            if (!legTargets) {
+                throw new Error('The FBX skeleton is not compatible with the Mixamo bone layout.');
+            }
             try {
                 console.info('[jakkanna_mixamo_import] sourceWorldRotations keys:', Object.keys(sourceWorldRotations || {}));
             } catch (e) {}
