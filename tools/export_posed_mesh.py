@@ -15,10 +15,10 @@ Usage (run with ComfyUI's venv python — torch must be importable):
         user/default/workflows/Krea_2_Community.json -o mannequin.obj
 
 Notes:
-  - UVs come from base.obj collapsed to one UV per vertex (seam vertices keep
-    the last UV encountered), matching obj_loader's behaviour.
-  - Root translation from dragged hips (hipBonePosition) is not applied,
-    matching the behaviour of the node's OpenPose export.
+  - UVs are read per face corner from base.obj, so texture seams are exported
+    correctly (OBJ uses split v/vt indices; GLB duplicates seam vertices).
+  - A dragged hips root (hipBonePosition) is applied as a translation of the
+    pelvis subtree, mirroring the viewer's root-effector translate mode.
 """
 
 import argparse
@@ -99,27 +99,84 @@ def _extract_pose_data(doc):
     return found[0][1]
 
 
-def _visible_faces(base_mesh, gender):
-    faces = []
-    for face, group in zip(base_mesh.faces, base_mesh.face_groups or []):
+def _load_uv_topology():
+    """Parse base.obj for texcoords and per-face-corner vt indices."""
+    for rel in ("makehuman/makehuman/data/3dobjs/base.obj", "makehuman/data/3dobjs/base.obj"):
+        path = REPO_ROOT / "CharacterData" / rel
+        if path.exists():
+            break
+    else:
+        raise SystemExit("base.obj not found under CharacterData.")
+    texcoords = []
+    face_corner_vts = []
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("vt "):
+                parts = line.split()
+                texcoords.append((float(parts[1]), float(parts[2])))
+            elif line.startswith("f "):
+                corners = []
+                for token in line.split()[1:]:
+                    components = token.split("/")
+                    if not components[0]:
+                        continue
+                    if len(components) > 1 and components[1]:
+                        corners.append(int(components[1]) - 1)
+                    else:
+                        corners.append(-1)
+                face_corner_vts.append(corners)
+    return np.asarray(texcoords, dtype=np.float64), face_corner_vts
+
+
+def _visible_face_indices(base_mesh, gender):
+    indices = []
+    for position, group in enumerate(base_mesh.face_groups or []):
         name = group.strip()
         if name not in VISIBLE_GROUPS:
             continue
         if name == "helper-genital" and gender < 0.99:
             continue
-        faces.append([int(v[0] if isinstance(v, (list, tuple)) else v) for v in face])
-    if not faces:
+        indices.append(position)
+    if not indices:
         raise SystemExit("No visible faces after group filtering; base mesh groups missing?")
-    return faces
+    return indices
 
 
-def _compact(faces, arrays):
-    """Drop unreferenced vertices and remap face indices."""
+def _triangulate(faces):
+    return [[face[0], face[i], face[i + 1]] for face in faces for i in range(1, len(face) - 1)]
+
+
+def _compact_indices(faces):
+    """Return (remapped_faces, used_original_indices)."""
     used = sorted({index for face in faces for index in face})
     remap = np.full(max(used) + 1, -1, dtype=np.int64)
     remap[used] = np.arange(len(used))
-    new_faces = [[int(remap[index]) for index in face] for face in faces]
-    return new_faces, [array[used] for array in arrays], np.asarray(used)
+    return [[int(remap[index]) for index in face] for face in faces], np.asarray(used)
+
+
+def _hip_translation(pose, skeleton, world_matrices, matrix_mod):
+    """Apply a dragged-hips root translation to the pelvis subtree, if any.
+
+    The viewer stores the hips effector bone's local position, which in the
+    payload's convention equals pelvis.headPos - Root.headPos at rest; any
+    difference is a user drag in skeleton units.
+    """
+    stored = (pose.get("hipBonePosition") or {}).get("hips")
+    pelvis = skeleton.getBone("pelvis")
+    if stored is None or pelvis is None or pelvis.parent is None:
+        return world_matrices
+    rest = np.asarray(pelvis.headPos, dtype=np.float64) - np.asarray(pelvis.parent.headPos, dtype=np.float64)
+    delta = np.asarray(stored, dtype=np.float64) - rest
+    if not np.all(np.isfinite(delta)) or np.linalg.norm(delta) < 1e-4:
+        return world_matrices
+    print(f"Applying hips drag translation delta {delta.round(4).tolist()}")
+    subtree = {"pelvis"}
+    for bone in skeleton.boneslist:
+        if bone.parent is not None and bone.parent.name in subtree:
+            subtree.add(bone.name)
+    shift = np.asarray(matrix_mod.translate(delta))
+    return {name: (shift @ np.asarray(world) if name in subtree else world)
+            for name, world in world_matrices.items()}
 
 
 def _skin_vertices(vertices, skeleton, world_matrices, matrix_mod):
@@ -159,31 +216,45 @@ def _joint_dump(skeleton, world_matrices):
     return joints
 
 
-def _write_obj(path, vertices, uvs, faces):
+def _write_obj(path, vertices, texcoords, v_faces, vt_faces):
     with open(path, "w", encoding="utf-8") as handle:
         handle.write("# Jakkanna posed mannequin export\n")
         for x, y, z in vertices:
             handle.write(f"v {x:.6f} {y:.6f} {z:.6f}\n")
-        for u, v in uvs:
+        for u, v in texcoords:
             handle.write(f"vt {u:.6f} {v:.6f}\n")
         handle.write("g body\n")
-        for face in faces:
-            handle.write("f " + " ".join(f"{i + 1}/{i + 1}" for i in face) + "\n")
+        for v_face, vt_face in zip(v_faces, vt_faces):
+            handle.write("f " + " ".join(f"{v + 1}/{vt + 1}" for v, vt in zip(v_face, vt_face)) + "\n")
 
 
-def _write_glb(path, vertices, uvs, faces):
+def _write_glb(path, vertices, texcoords, v_faces, vt_faces):
     try:
         import trimesh
     except ImportError:
         raise SystemExit("GLB export needs the 'trimesh' package (pip install trimesh).")
+    # Split vertices per unique (position, uv) pair so texture seams survive.
+    corner_lookup = {}
+    split_vertices = []
+    split_uvs = []
     triangles = []
-    for face in faces:
-        for i in range(1, len(face) - 1):
-            triangles.append([face[0], face[i], face[i + 1]])
+    for v_face, vt_face in zip(v_faces, vt_faces):
+        corners = []
+        for v_index, vt_index in zip(v_face, vt_face):
+            key = (v_index, vt_index)
+            corner = corner_lookup.get(key)
+            if corner is None:
+                corner = len(split_vertices)
+                corner_lookup[key] = corner
+                split_vertices.append(vertices[v_index])
+                split_uvs.append(texcoords[vt_index])
+            corners.append(corner)
+        for i in range(1, len(corners) - 1):
+            triangles.append([corners[0], corners[i], corners[i + 1]])
     mesh = trimesh.Trimesh(
-        vertices=vertices,
+        vertices=np.asarray(split_vertices),
         faces=np.asarray(triangles, dtype=np.int64),
-        visual=trimesh.visual.TextureVisuals(uv=uvs),
+        visual=trimesh.visual.TextureVisuals(uv=np.asarray(split_uvs)),
         process=False,
     )
     mesh.export(path)
@@ -231,30 +302,41 @@ def main():
 
     rest_vertices = openpose._solve_vertices(mesh_params)
     gender = float(mesh_params.get("gender", 0.5)) if isinstance(mesh_params.get("gender", 0.5), (int, float)) else 0.5
-    faces = _visible_faces(base_mesh, gender)
+
+    texcoords, face_corner_vts = _load_uv_topology()
+    if len(face_corner_vts) != len(base_mesh.faces):
+        raise SystemExit("base.obj face count mismatch between obj_loader and UV parser.")
+    kept = _visible_face_indices(base_mesh, gender)
+    v_faces = [[int(v[0] if isinstance(v, (list, tuple)) else v) for v in base_mesh.faces[i]] for i in kept]
+    vt_faces = [face_corner_vts[i] for i in kept]
+    if any(vt < 0 for face in vt_faces for vt in face):
+        raise SystemExit("base.obj is missing texture coordinates on visible faces.")
     if args.triangulate:
-        faces = [tri for face in faces for tri in
-                 ([[face[0], face[i], face[i + 1]] for i in range(1, len(face) - 1)])]
-    faces, (uvs,), used = _compact(faces, [base_mesh.vertex_uvs])
+        v_faces = _triangulate(v_faces)
+        vt_faces = _triangulate(vt_faces)
+    v_faces, used = _compact_indices(v_faces)
+    vt_faces, used_vt = _compact_indices(vt_faces)
+    texcoords = texcoords[used_vt]
 
     default_output = args.output or args.input.with_suffix("").with_name(args.input.stem + ".obj")
     multiple = len(selected) > 1
 
     for pose_index, pose in selected:
         skeleton, world_matrices = openpose._pose_bones(rest_vertices, mesh_params, pose)
+        world_matrices = _hip_translation(pose, skeleton, world_matrices, matrix_mod)
         skinned = _skin_vertices(rest_vertices, skeleton, world_matrices, matrix_mod)[used]
         if args.apply_model_rotation:
             skinned = skinned @ openpose._model_rotation(pose).T
 
         out_path = _output_path(default_output, pose_index, multiple)
         if out_path.suffix.lower() == ".glb":
-            _write_glb(out_path, skinned, uvs, faces)
+            _write_glb(out_path, skinned, texcoords, v_faces, vt_faces)
         else:
-            _write_obj(out_path, skinned, uvs, faces)
+            _write_obj(out_path, skinned, texcoords, v_faces, vt_faces)
 
         lower = skinned.min(axis=0)
         upper = skinned.max(axis=0)
-        print(f"Pose {pose_index}: {len(skinned)} vertices, {len(faces)} faces -> {out_path}")
+        print(f"Pose {pose_index}: {len(skinned)} vertices, {len(v_faces)} faces -> {out_path}")
         print(f"  bounds min [{lower[0]:.2f} {lower[1]:.2f} {lower[2]:.2f}] "
               f"max [{upper[0]:.2f} {upper[1]:.2f} {upper[2]:.2f}] (MakeHuman units, Y-up)")
 
