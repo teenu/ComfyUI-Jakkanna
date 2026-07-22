@@ -81,7 +81,7 @@ def _validate_pose_data(data):
         raise ValueError("export must be an object")
     for name in (
         "view_width", "view_height", "view_size", "cam_zoom", "cam_offset_x",
-        "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns",
+        "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns", "animation_frames",
     ):
         if name in export:
             _finite_number(export[name], f"export.{name}")
@@ -91,6 +91,9 @@ def _validate_pose_data(data):
     if "grid_columns" in export:
         if export["grid_columns"] != int(export["grid_columns"]) or not 1 <= export["grid_columns"] <= _CAPTURED_IMAGE_MAX_COUNT:
             raise ValueError(f"export.grid_columns must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
+    if "animation_frames" in export:
+        if export["animation_frames"] != int(export["animation_frames"]) or not 1 <= export["animation_frames"] <= _CAPTURED_IMAGE_MAX_COUNT:
+            raise ValueError(f"export.animation_frames must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
     output_mode = export.get("output_mode", "LIST")
     if output_mode not in ("LIST", "GRID"):
         raise ValueError("export.output_mode must be LIST or GRID")
@@ -185,6 +188,31 @@ def _validate_pose_data(data):
     if capture_version is not None:
         if isinstance(capture_version, bool) or not isinstance(capture_version, int) or capture_version < 0:
             raise ValueError("capture_version must be a non-negative integer")
+
+    animation = data.get("animation")
+    if animation is not None:
+        if not isinstance(animation, dict):
+            raise ValueError("animation must be an object")
+        for name in ("file_name", "file_sha256", "clip_name", "skeleton_profile"):
+            value = animation.get(name)
+            if value is not None and (not isinstance(value, str) or len(value) > 512):
+                raise ValueError(f"animation.{name} must be a string of at most 512 characters")
+        if "duration_seconds" in animation and _finite_number(animation["duration_seconds"], "animation.duration_seconds") < 0:
+            raise ValueError("animation.duration_seconds must be non-negative")
+        sampled_frames = animation.get("sampled_frames")
+        if sampled_frames is not None:
+            _finite_number(sampled_frames, "animation.sampled_frames")
+            if sampled_frames != int(sampled_frames) or sampled_frames != len(poses):
+                raise ValueError("animation.sampled_frames must match the poses list")
+        sample_times = animation.get("sample_times_seconds", [])
+        if not isinstance(sample_times, list) or len(sample_times) > _CAPTURED_IMAGE_MAX_COUNT:
+            raise ValueError(f"animation.sample_times_seconds must contain at most {_CAPTURED_IMAGE_MAX_COUNT} entries")
+        if sample_times and len(sample_times) != len(poses):
+            raise ValueError("animation.sample_times_seconds must match the poses list")
+        for index, value in enumerate(sample_times):
+            _finite_number(value, f"animation.sample_times_seconds[{index}]")
+            if value < 0 or (index and value < sample_times[index - 1]):
+                raise ValueError("animation.sample_times_seconds must be non-negative and ordered")
 
     active_tab = data.get("activeTab")
     if active_tab is not None:

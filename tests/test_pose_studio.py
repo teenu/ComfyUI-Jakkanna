@@ -206,6 +206,25 @@ class PoseDataValidationTests(unittest.TestCase):
                 "capture_version": -1,
             })
 
+    def test_rejects_animation_provenance_that_does_not_match_poses(self):
+        with self.assertRaisesRegex(ValueError, "must match the poses list"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}, {}],
+                "animation": {
+                    "sampled_frames": 81,
+                    "sample_times_seconds": [0.0, 1.0],
+                },
+            })
+
+        with self.assertRaisesRegex(ValueError, "non-negative and ordered"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}, {}],
+                "animation": {
+                    "sampled_frames": 2,
+                    "sample_times_seconds": [1.0, 0.0],
+                },
+            })
+
     def test_complete_payload_does_not_request_frontend_sync(self):
         class NoSyncPoseStudio(self.pose_studio.JakkannaPoseStudio):
             def _discard_frontend_sync(self, unique_id):
@@ -422,6 +441,18 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("const frameCount = Math.min(frameLimit", mixamo)
         self.assertIn("{ length: frameCount }", mixamo)
         self.assertNotIn("times.push(safeDuration)", mixamo)
+        self.assertIn("options.frameCount", mixamo)
+        self.assertIn('file_sha256: await crypto.subtle.digest("SHA-256"', mixamo)
+        self.assertIn("action.setLoop(THREE.LoopOnce, 0)", mixamo)
+        self.assertIn("action.clampWhenFinished = true", mixamo)
+
+    def test_pose_studio_tracks_imported_animation_contract(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:
+            studio = handle.read()
+
+        self.assertIn("animation_frames: 81", studio)
+        self.assertIn("frameCount: this.exportParams.animation_frames", studio)
+        self.assertIn("animation: this.animationMetadata", studio)
 
     def test_frontend_openpose_uses_face_landmarks(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:

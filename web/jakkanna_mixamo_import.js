@@ -604,13 +604,16 @@ function buildMixamoLegTargets(sourceBones, viewer) {
     };
 }
 
-function buildSampleTimes(duration, fps, maxFrames) {
+function buildSampleTimes(duration, fps, maxFrames, exactFrames = null) {
     const safeDuration = Math.max(0, Number(duration) || 0);
     if (safeDuration <= 0) return [0];
 
     const safeFps = Math.max(1, Number(fps) || 12);
     const frameLimit = Math.max(1, Math.floor(Number(maxFrames) || 48));
-    const frameCount = Math.min(frameLimit, Math.ceil(safeDuration * safeFps) + 1);
+    const requestedFrames = Number.isFinite(Number(exactFrames))
+        ? Math.max(1, Math.floor(Number(exactFrames)))
+        : Math.ceil(safeDuration * safeFps) + 1;
+    const frameCount = Math.min(frameLimit, requestedFrames);
     if (frameCount === 1) return [0];
     return Array.from(
         { length: frameCount },
@@ -651,10 +654,17 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         root.updateMatrixWorld(true);
         const sourceRestWorldRotations = buildFrameRotationMap(sourceBones, viewer.THREE);
 
-        const sampleTimes = buildSampleTimes(clip.duration, options.fps ?? 12, options.maxFrames ?? 48);
+        const sampleTimes = buildSampleTimes(
+            clip.duration,
+            options.fps ?? 12,
+            options.maxFrames ?? 48,
+            options.frameCount,
+        );
         const mixer = new THREE.AnimationMixer(root);
         const action = mixer.clipAction(clip);
         action.reset();
+        action.setLoop(THREE.LoopOnce, 0);
+        action.clampWhenFinished = true;
         action.play();
 
         const originalPose = viewer.getPose();
@@ -796,6 +806,16 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         return {
             poses,
             clipName: clip.name || file.name,
+            animation: {
+                file_name: file.name,
+                file_sha256: await crypto.subtle.digest("SHA-256", await file.arrayBuffer())
+                    .then(buffer => Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("")),
+                clip_name: clip.name || file.name,
+                duration_seconds: clip.duration,
+                sampled_frames: poses.length,
+                sample_times_seconds: sampleTimes,
+                skeleton_profile: hasMixamoSignature(sourceBones) ? "mixamo" : "generic_fbx",
+            },
         };
     } finally {
         URL.revokeObjectURL(fileUrl);

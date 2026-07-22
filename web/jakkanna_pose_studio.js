@@ -2707,6 +2707,7 @@ class PoseStudioWidget {
         this.activeTab = 0;
         this.poseCaptures = []; // Cache for captured images
         this.poseOpenPoseKeypoints = [];
+        this.animationMetadata = null;
         this._captureVersion = 0;
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
         this.interfaceMode = "studio"; // studio | manager | managerDetail
@@ -2749,6 +2750,7 @@ class PoseStudioWidget {
             cam_pitch_deg: 0,
             output_mode: "LIST",
             grid_columns: 2,
+            animation_frames: 81,
             bg_color: [255, 255, 255],
             debugMode: false,
             debugPortraitMode: false, // Focus on upper body in debug mode
@@ -3444,6 +3446,11 @@ class PoseStudioWidget {
 
         const colsField = this.createInputField("Grid Columns", "grid_columns", "number", 1, 6, 1);
         exportSection.content.appendChild(colsField);
+
+        const animationFramesField = this.createInputField(
+            "Imported Animation Frames", "animation_frames", "number", 1, JAKKANNA_POSE_MAX_COUNT, 1
+        );
+        exportSection.content.appendChild(animationFramesField);
 
         const colorField = this.createColorField("Background", "bg_color");
         exportSection.content.appendChild(colorField);
@@ -4645,7 +4652,7 @@ class PoseStudioWidget {
             val = Math.max(min, Math.min(max, val));
 
             // For grid columns, integer only
-            if (key === 'grid_columns') val = Math.round(val);
+            if (key === 'grid_columns' || key === 'animation_frames') val = Math.round(val);
 
             input.value = val;
             this.exportParams[key] = val;
@@ -6299,12 +6306,14 @@ class PoseStudioWidget {
                     const result = await importMixamoFBXAsPoses(file, this.viewer, {
                         fps: 12,
                         maxFrames: JAKKANNA_POSE_MAX_COUNT,
+                        frameCount: this.exportParams.animation_frames,
                     });
 
                     if (result.poses.length > JAKKANNA_POSE_MAX_COUNT) {
                         throw new Error(`Animation contains more than ${JAKKANNA_POSE_MAX_COUNT} sampled poses.`);
                     }
                     this.poses = result.poses;
+                    this.animationMetadata = result.animation || null;
                     this.activeTab = 0;
                     this.updateTabs();
 
@@ -9150,6 +9159,7 @@ class PoseStudioWidget {
             capture_id: captureId,
             capture_version: this._captureVersion,
             lighting_prompts: this.lightingPrompts,
+            animation: this.animationMetadata,
             background_url: this.exportParams.background_url || null
         };
 
@@ -9296,6 +9306,7 @@ class PoseStudioWidget {
                 }
                 this.syncCameraWidgets();
             }
+            this.animationMetadata = data.animation || null;
             if (this.viewer?.setKpFigureVisible) {
                 this.viewer.setKpFigureVisible(this.exportParams.debugShowSAMHelper !== false);
             }
