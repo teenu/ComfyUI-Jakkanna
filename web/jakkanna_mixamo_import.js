@@ -620,7 +620,8 @@ function buildSampleTimes(duration, fps, maxFrames, exactFrames = null, startTim
     if (safeStart > safeDuration) {
         throw new Error(`Animation start ${safeStart.toFixed(3)}s exceeds the ${safeDuration.toFixed(3)}s clip duration.`);
     }
-    const requestedFrames = Number.isFinite(Number(exactFrames))
+    const hasExactFrames = exactFrames !== null && exactFrames !== undefined && exactFrames !== "" && Number.isFinite(Number(exactFrames));
+    const requestedFrames = hasExactFrames
         ? Math.max(1, Math.floor(Number(exactFrames)))
         : Math.floor((safeDuration - safeStart) * safeFps + 1e-6) + 1;
     const frameCount = Math.min(frameLimit, requestedFrames);
@@ -753,7 +754,9 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
                     debugCollector,
                 },
             );
-            if (!applied) continue;
+            if (!applied) {
+                throw new Error(`Could not retarget the sampled frame at ${sampleTime.toFixed(3)}s.`);
+            }
 
             // Attach raw Mixamo source world rotations to the pose exported to the node
             // so server-side converters can use exact source quaternions when retargeting.

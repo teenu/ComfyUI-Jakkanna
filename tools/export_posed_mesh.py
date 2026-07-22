@@ -174,7 +174,9 @@ def _hip_translation(pose, skeleton, world_matrices, matrix_mod):
     for bone in skeleton.boneslist:
         if bone.parent is not None and bone.parent.name in subtree:
             subtree.add(bone.name)
-    shift = np.asarray(matrix_mod.translate(delta))
+    parent_world = np.asarray(world_matrices[pelvis.parent.name])
+    world_delta = parent_world[:3, :3] @ delta
+    shift = np.asarray(matrix_mod.translate(world_delta))
     return {name: (shift @ np.asarray(world) if name in subtree else world)
             for name, world in world_matrices.items()}
 
@@ -203,15 +205,16 @@ def _skin_vertices(vertices, skeleton, world_matrices, matrix_mod):
     return positions / total[:, None]
 
 
-def _joint_dump(skeleton, world_matrices):
+def _joint_dump(skeleton, world_matrices, model_rotation=None):
+    rotation = np.asarray(model_rotation) if model_rotation is not None else np.identity(3)
     joints = {}
     for bone in skeleton.boneslist:
         world = np.asarray(world_matrices[bone.name])
         tail_offset = np.append(bone.tailPos - bone.headPos, 1.0)
         joints[bone.name] = {
             "parent": bone.parent.name if bone.parent else None,
-            "head": [round(float(v), 6) for v in world[:3, 3]],
-            "tail": [round(float(v), 6) for v in (world @ tail_offset)[:3]],
+            "head": [round(float(v), 6) for v in rotation @ world[:3, 3]],
+            "tail": [round(float(v), 6) for v in rotation @ (world @ tail_offset)[:3]],
         }
     return joints
 
@@ -325,8 +328,10 @@ def main():
         skeleton, world_matrices = openpose._pose_bones(rest_vertices, mesh_params, pose)
         world_matrices = _hip_translation(pose, skeleton, world_matrices, matrix_mod)
         skinned = _skin_vertices(rest_vertices, skeleton, world_matrices, matrix_mod)[used]
+        model_rotation = None
         if args.apply_model_rotation:
-            skinned = skinned @ openpose._model_rotation(pose).T
+            model_rotation = openpose._model_rotation(pose)
+            skinned = skinned @ model_rotation.T
 
         out_path = _output_path(default_output, pose_index, multiple)
         if out_path.suffix.lower() == ".glb":
@@ -344,7 +349,7 @@ def main():
             joints_path = _output_path(args.joints, pose_index, multiple)
             joints_path.write_text(
                 json.dumps({"units": "makehuman-decimeters", "up": "Y",
-                            "joints": _joint_dump(skeleton, world_matrices)}, indent=2),
+                            "joints": _joint_dump(skeleton, world_matrices, model_rotation)}, indent=2),
                 encoding="utf-8",
             )
             print(f"  joints -> {joints_path}")

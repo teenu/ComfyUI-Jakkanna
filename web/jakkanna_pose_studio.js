@@ -2708,6 +2708,8 @@ class PoseStudioWidget {
         this.poseCaptures = []; // Cache for captured images
         this.poseOpenPoseKeypoints = [];
         this.animationMetadata = null;
+        this._animationPoseSignatureAtImport = null;
+        this._animationMeshSignatureAtImport = null;
         this._captureVersion = 0;
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
         this.interfaceMode = "studio"; // studio | manager | managerDetail
@@ -2834,6 +2836,51 @@ class PoseStudioWidget {
         this.repositoryProgressStates = {};
 
         this.createUI();
+    }
+
+    _animationPoseSignature() {
+        const orderedMap = (values) => Object.keys(values || {}).sort().map((name) => [name, values[name]]);
+        return JSON.stringify((this.poses || []).map((pose) => ({
+            bones: orderedMap(pose?.bones),
+            modelRotation: pose?.modelRotation || [0, 0, 0],
+            ikEffectorPositions: orderedMap(pose?.ikEffectorPositions),
+            poleTargetPositions: orderedMap(pose?.poleTargetPositions),
+            hipBonePosition: orderedMap(pose?.hipBonePosition),
+        })));
+    }
+
+    _animationMeshSignature() {
+        return JSON.stringify(Object.keys(this.meshParams || {}).sort().map((name) => [name, this.meshParams[name]]));
+    }
+
+    setAnimationMetadata(metadata) {
+        this.animationMetadata = metadata || null;
+        this._animationPoseSignatureAtImport = this.animationMetadata ? this._animationPoseSignature() : null;
+        this._animationMeshSignatureAtImport = this.animationMetadata ? this._animationMeshSignature() : null;
+        if (this.exportParams.debugMode) {
+            this.invalidateAnimationMetadata();
+        } else {
+            this.reconcileAnimationMetadata();
+        }
+    }
+
+    invalidateAnimationMetadata() {
+        this.animationMetadata = null;
+        this._animationPoseSignatureAtImport = null;
+        this._animationMeshSignatureAtImport = null;
+    }
+
+    reconcileAnimationMetadata() {
+        if (!this.animationMetadata) return;
+        const sampledFrames = this.animationMetadata.sampled_frames;
+        const sampleTimes = this.animationMetadata.sample_times_seconds;
+        const countMismatch = (sampledFrames !== undefined && sampledFrames !== this.poses.length)
+            || (Array.isArray(sampleTimes) && sampleTimes.length > 0 && sampleTimes.length !== this.poses.length);
+        if (countMismatch
+            || this._animationPoseSignatureAtImport !== this._animationPoseSignature()
+            || this._animationMeshSignatureAtImport !== this._animationMeshSignature()) {
+            this.invalidateAnimationMetadata();
+        }
     }
 
     createUI() {
@@ -3778,6 +3825,7 @@ class PoseStudioWidget {
                 this.viewer.setCameraParams({
                     ...this.currentCameraParams()
                 });
+                this.invalidateAnimationMetadata();
                 this.syncToNode();
             }
         });
@@ -6332,7 +6380,7 @@ class PoseStudioWidget {
                         throw new Error(`Animation contains more than ${JAKKANNA_POSE_MAX_COUNT} sampled poses.`);
                     }
                     this.poses = result.poses;
-                    this.animationMetadata = result.animation || null;
+                    this.setAnimationMetadata(result.animation);
                     this.activeTab = 0;
                     this.updateTabs();
 
@@ -8122,13 +8170,15 @@ class PoseStudioWidget {
 
                 this.updateCaptureCameraPreview();
 
-                // Strip absolute position data (hip, IK effectors, pole targets) from ALL poses
-                // since those were saved for the old mesh geometry and don't apply to the new one.
-                for (let i = 0; i < this.poses.length; i++) {
-                    if (this.poses[i]) {
-                        delete this.poses[i].hipBonePosition;
-                        delete this.poses[i].ikEffectorPositions;
-                        delete this.poses[i].poleTargetPositions;
+                // Animation poses were sampled against the workflow's restored mesh and retain their targets.
+                // A user-initiated mesh change invalidates animationMetadata before reaching this path.
+                if (!this.animationMetadata) {
+                    for (let i = 0; i < this.poses.length; i++) {
+                        if (this.poses[i]) {
+                            delete this.poses[i].hipBonePosition;
+                            delete this.poses[i].ikEffectorPositions;
+                            delete this.poses[i].poleTargetPositions;
+                        }
                     }
                 }
 
@@ -8529,6 +8579,7 @@ class PoseStudioWidget {
     }
 
     onMeshParamsChanged(changedKey = null, options = {}) {
+        this.invalidateAnimationMetadata();
         // Update node widgets
         for (const [key, value] of Object.entries(this.meshParams)) {
             const widget = this.node.widgets?.find(w => w.name === key);
@@ -8987,6 +9038,11 @@ class PoseStudioWidget {
             syncPose.prompt = this.getPosePrompt(this.activeTab);
             this.poses[this.activeTab] = syncPose;
         }
+        if (this.exportParams.debugMode) {
+            this.invalidateAnimationMetadata();
+        } else {
+            this.reconcileAnimationMetadata();
+        }
 
         // Cache Handling
         if (!this.poseCaptures) this.poseCaptures = [];
@@ -9330,7 +9386,6 @@ class PoseStudioWidget {
                 }
                 this.syncCameraWidgets();
             }
-            this.animationMetadata = data.animation || null;
             if (this.viewer?.setKpFigureVisible) {
                 this.viewer.setKpFigureVisible(this.exportParams.debugShowSAMHelper !== false);
             }
@@ -9350,6 +9405,7 @@ class PoseStudioWidget {
                 }
                 this.posePrompts = []; // rebuild from pose.prompt on next ensurePosePrompts() call
             }
+            this.setAnimationMetadata(data.animation);
 
             // Restore background image if present
             const bgUrl = data.background_url || this.exportParams.background_url;

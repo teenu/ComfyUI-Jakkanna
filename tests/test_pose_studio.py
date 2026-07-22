@@ -466,11 +466,14 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("{ length: frameCount }", mixamo)
         self.assertNotIn("times.push(safeDuration)", mixamo)
         self.assertIn("options.frameCount", mixamo)
+        self.assertIn("exactFrames !== null && exactFrames !== undefined", mixamo)
         self.assertIn('timingMode === "REALTIME"', mixamo)
         self.assertIn("safeStart + index / safeFps", mixamo)
         self.assertIn('file_sha256: await crypto.subtle.digest("SHA-256"', mixamo)
         self.assertIn("action.setLoop(THREE.LoopOnce, 0)", mixamo)
         self.assertIn("action.clampWhenFinished = true", mixamo)
+        self.assertIn("Could not retarget the sampled frame", mixamo)
+        self.assertNotIn("if (!applied) continue", mixamo)
 
     def test_pose_studio_tracks_imported_animation_contract(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:
@@ -482,6 +485,9 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("frameCount: this.exportParams.animation_frames", studio)
         self.assertIn("fps: this.exportParams.animation_fps", studio)
         self.assertIn("animation: this.animationMetadata", studio)
+        self.assertIn("this.reconcileAnimationMetadata();", studio)
+        self.assertIn("this.invalidateAnimationMetadata();", studio)
+        self.assertIn("if (!this.animationMetadata)", studio)
 
     def test_frontend_openpose_uses_face_landmarks(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
