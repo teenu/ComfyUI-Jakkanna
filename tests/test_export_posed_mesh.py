@@ -1,5 +1,7 @@
 import importlib.util
 import os
+from pathlib import Path
+import tempfile
 import unittest
 
 import numpy as np
@@ -81,6 +83,63 @@ class ExportTransformTests(unittest.TestCase):
 
         self.assertEqual(joints["Root"]["head"], [0.0, 1.0, 0.0])
         self.assertEqual(joints["Root"]["tail"], [-1.0, 1.0, 0.0])
+
+    def test_joint_dump_scales_glb_coordinates_to_meters(self):
+        root = Bone("Root", [10, 0, 0], [10, 20, 0])
+        skeleton = Skeleton([root])
+        world = {"Root": Matrix.translate([10, 0, 0])}
+
+        joints = EXPORTER._joint_dump(
+            skeleton,
+            world,
+            scale=EXPORTER.GLB_METERS_PER_MAKEHUMAN_UNIT,
+        )
+
+        self.assertEqual(joints["Root"]["head"], [1.0, 0.0, 0.0])
+        self.assertEqual(joints["Root"]["tail"], [1.0, 2.0, 0.0])
+
+    def test_glb_vertices_are_exported_in_meters(self):
+        try:
+            import trimesh
+        except ImportError:
+            self.skipTest("trimesh is not installed")
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mesh.glb"
+            EXPORTER._write_glb(
+                path,
+                np.asarray([[0, 0, 0], [10, 0, 0], [0, 20, 0]], dtype=np.float64),
+                np.asarray([[0, 0], [1, 0], [0, 1]], dtype=np.float64),
+                [[0, 1, 2]],
+                [[0, 1, 2]],
+            )
+
+            mesh = trimesh.load(path, force="mesh", process=False)
+            np.testing.assert_allclose(mesh.bounds, [[0, 0, 0], [1, 2, 0]])
+
+    def test_output_paths_reject_unsupported_suffixes_and_collisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "workflow.json"
+            source.write_text("{}", encoding="utf-8")
+
+            with self.assertRaisesRegex(SystemExit, "mesh output must use"):
+                EXPORTER._validate_output_paths(source, [Path(directory) / "mesh.json"], [])
+            with self.assertRaisesRegex(SystemExit, "must not overwrite the input"):
+                EXPORTER._validate_output_paths(source, [], [source])
+
+            hardlink = Path(directory) / "mesh.obj"
+            os.link(source, hardlink)
+            with self.assertRaisesRegex(SystemExit, "must not overwrite the input"):
+                EXPORTER._validate_output_paths(source, [hardlink], [])
+
+    def test_output_paths_accept_distinct_mesh_and_joint_targets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            EXPORTER._validate_output_paths(
+                root / "workflow.json",
+                [root / "mannequin.glb"],
+                [root / "joints.json"],
+            )
 
 
 if __name__ == "__main__":

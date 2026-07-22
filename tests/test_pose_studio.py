@@ -242,12 +242,19 @@ class PoseDataValidationTests(unittest.TestCase):
                 "export": {"animation_timing": "STRETCH"},
             })
 
+        self.pose_studio._validate_pose_data({
+            "poses": [{}],
+            "export": {"animation_frames": None, "animation_timing": "FIT_CLIP"},
+        })
+
     def test_prompt_from_list_selects_one_scalar_prompt(self):
         node = self.pose_studio.JakkannaPromptFromList()
         self.assertEqual(node.select(["appearance", "motion"], [1]), ("motion",))
 
         with self.assertRaisesRegex(ValueError, "outside"):
             node.select(["appearance"], [1])
+        with self.assertRaisesRegex(ValueError, "outside"):
+            node.select(["appearance"], [-1])
 
     def test_complete_payload_does_not_request_frontend_sync(self):
         class NoSyncPoseStudio(self.pose_studio.JakkannaPoseStudio):
@@ -476,6 +483,10 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("if (!applied) continue", mixamo)
         self.assertIn("The FBX skeleton is not compatible with the Mixamo bone layout.", mixamo)
         self.assertIn("sourceBones.normalizedBones[`mixamorig${name}`]", mixamo)
+        self.assertIn("let originalPose = null", mixamo)
+        self.assertIn("if (originalPose !== null) viewer.setPose(originalPose, true);", mixamo)
+        self.assertIn("viewer.history = originalHistory", mixamo)
+        self.assertIn("viewer.future = originalFuture", mixamo)
 
     def test_head_retarget_options_stay_in_their_own_method(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
@@ -499,6 +510,8 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("animation_fps: 16", studio)
         self.assertIn('animation_timing: "REALTIME"', studio)
         self.assertIn("frameCount: this.exportParams.animation_frames", studio)
+        self.assertIn('input.placeholder = "Auto"', studio)
+        self.assertIn("loadedExport.animation_frames = null", studio)
         self.assertIn("fps: this.exportParams.animation_fps", studio)
         self.assertIn("animation: this.animationMetadata", studio)
         self.assertIn("this.reconcileAnimationMetadata();", studio)

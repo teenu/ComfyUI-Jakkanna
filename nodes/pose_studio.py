@@ -81,8 +81,8 @@ def _validate_pose_data(data):
         raise ValueError("export must be an object")
     for name in (
         "view_width", "view_height", "view_size", "cam_zoom", "cam_offset_x",
-        "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns", "animation_frames",
-        "animation_fps", "animation_start_seconds",
+        "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns", "animation_fps",
+        "animation_start_seconds",
     ):
         if name in export:
             _finite_number(export[name], f"export.{name}")
@@ -92,7 +92,8 @@ def _validate_pose_data(data):
     if "grid_columns" in export:
         if export["grid_columns"] != int(export["grid_columns"]) or not 1 <= export["grid_columns"] <= _CAPTURED_IMAGE_MAX_COUNT:
             raise ValueError(f"export.grid_columns must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
-    if "animation_frames" in export:
+    if export.get("animation_frames") is not None:
+        _finite_number(export["animation_frames"], "export.animation_frames")
         if export["animation_frames"] != int(export["animation_frames"]) or not 1 <= export["animation_frames"] <= _CAPTURED_IMAGE_MAX_COUNT:
             raise ValueError(f"export.animation_frames must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
     if "animation_fps" in export and not 1 <= export["animation_fps"] <= 120:
@@ -596,7 +597,7 @@ class JakkannaPromptFromList:
         if not prompts:
             raise ValueError("prompts must contain at least one entry")
         selected_index = int(index[0]) if isinstance(index, list) else int(index)
-        if selected_index >= len(prompts):
+        if not 0 <= selected_index < len(prompts):
             raise ValueError(f"prompt index {selected_index} is outside the {len(prompts)}-entry list")
         return (str(prompts[selected_index]),)
 

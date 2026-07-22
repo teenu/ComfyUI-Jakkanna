@@ -4708,12 +4708,19 @@ class PoseStudioWidget {
         input.max = max;
         input.step = step;
         input.value = this.exportParams[key];
+        if (key === 'animation_frames') input.placeholder = "Auto";
 
         const isDimension = (key === 'view_width' || key === 'view_height');
         const eventType = isDimension ? 'change' : 'input';
 
         input.addEventListener(eventType, () => {
             let val = parseFloat(input.value);
+            if (isNaN(val) && key === 'animation_frames') {
+                input.value = "";
+                this.exportParams[key] = null;
+                this.syncToNode(false);
+                return;
+            }
             if (isNaN(val)) val = this.exportParams[key];
             val = Math.max(min, Math.min(max, val));
 
@@ -9366,6 +9373,7 @@ class PoseStudioWidget {
                 if (loadedExport.animation_timing === undefined) {
                     loadedExport.animation_timing = "FIT_CLIP";
                     if (loadedExport.animation_fps === undefined) loadedExport.animation_fps = 12;
+                    if (loadedExport.animation_frames === undefined) loadedExport.animation_frames = null;
                 }
                 this.exportParams = { ...this.exportParams, ...loadedExport };
 

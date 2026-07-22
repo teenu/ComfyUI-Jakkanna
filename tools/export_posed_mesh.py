@@ -17,6 +17,8 @@ Usage (run with ComfyUI's venv python — torch must be importable):
 Notes:
   - UVs are read per face corner from base.obj, so texture seams are exported
     correctly (OBJ uses split v/vt indices; GLB duplicates seam vertices).
+  - GLB coordinates and their optional joints sidecar are exported in metres;
+    OBJ coordinates retain MakeHuman's native decimetre scale.
   - A dragged hips root (hipBonePosition) is applied as a translation of the
     pelvis subtree, mirroring the viewer's root-effector translate mode.
 """
@@ -44,6 +46,8 @@ VISIBLE_GROUPS = {
     "helper-tongue",
     "helper-genital",
 }
+
+GLB_METERS_PER_MAKEHUMAN_UNIT = 0.1
 
 
 def _import_repo_modules():
@@ -205,7 +209,7 @@ def _skin_vertices(vertices, skeleton, world_matrices, matrix_mod):
     return positions / total[:, None]
 
 
-def _joint_dump(skeleton, world_matrices, model_rotation=None):
+def _joint_dump(skeleton, world_matrices, model_rotation=None, scale=1.0):
     rotation = np.asarray(model_rotation) if model_rotation is not None else np.identity(3)
     joints = {}
     for bone in skeleton.boneslist:
@@ -213,8 +217,8 @@ def _joint_dump(skeleton, world_matrices, model_rotation=None):
         tail_offset = np.append(bone.tailPos - bone.headPos, 1.0)
         joints[bone.name] = {
             "parent": bone.parent.name if bone.parent else None,
-            "head": [round(float(v), 6) for v in rotation @ world[:3, 3]],
-            "tail": [round(float(v), 6) for v in rotation @ (world @ tail_offset)[:3]],
+            "head": [round(float(v), 6) for v in scale * (rotation @ world[:3, 3])],
+            "tail": [round(float(v), 6) for v in scale * (rotation @ (world @ tail_offset)[:3])],
         }
     return joints
 
@@ -255,7 +259,7 @@ def _write_glb(path, vertices, texcoords, v_faces, vt_faces):
         for i in range(1, len(corners) - 1):
             triangles.append([corners[0], corners[i], corners[i + 1]])
     mesh = trimesh.Trimesh(
-        vertices=np.asarray(split_vertices),
+        vertices=np.asarray(split_vertices) * GLB_METERS_PER_MAKEHUMAN_UNIT,
         faces=np.asarray(triangles, dtype=np.int64),
         visual=trimesh.visual.TextureVisuals(uv=np.asarray(split_uvs)),
         process=False,
@@ -267,6 +271,28 @@ def _output_path(template, pose_index, multiple):
     if not multiple:
         return template
     return template.with_name(f"{template.stem}_pose{pose_index}{template.suffix}")
+
+
+def _same_path(first, second):
+    return first.resolve() == second.resolve() or (first.exists() and second.exists() and first.samefile(second))
+
+
+def _validate_output_paths(input_path, mesh_paths, joints_paths):
+    destinations = []
+    for label, paths, suffixes in (
+        ("mesh output", mesh_paths, {".obj", ".glb"}),
+        ("joints output", joints_paths, {".json"}),
+    ):
+        for path in paths:
+            if path.suffix.lower() not in suffixes:
+                expected = " or ".join(sorted(suffixes))
+                raise SystemExit(f"{label} must use a {expected} suffix: {path}")
+            if _same_path(path, input_path):
+                raise SystemExit(f"{label} must not overwrite the input file: {path}")
+            for previous_label, previous_path in destinations:
+                if _same_path(path, previous_path):
+                    raise SystemExit(f"{label} collides with {previous_label}: {path}")
+            destinations.append((label, path))
 
 
 def main():
@@ -323,6 +349,10 @@ def main():
 
     default_output = args.output or args.input.with_suffix("").with_name(args.input.stem + ".obj")
     multiple = len(selected) > 1
+    mesh_paths = {pose_index: _output_path(default_output, pose_index, multiple) for pose_index, _ in selected}
+    joints_paths = ({pose_index: _output_path(args.joints, pose_index, multiple) for pose_index, _ in selected}
+                    if args.joints is not None else {})
+    _validate_output_paths(args.input, mesh_paths.values(), joints_paths.values())
 
     for pose_index, pose in selected:
         skeleton, world_matrices = openpose._pose_bones(rest_vertices, mesh_params, pose)
@@ -333,7 +363,7 @@ def main():
             model_rotation = openpose._model_rotation(pose)
             skinned = skinned @ model_rotation.T
 
-        out_path = _output_path(default_output, pose_index, multiple)
+        out_path = mesh_paths[pose_index]
         if out_path.suffix.lower() == ".glb":
             _write_glb(out_path, skinned, texcoords, v_faces, vt_faces)
         else:
@@ -346,10 +376,12 @@ def main():
               f"max [{upper[0]:.2f} {upper[1]:.2f} {upper[2]:.2f}] (MakeHuman units, Y-up)")
 
         if args.joints is not None:
-            joints_path = _output_path(args.joints, pose_index, multiple)
+            joints_path = joints_paths[pose_index]
+            glb = out_path.suffix.lower() == ".glb"
             joints_path.write_text(
-                json.dumps({"units": "makehuman-decimeters", "up": "Y",
-                            "joints": _joint_dump(skeleton, world_matrices, model_rotation)}, indent=2),
+                json.dumps({"units": "meters" if glb else "makehuman-decimeters", "up": "Y",
+                            "joints": _joint_dump(skeleton, world_matrices, model_rotation,
+                                                  GLB_METERS_PER_MAKEHUMAN_UNIT if glb else 1.0)}, indent=2),
                 encoding="utf-8",
             )
             print(f"  joints -> {joints_path}")

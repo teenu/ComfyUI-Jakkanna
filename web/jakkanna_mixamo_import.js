@@ -654,6 +654,9 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
     const { THREE, FBXLoader } = await loadMixamoModules();
     const loader = new FBXLoader();
     const fileUrl = URL.createObjectURL(file);
+    let originalPose = null;
+    let originalHistory = null;
+    let originalFuture = null;
 
     try {
         const root = await loader.loadAsync(fileUrl);
@@ -695,7 +698,9 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
         action.clampWhenFinished = true;
         action.play();
 
-        const originalPose = viewer.getPose();
+        originalPose = viewer.getPose();
+        originalHistory = Array.isArray(viewer.history) ? viewer.history.slice() : null;
+        originalFuture = Array.isArray(viewer.future) ? viewer.future.slice() : null;
         const poses = [];
         const debugFrames = [];
 
@@ -830,8 +835,6 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
             // ignore debug publishing failures
         }
 
-        viewer.setPose(originalPose, true);
-
         if (!poses.length) {
             throw new Error('The FBX clip loaded, but no pose frames could be retargeted onto the MH rig.');
         }
@@ -854,6 +857,12 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
             },
         };
     } finally {
-        URL.revokeObjectURL(fileUrl);
+        try {
+            if (originalPose !== null) viewer.setPose(originalPose, true);
+        } finally {
+            if (originalHistory !== null) viewer.history = originalHistory;
+            if (originalFuture !== null) viewer.future = originalFuture;
+            URL.revokeObjectURL(fileUrl);
+        }
     }
 }
