@@ -5868,14 +5868,8 @@ class UniCanvasWidget {
     try {
       this.agPsd = await import("./vendor/ag-psd.bundle.mjs");
       return this.agPsd;
-    } catch (localErr) {
-      console.warn("[Jakkanna Canvas] local ag-psd load failed, trying CDN", localErr);
-    }
-    try {
-      this.agPsd = await import("https://esm.sh/ag-psd@28.2.2?bundle");
-      return this.agPsd;
     } catch (err) {
-      throw new Error(`ag-psd load failed: ${err.message || err}`);
+      throw new Error(`Bundled ag-psd load failed: ${err.message || err}`);
     }
   }
 

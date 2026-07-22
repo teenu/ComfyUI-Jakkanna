@@ -2707,6 +2707,9 @@ class PoseStudioWidget {
         this.activeTab = 0;
         this.poseCaptures = []; // Cache for captured images
         this.poseOpenPoseKeypoints = [];
+        this.animationMetadata = null;
+        this._animationPoseSignatureAtImport = null;
+        this._animationMeshSignatureAtImport = null;
         this._captureVersion = 0;
         this.ikMode = true; // IK mode toggle (false = FK, true = IK)
         this.interfaceMode = "studio"; // studio | manager | managerDetail
@@ -2749,6 +2752,10 @@ class PoseStudioWidget {
             cam_pitch_deg: 0,
             output_mode: "LIST",
             grid_columns: 2,
+            animation_frames: 81,
+            animation_fps: 16,
+            animation_start_seconds: 0,
+            animation_timing: "REALTIME",
             bg_color: [255, 255, 255],
             debugMode: false,
             debugPortraitMode: false, // Focus on upper body in debug mode
@@ -2829,6 +2836,51 @@ class PoseStudioWidget {
         this.repositoryProgressStates = {};
 
         this.createUI();
+    }
+
+    _animationPoseSignature() {
+        const orderedMap = (values) => Object.keys(values || {}).sort().map((name) => [name, values[name]]);
+        return JSON.stringify((this.poses || []).map((pose) => ({
+            bones: orderedMap(pose?.bones),
+            modelRotation: pose?.modelRotation || [0, 0, 0],
+            ikEffectorPositions: orderedMap(pose?.ikEffectorPositions),
+            poleTargetPositions: orderedMap(pose?.poleTargetPositions),
+            hipBonePosition: orderedMap(pose?.hipBonePosition),
+        })));
+    }
+
+    _animationMeshSignature() {
+        return JSON.stringify(Object.keys(this.meshParams || {}).sort().map((name) => [name, this.meshParams[name]]));
+    }
+
+    setAnimationMetadata(metadata) {
+        this.animationMetadata = metadata || null;
+        this._animationPoseSignatureAtImport = this.animationMetadata ? this._animationPoseSignature() : null;
+        this._animationMeshSignatureAtImport = this.animationMetadata ? this._animationMeshSignature() : null;
+        if (this.exportParams.debugMode) {
+            this.invalidateAnimationMetadata();
+        } else {
+            this.reconcileAnimationMetadata();
+        }
+    }
+
+    invalidateAnimationMetadata() {
+        this.animationMetadata = null;
+        this._animationPoseSignatureAtImport = null;
+        this._animationMeshSignatureAtImport = null;
+    }
+
+    reconcileAnimationMetadata() {
+        if (!this.animationMetadata) return;
+        const sampledFrames = this.animationMetadata.sampled_frames;
+        const sampleTimes = this.animationMetadata.sample_times_seconds;
+        const countMismatch = (sampledFrames !== undefined && sampledFrames !== this.poses.length)
+            || (Array.isArray(sampleTimes) && sampleTimes.length > 0 && sampleTimes.length !== this.poses.length);
+        if (countMismatch
+            || this._animationPoseSignatureAtImport !== this._animationPoseSignature()
+            || this._animationMeshSignatureAtImport !== this._animationMeshSignature()) {
+            this.invalidateAnimationMetadata();
+        }
     }
 
     createUI() {
@@ -3445,6 +3497,26 @@ class PoseStudioWidget {
         const colsField = this.createInputField("Grid Columns", "grid_columns", "number", 1, 6, 1);
         exportSection.content.appendChild(colsField);
 
+        const animationFramesField = this.createInputField(
+            "Imported Animation Frames", "animation_frames", "number", 1, JAKKANNA_POSE_MAX_COUNT, 1
+        );
+        exportSection.content.appendChild(animationFramesField);
+
+        const animationFpsField = this.createInputField(
+            "Imported Animation FPS", "animation_fps", "number", 1, 120, 1
+        );
+        exportSection.content.appendChild(animationFpsField);
+
+        const animationStartField = this.createInputField(
+            "Animation Start (seconds)", "animation_start_seconds", "number", 0, 86400, 0.001
+        );
+        exportSection.content.appendChild(animationStartField);
+
+        const animationTimingField = this.createSelectField(
+            "Animation Timing", "animation_timing", ["REALTIME", "FIT_CLIP"]
+        );
+        exportSection.content.appendChild(animationTimingField);
+
         const colorField = this.createColorField("Background", "bg_color");
         exportSection.content.appendChild(colorField);
 
@@ -3753,6 +3825,7 @@ class PoseStudioWidget {
                 this.viewer.setCameraParams({
                     ...this.currentCameraParams()
                 });
+                this.invalidateAnimationMetadata();
                 this.syncToNode();
             }
         });
@@ -4635,17 +4708,24 @@ class PoseStudioWidget {
         input.max = max;
         input.step = step;
         input.value = this.exportParams[key];
+        if (key === 'animation_frames') input.placeholder = "Auto";
 
         const isDimension = (key === 'view_width' || key === 'view_height');
         const eventType = isDimension ? 'change' : 'input';
 
         input.addEventListener(eventType, () => {
             let val = parseFloat(input.value);
+            if (isNaN(val) && key === 'animation_frames') {
+                input.value = "";
+                this.exportParams[key] = null;
+                this.syncToNode(false);
+                return;
+            }
             if (isNaN(val)) val = this.exportParams[key];
             val = Math.max(min, Math.min(max, val));
 
             // For grid columns, integer only
-            if (key === 'grid_columns') val = Math.round(val);
+            if (key === 'grid_columns' || key === 'animation_frames') val = Math.round(val);
 
             input.value = val;
             this.exportParams[key] = val;
@@ -6295,16 +6375,19 @@ class PoseStudioWidget {
             (async () => {
                 try {
                     this.clearSAMCameraMode();
-                    this.resetCameraParams();
                     const result = await importMixamoFBXAsPoses(file, this.viewer, {
-                        fps: 12,
+                        fps: this.exportParams.animation_fps,
                         maxFrames: JAKKANNA_POSE_MAX_COUNT,
+                        frameCount: this.exportParams.animation_frames,
+                        startTime: this.exportParams.animation_start_seconds,
+                        timingMode: this.exportParams.animation_timing,
                     });
 
                     if (result.poses.length > JAKKANNA_POSE_MAX_COUNT) {
                         throw new Error(`Animation contains more than ${JAKKANNA_POSE_MAX_COUNT} sampled poses.`);
                     }
                     this.poses = result.poses;
+                    this.setAnimationMetadata(result.animation);
                     this.activeTab = 0;
                     this.updateTabs();
 
@@ -8094,13 +8177,15 @@ class PoseStudioWidget {
 
                 this.updateCaptureCameraPreview();
 
-                // Strip absolute position data (hip, IK effectors, pole targets) from ALL poses
-                // since those were saved for the old mesh geometry and don't apply to the new one.
-                for (let i = 0; i < this.poses.length; i++) {
-                    if (this.poses[i]) {
-                        delete this.poses[i].hipBonePosition;
-                        delete this.poses[i].ikEffectorPositions;
-                        delete this.poses[i].poleTargetPositions;
+                // Animation poses were sampled against the workflow's restored mesh and retain their targets.
+                // A user-initiated mesh change invalidates animationMetadata before reaching this path.
+                if (!this.animationMetadata) {
+                    for (let i = 0; i < this.poses.length; i++) {
+                        if (this.poses[i]) {
+                            delete this.poses[i].hipBonePosition;
+                            delete this.poses[i].ikEffectorPositions;
+                            delete this.poses[i].poleTargetPositions;
+                        }
                     }
                 }
 
@@ -8501,6 +8586,7 @@ class PoseStudioWidget {
     }
 
     onMeshParamsChanged(changedKey = null, options = {}) {
+        this.invalidateAnimationMetadata();
         // Update node widgets
         for (const [key, value] of Object.entries(this.meshParams)) {
             const widget = this.node.widgets?.find(w => w.name === key);
@@ -8959,6 +9045,11 @@ class PoseStudioWidget {
             syncPose.prompt = this.getPosePrompt(this.activeTab);
             this.poses[this.activeTab] = syncPose;
         }
+        if (this.exportParams.debugMode) {
+            this.invalidateAnimationMetadata();
+        } else {
+            this.reconcileAnimationMetadata();
+        }
 
         // Cache Handling
         if (!this.poseCaptures) this.poseCaptures = [];
@@ -9150,6 +9241,7 @@ class PoseStudioWidget {
             capture_id: captureId,
             capture_version: this._captureVersion,
             lighting_prompts: this.lightingPrompts,
+            animation: this.animationMetadata,
             background_url: this.exportParams.background_url || null
         };
 
@@ -9277,7 +9369,13 @@ class PoseStudioWidget {
             }
 
             if (data.export) {
-                this.exportParams = { ...this.exportParams, ...data.export };
+                const loadedExport = { ...data.export };
+                if (loadedExport.animation_timing === undefined) {
+                    loadedExport.animation_timing = "FIT_CLIP";
+                    if (loadedExport.animation_fps === undefined) loadedExport.animation_fps = 12;
+                    if (loadedExport.animation_frames === undefined) loadedExport.animation_frames = null;
+                }
+                this.exportParams = { ...this.exportParams, ...loadedExport };
 
                 // user_prompt in export is the legacy global prompt; per-tab prompts are in pose.prompt
                 // Update export widgets
@@ -9315,6 +9413,7 @@ class PoseStudioWidget {
                 }
                 this.posePrompts = []; // rebuild from pose.prompt on next ensurePosePrompts() call
             }
+            this.setAnimationMetadata(data.animation);
 
             // Restore background image if present
             const bgUrl = data.background_url || this.exportParams.background_url;

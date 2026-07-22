@@ -206,6 +206,56 @@ class PoseDataValidationTests(unittest.TestCase):
                 "capture_version": -1,
             })
 
+    def test_rejects_animation_provenance_that_does_not_match_poses(self):
+        with self.assertRaisesRegex(ValueError, "must match the poses list"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}, {}],
+                "animation": {
+                    "sampled_frames": 81,
+                    "sample_times_seconds": [0.0, 1.0],
+                },
+            })
+
+        with self.assertRaisesRegex(ValueError, "non-negative and ordered"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}, {}],
+                "animation": {
+                    "sampled_frames": 2,
+                    "sample_times_seconds": [1.0, 0.0],
+                },
+            })
+
+    def test_validates_realtime_animation_settings(self):
+        self.pose_studio._validate_pose_data({
+            "poses": [{}],
+            "export": {
+                "animation_frames": 81,
+                "animation_fps": 16,
+                "animation_start_seconds": 0,
+                "animation_timing": "REALTIME",
+            },
+        })
+
+        with self.assertRaisesRegex(ValueError, "REALTIME or FIT_CLIP"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}],
+                "export": {"animation_timing": "STRETCH"},
+            })
+
+        self.pose_studio._validate_pose_data({
+            "poses": [{}],
+            "export": {"animation_frames": None, "animation_timing": "FIT_CLIP"},
+        })
+
+    def test_prompt_from_list_selects_one_scalar_prompt(self):
+        node = self.pose_studio.JakkannaPromptFromList()
+        self.assertEqual(node.select(["appearance", "motion"], [1]), ("motion",))
+
+        with self.assertRaisesRegex(ValueError, "outside"):
+            node.select(["appearance"], [1])
+        with self.assertRaisesRegex(ValueError, "outside"):
+            node.select(["appearance"], [-1])
+
     def test_complete_payload_does_not_request_frontend_sync(self):
         class NoSyncPoseStudio(self.pose_studio.JakkannaPoseStudio):
             def _discard_frontend_sync(self, unique_id):
@@ -422,6 +472,69 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("const frameCount = Math.min(frameLimit", mixamo)
         self.assertIn("{ length: frameCount }", mixamo)
         self.assertNotIn("times.push(safeDuration)", mixamo)
+        self.assertIn("options.frameCount", mixamo)
+        self.assertIn("exactFrames !== null && exactFrames !== undefined", mixamo)
+        self.assertIn('timingMode === "REALTIME"', mixamo)
+        self.assertIn("safeStart + index / safeFps", mixamo)
+        self.assertIn('file_sha256: await crypto.subtle.digest("SHA-256"', mixamo)
+        self.assertIn("action.setLoop(THREE.LoopOnce, 0)", mixamo)
+        self.assertIn("action.clampWhenFinished = true", mixamo)
+        self.assertIn("Could not retarget the sampled frame", mixamo)
+        self.assertNotIn("if (!applied) continue", mixamo)
+        self.assertIn("The FBX skeleton is not compatible with the Mixamo bone layout.", mixamo)
+        self.assertIn("sourceBones.normalizedBones[`mixamorig${name}`]", mixamo)
+        self.assertIn("let originalPose = null", mixamo)
+        self.assertIn("if (originalPose !== null) viewer.setPose(originalPose, true);", mixamo)
+        self.assertIn("viewer.history = originalHistory", mixamo)
+        self.assertIn("viewer.future = originalFuture", mixamo)
+
+    def test_mixamo_loader_is_bundled(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_mixamo_import.js"), "r", encoding="utf-8") as handle:
+            mixamo = handle.read()
+
+        self.assertIn('import * as THREE from "./three.module.js";', mixamo)
+        self.assertIn('from "./vendor/three-r160/loaders/FBXLoader.js";', mixamo)
+        self.assertNotIn("https://esm.sh", mixamo)
+        self.assertNotIn("__jakkannaMixamoDebug", mixamo)
+
+        vendor_root = os.path.join(ROOT, "web", "vendor", "three-r160")
+        for filename in (
+            os.path.join("loaders", "FBXLoader.js"),
+            os.path.join("curves", "NURBSCurve.js"),
+            os.path.join("curves", "NURBSUtils.js"),
+            os.path.join("libs", "fflate.module.js"),
+        ):
+            self.assertTrue(os.path.isfile(os.path.join(vendor_root, filename)), filename)
+
+    def test_head_retarget_options_stay_in_their_own_method(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
+            core = handle.read()
+
+        import_start = core.index("_applyImportPelvisAndTorso(")
+        import_end = core.index("_buildWorldKeypointsFromSAM3D(", import_start)
+        import_method = core[import_start:import_end]
+        self.assertIn("const includeHead = options.includeHead !== false;", import_method)
+        self.assertIn("if (includeHead)", import_method)
+
+        hmr_start = core.index("fitMannequinToHMR2(")
+        hmr_end = core.index("setMannequinVisible(", hmr_start)
+        self.assertNotIn("includeHead", core[hmr_start:hmr_end])
+
+    def test_pose_studio_tracks_imported_animation_contract(self):
+        with open(os.path.join(ROOT, "web", "jakkanna_pose_studio.js"), "r", encoding="utf-8") as handle:
+            studio = handle.read()
+
+        self.assertIn("animation_frames: 81", studio)
+        self.assertIn("animation_fps: 16", studio)
+        self.assertIn('animation_timing: "REALTIME"', studio)
+        self.assertIn("frameCount: this.exportParams.animation_frames", studio)
+        self.assertIn('input.placeholder = "Auto"', studio)
+        self.assertIn("loadedExport.animation_frames = null", studio)
+        self.assertIn("fps: this.exportParams.animation_fps", studio)
+        self.assertIn("animation: this.animationMetadata", studio)
+        self.assertIn("this.reconcileAnimationMetadata();", studio)
+        self.assertIn("this.invalidateAnimationMetadata();", studio)
+        self.assertIn("if (!this.animationMetadata)", studio)
 
     def test_frontend_openpose_uses_face_landmarks(self):
         with open(os.path.join(ROOT, "web", "jakkanna_pose_studio_core.js"), "r", encoding="utf-8") as handle:
