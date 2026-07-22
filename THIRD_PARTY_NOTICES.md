@@ -53,6 +53,21 @@ and SPDX notices.
 Arjun Barrett, licensed under MIT. Its source header retains the upstream
 license notice.
 
+`web/vendor/ag-psd.bundle.mjs` and `web/vendor/ag-psd.real.mjs` bundle
+ag-psd 28.2.2, Copyright Agamnentzar, licensed under MIT. The bundled browser
+Buffer implementation under `web/vendor/node/` retains its MIT and BSD
+license notices in the source.
+
+## SCAIL-2 Flow-UniPC
+
+`nodes/scail2_flow_unipc.py` is copied from the Flow-UniPC implementation in
+`zai-org/SCAIL-2` commit `5cfe1b8daac8bcb22ee19794e6c04f1bf5de6ac5`, which
+is released under Apache License 2.0. That implementation is derived from the
+Diffusers 0.31.0 UniPC scheduler and the Alibaba Wan Team flow-matching
+conversion identified in its source header. Diffusers is Copyright 2024 The
+Hugging Face Team and licensed under Apache License 2.0. The complete Apache
+License 2.0 text is retained at `jakkanna_sam3d/licenses/LICENSE-MHR`.
+
 ## Python Dependencies
 
 Dependencies listed in `pyproject.toml` and `requirements.txt` are distributed

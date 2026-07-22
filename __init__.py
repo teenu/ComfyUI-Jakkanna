@@ -3,6 +3,15 @@ from .nodes.qwen_detailer import JakkannaQwenDetailer, JakkannaBBoxExtractor
 from .nodes.model_manager import JakkannaModelManager, JakkannaModelSelector
 from .nodes.pose_studio import JakkannaPoseStudio, JakkannaPromptFromList
 from .nodes.openpose_export import JakkannaPoseStudioOpenPose, JakkannaReplaceOpenPoseHands
+from .nodes.scail2_production import (
+    JakkannaSCAIL2FlowUniPC,
+    JakkannaSCAIL2ProductionInputValidate,
+    JakkannaSCAIL2ProductionManifest,
+    JakkannaSCAIL2ReferencePNG16Save,
+    JakkannaSCAIL2SingleSubjectMask,
+    JakkannaSCAIL2TrackValidate,
+    JakkannaSCAIL2UpstreamNoise,
+)
 from .nodes.unicanvas import JakkannaCanvas, register_unicanvas_routes
 
 
@@ -19,6 +28,13 @@ NODE_CLASS_MAPPINGS = {
     "VNCCS_ModelSelector": JakkannaModelSelector,
     "VNCCS_PoseStudio": JakkannaPoseStudio,
     "JakkannaPromptFromList": JakkannaPromptFromList,
+    "JakkannaSCAIL2FlowUniPC": JakkannaSCAIL2FlowUniPC,
+    "JakkannaSCAIL2ProductionInputValidate": JakkannaSCAIL2ProductionInputValidate,
+    "JakkannaSCAIL2ProductionManifest": JakkannaSCAIL2ProductionManifest,
+    "JakkannaSCAIL2ReferencePNG16Save": JakkannaSCAIL2ReferencePNG16Save,
+    "JakkannaSCAIL2SingleSubjectMask": JakkannaSCAIL2SingleSubjectMask,
+    "JakkannaSCAIL2TrackValidate": JakkannaSCAIL2TrackValidate,
+    "JakkannaSCAIL2UpstreamNoise": JakkannaSCAIL2UpstreamNoise,
     "VNCCS_PoseStudioOpenPose": JakkannaPoseStudioOpenPose,
     "VNCCSReplaceOpenPoseHands": JakkannaReplaceOpenPoseHandsLegacy,
     "VNCCS_ReplaceOpenPoseHands": JakkannaReplaceOpenPoseHands,
@@ -34,6 +50,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VNCCS_ModelSelector": "Jakkanna Model Selector",
     "VNCCS_PoseStudio": "Jakkanna Pose Studio",
     "JakkannaPromptFromList": "Jakkanna Prompt From List",
+    "JakkannaSCAIL2FlowUniPC": "Jakkanna SCAIL-2 Flow-UniPC",
+    "JakkannaSCAIL2ProductionInputValidate": "Jakkanna SCAIL-2 Validate Input",
+    "JakkannaSCAIL2ProductionManifest": "Jakkanna SCAIL-2 Save Manifest",
+    "JakkannaSCAIL2ReferencePNG16Save": "Jakkanna SCAIL-2 Save 16-bit Reference",
+    "JakkannaSCAIL2SingleSubjectMask": "Jakkanna SCAIL-2 Validate Subject Mask",
+    "JakkannaSCAIL2TrackValidate": "Jakkanna SCAIL-2 Validate Track",
+    "JakkannaSCAIL2UpstreamNoise": "Jakkanna SCAIL-2 Upstream Noise",
     "VNCCS_PoseStudioOpenPose": "Jakkanna Pose Studio + OpenPose",
     "VNCCSReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands (Legacy)",
     "VNCCS_ReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands",

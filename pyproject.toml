@@ -1,11 +1,13 @@
 [project]
 name = "jakkanna"
 description = "Visual control and creative tools for ComfyUI: 3D posing, OpenPose, canvas editing, detailing, and model workflows."
-version = "1.1.1"
+version = "1.2.0"
 license = {file = "THIRD_PARTY_NOTICES.md"}
 
 dependencies = [
     "opencv-python",
+    "av>=16.0.0",
+    "diffusers>=0.31.0,<0.40",
     "huggingface_hub",
     "aiohttp",
     "kornia",
@@ -22,6 +24,7 @@ dependencies = [
     "timm",
     "einops",
     "roma",
+    "trimesh",
 ]
 
 classifiers = [
@@ -48,6 +51,13 @@ NodeIds = [
     "VNCCS_ModelSelector",
     "VNCCS_PoseStudio",
     "JakkannaPromptFromList",
+    "JakkannaSCAIL2FlowUniPC",
+    "JakkannaSCAIL2ProductionInputValidate",
+    "JakkannaSCAIL2ProductionManifest",
+    "JakkannaSCAIL2ReferencePNG16Save",
+    "JakkannaSCAIL2SingleSubjectMask",
+    "JakkannaSCAIL2TrackValidate",
+    "JakkannaSCAIL2UpstreamNoise",
     "VNCCS_PoseStudioOpenPose",
     "VNCCSReplaceOpenPoseHands",
     "VNCCS_ReplaceOpenPoseHands",

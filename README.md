@@ -129,6 +129,50 @@ Describe the pose explicitly in the prompt for the strongest adherence.
 This remains VAE image-to-image conditioning rather than ControlNet: at
 denoise `0.60`, Krea 2 can still reinterpret a pose that is not described.
 
+## FBX Animation and SCAIL-2
+
+Pose Studio imports animated Mixamo-compatible FBX files directly in the
+browser and samples them into deterministic pose sequences. The importer uses
+the FBX skeleton and animation; an FBX skinned mesh, materials, and textures
+are not applied to the Jakkanna mannequin.
+
+The animation controls default to 81 frames at 16 fps:
+
+* **FIT_CLIP** samples the complete clip once across all requested frames. It
+  is the safest choice for ordinary short Mixamo clips and changes playback
+  speed without repeating the motion.
+* **REALTIME** samples at exact `1 / fps` intervals from the selected start
+  time. An 81-frame sequence at 16 fps requires source animation through
+  5.000 seconds; shorter clips fail instead of being stretched silently.
+
+The bundled [Fast](workflows/Jakkanna%20Krea%202%20SCAIL%202%20Animate%20Fast.json)
+and [Production](workflows/Jakkanna%20Krea%202%20SCAIL%202%20Animate%20Production.json)
+workflows use one Pose Studio node for the prompt, Krea 2 reference frame, and
+complete 81-frame motion driver. Fast uses the six-step Lightx2v/Euler/simple
+topology; Production uses the 40-step Flow-UniPC topology. Both validate the
+input video and SAM 3.1 track and write a reproducibility manifest. The
+lossless FFV1 master requires ComfyUI-VideoHelperSuite 1.7.9 or newer. Model
+loaders identify the required Krea 2, SCAIL-2, SAM 3.1, text-encoder,
+CLIP-Vision, VAE, and LoRA artifacts; Jakkanna does not download those files
+when the workflow opens.
+
+### Posed Mesh Export
+
+`tools/export_posed_mesh.py` exports a saved Pose Studio workflow or raw
+`pose_data` JSON as OBJ or metre-scaled GLB. It can also write posed joint
+coordinates for downstream tools:
+
+```bash
+python tools/export_posed_mesh.py workflow.json \
+  --output mannequin.glb \
+  --joints mannequin-joints.json \
+  --apply-model-rotation
+```
+
+Use `--all` to export every pose and `--triangulate` when the downstream tool
+requires triangles. GLB export uses the `trimesh` dependency installed with
+Jakkanna.
+
 ## Jakkanna Pose Studio
 
 <p align="center">

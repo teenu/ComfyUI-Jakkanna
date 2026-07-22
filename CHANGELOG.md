@@ -1,3 +1,22 @@
+# Version 1.2.0
+## FBX Animation and SCAIL-2 Production Workflows
+
+*   Added deterministic `FIT_CLIP` and exact-time `REALTIME` FBX animation
+    sampling with file hashes, clip timing, and skeleton-profile provenance.
+*   Fixed Mixamo-prefixed skeleton discovery, head rotation, endpoint
+    sampling, viewer-state restoration, and invalid-frame failure handling.
+*   Bundled the pinned Three.js r160 FBX loader and dependencies so animation
+    import no longer executes code from a runtime CDN.
+*   Removed UniCanvas's remaining PSD-export CDN fallback; browser-side
+    dependencies now load only from the installed package.
+*   Added canonical Krea 2 + SCAIL-2 Fast and Production workflows with 81
+    frames at 16 fps, validation nodes, reproducibility manifests, and
+    Registry dependency metadata.
+*   Added posed OBJ/GLB mannequin export with UV seams, metre-correct GLB
+    coordinates, optional model-rotation baking, and posed joint metadata.
+*   Added regression coverage for animation provenance, release workflows,
+    capture validation, and mesh-export transforms.
+
 # Version 1.1.1
 ## Compatibility and Release Consistency
 

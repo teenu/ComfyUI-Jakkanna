@@ -1,4 +1,6 @@
 opencv-python
+av>=16.0.0
+diffusers>=0.31.0,<0.40
 huggingface_hub
 aiohttp
 kornia
@@ -15,3 +17,4 @@ yacs
 timm
 einops
 roma
+trimesh
