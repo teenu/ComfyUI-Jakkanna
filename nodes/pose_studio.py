@@ -82,6 +82,7 @@ def _validate_pose_data(data):
     for name in (
         "view_width", "view_height", "view_size", "cam_zoom", "cam_offset_x",
         "cam_offset_y", "cam_yaw_deg", "cam_pitch_deg", "grid_columns", "animation_frames",
+        "animation_fps", "animation_start_seconds",
     ):
         if name in export:
             _finite_number(export[name], f"export.{name}")
@@ -94,6 +95,12 @@ def _validate_pose_data(data):
     if "animation_frames" in export:
         if export["animation_frames"] != int(export["animation_frames"]) or not 1 <= export["animation_frames"] <= _CAPTURED_IMAGE_MAX_COUNT:
             raise ValueError(f"export.animation_frames must be an integer between 1 and {_CAPTURED_IMAGE_MAX_COUNT}")
+    if "animation_fps" in export and not 1 <= export["animation_fps"] <= 120:
+        raise ValueError("export.animation_fps must be between 1 and 120")
+    if "animation_start_seconds" in export and not 0 <= export["animation_start_seconds"] <= 86400:
+        raise ValueError("export.animation_start_seconds must be between 0 and 86400")
+    if export.get("animation_timing", "FIT_CLIP") not in ("REALTIME", "FIT_CLIP"):
+        raise ValueError("export.animation_timing must be REALTIME or FIT_CLIP")
     output_mode = export.get("output_mode", "LIST")
     if output_mode not in ("LIST", "GRID"):
         raise ValueError("export.output_mode must be LIST or GRID")
@@ -193,12 +200,15 @@ def _validate_pose_data(data):
     if animation is not None:
         if not isinstance(animation, dict):
             raise ValueError("animation must be an object")
-        for name in ("file_name", "file_sha256", "clip_name", "skeleton_profile"):
+        for name in ("file_name", "file_sha256", "clip_name", "skeleton_profile", "timing_mode"):
             value = animation.get(name)
             if value is not None and (not isinstance(value, str) or len(value) > 512):
                 raise ValueError(f"animation.{name} must be a string of at most 512 characters")
         if "duration_seconds" in animation and _finite_number(animation["duration_seconds"], "animation.duration_seconds") < 0:
             raise ValueError("animation.duration_seconds must be non-negative")
+        for name in ("source_start_seconds", "sample_interval_seconds"):
+            if name in animation and _finite_number(animation[name], f"animation.{name}") < 0:
+                raise ValueError(f"animation.{name} must be non-negative")
         sampled_frames = animation.get("sampled_frames")
         if sampled_frames is not None:
             _finite_number(sampled_frames, "animation.sampled_frames")
@@ -566,11 +576,38 @@ class JakkannaPoseStudio:
         return grid
 
 
+class JakkannaPromptFromList:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompts": ("STRING", {"forceInput": True}),
+                "index": ("INT", {"default": 0, "min": 0, "max": _CAPTURED_IMAGE_MAX_COUNT - 1}),
+            }
+        }
+
+    INPUT_IS_LIST = True
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "select"
+    CATEGORY = "Jakkanna/pose"
+
+    def select(self, prompts, index):
+        if not prompts:
+            raise ValueError("prompts must contain at least one entry")
+        selected_index = int(index[0]) if isinstance(index, list) else int(index)
+        if selected_index >= len(prompts):
+            raise ValueError(f"prompt index {selected_index} is outside the {len(prompts)}-entry list")
+        return (str(prompts[selected_index]),)
+
+
 # Node mappings
 NODE_CLASS_MAPPINGS = {
-    "VNCCS_PoseStudio": JakkannaPoseStudio
+    "VNCCS_PoseStudio": JakkannaPoseStudio,
+    "JakkannaPromptFromList": JakkannaPromptFromList,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "VNCCS_PoseStudio": "Jakkanna Pose Studio"
+    "VNCCS_PoseStudio": "Jakkanna Pose Studio",
+    "JakkannaPromptFromList": "Jakkanna Prompt From List",
 }

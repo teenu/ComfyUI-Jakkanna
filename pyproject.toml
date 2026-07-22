@@ -47,6 +47,7 @@ NodeIds = [
     "VNCCS_ModelManager",
     "VNCCS_ModelSelector",
     "VNCCS_PoseStudio",
+    "JakkannaPromptFromList",
     "VNCCS_PoseStudioOpenPose",
     "VNCCSReplaceOpenPoseHands",
     "VNCCS_ReplaceOpenPoseHands",

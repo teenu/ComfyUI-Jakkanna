@@ -2751,6 +2751,9 @@ class PoseStudioWidget {
             output_mode: "LIST",
             grid_columns: 2,
             animation_frames: 81,
+            animation_fps: 16,
+            animation_start_seconds: 0,
+            animation_timing: "REALTIME",
             bg_color: [255, 255, 255],
             debugMode: false,
             debugPortraitMode: false, // Focus on upper body in debug mode
@@ -3451,6 +3454,21 @@ class PoseStudioWidget {
             "Imported Animation Frames", "animation_frames", "number", 1, JAKKANNA_POSE_MAX_COUNT, 1
         );
         exportSection.content.appendChild(animationFramesField);
+
+        const animationFpsField = this.createInputField(
+            "Imported Animation FPS", "animation_fps", "number", 1, 120, 1
+        );
+        exportSection.content.appendChild(animationFpsField);
+
+        const animationStartField = this.createInputField(
+            "Animation Start (seconds)", "animation_start_seconds", "number", 0, 86400, 0.001
+        );
+        exportSection.content.appendChild(animationStartField);
+
+        const animationTimingField = this.createSelectField(
+            "Animation Timing", "animation_timing", ["REALTIME", "FIT_CLIP"]
+        );
+        exportSection.content.appendChild(animationTimingField);
 
         const colorField = this.createColorField("Background", "bg_color");
         exportSection.content.appendChild(colorField);
@@ -6302,11 +6320,12 @@ class PoseStudioWidget {
             (async () => {
                 try {
                     this.clearSAMCameraMode();
-                    this.resetCameraParams();
                     const result = await importMixamoFBXAsPoses(file, this.viewer, {
-                        fps: 12,
+                        fps: this.exportParams.animation_fps,
                         maxFrames: JAKKANNA_POSE_MAX_COUNT,
                         frameCount: this.exportParams.animation_frames,
+                        startTime: this.exportParams.animation_start_seconds,
+                        timingMode: this.exportParams.animation_timing,
                     });
 
                     if (result.poses.length > JAKKANNA_POSE_MAX_COUNT) {
@@ -9287,7 +9306,12 @@ class PoseStudioWidget {
             }
 
             if (data.export) {
-                this.exportParams = { ...this.exportParams, ...data.export };
+                const loadedExport = { ...data.export };
+                if (loadedExport.animation_timing === undefined) {
+                    loadedExport.animation_timing = "FIT_CLIP";
+                    if (loadedExport.animation_fps === undefined) loadedExport.animation_fps = 12;
+                }
+                this.exportParams = { ...this.exportParams, ...loadedExport };
 
                 // user_prompt in export is the legacy global prompt; per-tab prompts are in pose.prompt
                 // Update export widgets

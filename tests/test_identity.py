@@ -15,6 +15,7 @@ REGISTERED_NODE_MAPPINGS = {
     "VNCCS_ModelManager": "JakkannaModelManager",
     "VNCCS_ModelSelector": "JakkannaModelSelector",
     "VNCCS_PoseStudio": "JakkannaPoseStudio",
+    "JakkannaPromptFromList": "JakkannaPromptFromList",
     "VNCCS_PoseStudioOpenPose": "JakkannaPoseStudioOpenPose",
     "VNCCSReplaceOpenPoseHands": "JakkannaReplaceOpenPoseHandsLegacy",
     "VNCCS_ReplaceOpenPoseHands": "JakkannaReplaceOpenPoseHands",

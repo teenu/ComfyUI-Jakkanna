@@ -225,6 +225,30 @@ class PoseDataValidationTests(unittest.TestCase):
                 },
             })
 
+    def test_validates_realtime_animation_settings(self):
+        self.pose_studio._validate_pose_data({
+            "poses": [{}],
+            "export": {
+                "animation_frames": 81,
+                "animation_fps": 16,
+                "animation_start_seconds": 0,
+                "animation_timing": "REALTIME",
+            },
+        })
+
+        with self.assertRaisesRegex(ValueError, "REALTIME or FIT_CLIP"):
+            self.pose_studio._validate_pose_data({
+                "poses": [{}],
+                "export": {"animation_timing": "STRETCH"},
+            })
+
+    def test_prompt_from_list_selects_one_scalar_prompt(self):
+        node = self.pose_studio.JakkannaPromptFromList()
+        self.assertEqual(node.select(["appearance", "motion"], [1]), ("motion",))
+
+        with self.assertRaisesRegex(ValueError, "outside"):
+            node.select(["appearance"], [1])
+
     def test_complete_payload_does_not_request_frontend_sync(self):
         class NoSyncPoseStudio(self.pose_studio.JakkannaPoseStudio):
             def _discard_frontend_sync(self, unique_id):
@@ -442,6 +466,8 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("{ length: frameCount }", mixamo)
         self.assertNotIn("times.push(safeDuration)", mixamo)
         self.assertIn("options.frameCount", mixamo)
+        self.assertIn('timingMode === "REALTIME"', mixamo)
+        self.assertIn("safeStart + index / safeFps", mixamo)
         self.assertIn('file_sha256: await crypto.subtle.digest("SHA-256"', mixamo)
         self.assertIn("action.setLoop(THREE.LoopOnce, 0)", mixamo)
         self.assertIn("action.clampWhenFinished = true", mixamo)
@@ -451,7 +477,10 @@ class FrontendContractTests(unittest.TestCase):
             studio = handle.read()
 
         self.assertIn("animation_frames: 81", studio)
+        self.assertIn("animation_fps: 16", studio)
+        self.assertIn('animation_timing: "REALTIME"', studio)
         self.assertIn("frameCount: this.exportParams.animation_frames", studio)
+        self.assertIn("fps: this.exportParams.animation_fps", studio)
         self.assertIn("animation: this.animationMetadata", studio)
 
     def test_frontend_openpose_uses_face_landmarks(self):

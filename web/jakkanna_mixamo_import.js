@@ -604,20 +604,43 @@ function buildMixamoLegTargets(sourceBones, viewer) {
     };
 }
 
-function buildSampleTimes(duration, fps, maxFrames, exactFrames = null) {
+function buildSampleTimes(duration, fps, maxFrames, exactFrames = null, startTime = 0, timingMode = "FIT_CLIP") {
     const safeDuration = Math.max(0, Number(duration) || 0);
-    if (safeDuration <= 0) return [0];
+    if (!['REALTIME', 'FIT_CLIP'].includes(timingMode)) {
+        throw new Error(`Unsupported animation timing mode: ${timingMode}`);
+    }
+    if (safeDuration <= 0) {
+        if (Number(exactFrames) > 1) throw new Error('The imported animation clip has no usable duration.');
+        return [0];
+    }
 
     const safeFps = Math.max(1, Number(fps) || 12);
     const frameLimit = Math.max(1, Math.floor(Number(maxFrames) || 48));
+    const safeStart = Math.max(0, Number(startTime) || 0);
+    if (safeStart > safeDuration) {
+        throw new Error(`Animation start ${safeStart.toFixed(3)}s exceeds the ${safeDuration.toFixed(3)}s clip duration.`);
+    }
     const requestedFrames = Number.isFinite(Number(exactFrames))
         ? Math.max(1, Math.floor(Number(exactFrames)))
-        : Math.ceil(safeDuration * safeFps) + 1;
+        : Math.floor((safeDuration - safeStart) * safeFps + 1e-6) + 1;
     const frameCount = Math.min(frameLimit, requestedFrames);
-    if (frameCount === 1) return [0];
+    if (frameCount === 1) return [safeStart];
+
+    if (timingMode === "REALTIME") {
+        const lastTime = safeStart + (frameCount - 1) / safeFps;
+        if (lastTime > safeDuration + 1e-6) {
+            throw new Error(
+                `${frameCount} frames at ${safeFps} fps from ${safeStart.toFixed(3)}s require a clip through ${lastTime.toFixed(3)}s; ` +
+                `the imported clip ends at ${safeDuration.toFixed(3)}s. Choose a longer clip, fewer frames, or FIT_CLIP timing.`
+            );
+        }
+        return Array.from({ length: frameCount }, (_, index) => safeStart + index / safeFps);
+    }
+
+    const fittedDuration = safeDuration - safeStart;
     return Array.from(
         { length: frameCount },
-        (_, index) => index === frameCount - 1 ? safeDuration : safeDuration * index / (frameCount - 1)
+        (_, index) => index === frameCount - 1 ? safeDuration : safeStart + fittedDuration * index / (frameCount - 1)
     );
 }
 
@@ -659,6 +682,8 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
             options.fps ?? 12,
             options.maxFrames ?? 48,
             options.frameCount,
+            options.startTime,
+            options.timingMode,
         );
         const mixer = new THREE.AnimationMixer(root);
         const action = mixer.clipAction(clip);
@@ -814,6 +839,9 @@ export async function importMixamoFBXAsPoses(file, viewer, options = {}) {
                 duration_seconds: clip.duration,
                 sampled_frames: poses.length,
                 sample_times_seconds: sampleTimes,
+                source_start_seconds: sampleTimes[0],
+                sample_interval_seconds: sampleTimes.length > 1 ? sampleTimes[1] - sampleTimes[0] : 0,
+                timing_mode: options.timingMode || "FIT_CLIP",
                 skeleton_profile: hasMixamoSignature(sourceBones) ? "mixamo" : "generic_fbx",
             },
         };

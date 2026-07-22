@@ -1,7 +1,7 @@
 from .nodes.camera_control import JakkannaPositionControl, JakkannaVisualPositionControl
 from .nodes.qwen_detailer import JakkannaQwenDetailer, JakkannaBBoxExtractor
 from .nodes.model_manager import JakkannaModelManager, JakkannaModelSelector
-from .nodes.pose_studio import JakkannaPoseStudio
+from .nodes.pose_studio import JakkannaPoseStudio, JakkannaPromptFromList
 from .nodes.openpose_export import JakkannaPoseStudioOpenPose, JakkannaReplaceOpenPoseHands
 from .nodes.unicanvas import JakkannaCanvas, register_unicanvas_routes
 
@@ -18,6 +18,7 @@ NODE_CLASS_MAPPINGS = {
     "VNCCS_ModelManager": JakkannaModelManager,
     "VNCCS_ModelSelector": JakkannaModelSelector,
     "VNCCS_PoseStudio": JakkannaPoseStudio,
+    "JakkannaPromptFromList": JakkannaPromptFromList,
     "VNCCS_PoseStudioOpenPose": JakkannaPoseStudioOpenPose,
     "VNCCSReplaceOpenPoseHands": JakkannaReplaceOpenPoseHandsLegacy,
     "VNCCS_ReplaceOpenPoseHands": JakkannaReplaceOpenPoseHands,
@@ -32,6 +33,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VNCCS_ModelManager": "Jakkanna Model Manager",
     "VNCCS_ModelSelector": "Jakkanna Model Selector",
     "VNCCS_PoseStudio": "Jakkanna Pose Studio",
+    "JakkannaPromptFromList": "Jakkanna Prompt From List",
     "VNCCS_PoseStudioOpenPose": "Jakkanna Pose Studio + OpenPose",
     "VNCCSReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands (Legacy)",
     "VNCCS_ReplaceOpenPoseHands": "Jakkanna Replace OpenPose Hands",
